@@ -14,36 +14,31 @@ def show_help():
   python main.py [选项]
 
 选项:
-  --chat          启动主对话界面 (推荐)
-  --monitor       启动记忆系统监控
-  --agent-monitor 启动智能体监控  
-  --test          运行测试套件
-  --health        系统健康检查
+  --chat          启动交互界面
   --help          显示帮助信息
 
 示例:
-  python main.py --chat          # 启动主界面
-  python main.py --monitor       # 启动监控
-  python main.py --test          # 运行测试
+  python main.py             # 直接启动界面
+  python main.py --chat      # 启动交互界面
+  python ui.py               # 直接启动UI界面
     """)
 
 def main():
-    if len(sys.argv) == 1 or '--help' in sys.argv:
+    if len(sys.argv) == 1:
+        # 默认启动UI界面
+        os.system('python ui.py')
+        return
+    
+    if '--help' in sys.argv:
         show_help()
         return
     
     if '--chat' in sys.argv:
-        os.system('python fixed_brain_interface.py')
-    elif '--monitor' in sys.argv:
-        os.system('python memory_system_monitor.py') 
-    elif '--agent-monitor' in sys.argv:
-        os.system('python brain_agent_monitor.py')
-    elif '--test' in sys.argv:
-        os.system('python tests/test_buffer_integration.py')
-    elif '--health' in sys.argv:
-        os.system('python tools/project_health_check.py')
+        os.system('python ui.py')
     else:
         print("❌ 未知选项，使用 --help 查看帮助")
+        print("💡 提示: 直接运行 python main.py 启动界面")
+        print("💡 提示: 或者运行 python ui.py 直接启动界面")
 
 if __name__ == '__main__':
     main()
