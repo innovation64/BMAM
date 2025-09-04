@@ -1,107 +1,95 @@
-# MA-CMM Clean Version
+# 🧠 Brain-Inspired Multi-Agent Memory Framework
 
-Multi-Agent Collaborative Conditional Memory Management Framework - Optimized and Restructured
+基于人脑认知架构的12智能体协调系统，实现真实的语言模型推理和向量记忆存储。
 
-## Project Structure
+## ✨ 系统特色
+
+### 🎯 12智能体架构
+- **8个核心记忆处理智能体**: 短期记忆、长期记忆、记忆检索、记忆巩固、记忆失真、反思、遗忘、应激反应
+- **4个辅助功能智能体**: 对话、执行控制、感知编码、行动执行
+
+### 🚀 核心功能
+- **真实LLM推理**: 每个智能体都使用OpenAI API进行真实推理
+- **向量记忆存储**: 基于FAISS的高效语义搜索
+- **并行处理**: 多智能体并行协作处理复杂任务
+- **情绪感知**: 情绪标记和应激反应处理
+- **记忆巩固**: 模拟人脑记忆巩固过程
+- **实时监控**: 完整的系统状态可视化
+
+## 📁 项目结构
 
 ```
-MA-CMM-Clean/ (1.2MB - Highly Optimized)
-├── src/                    # Core source code (784KB)
-│   ├── agents/            # Multi-agent implementations
-│   ├── memory/            # Hierarchical memory management
-│   ├── algorithms/        # Core algorithms
-│   ├── utils/             # Utility functions
-│   ├── core/              # Framework core (including improved ma_cmm_framework.py)
-│   └── optimized_answer_extraction_v8.py
-├── experiments/           # Evaluation scripts (140KB)
-│   ├── v8_complete_locomo_evaluation.py
-│   ├── ablation_study.py
-│   ├── sota_comparison.py
-│   ├── optimized_test.py  # Final optimized test from revisions
-│   └── locomo_main_experiment.py  # Main experiment runner
-├── config/                # Configuration files
-├── data/                  # Minimal sample data
-├── scripts/               # Setup and run scripts
-├── main.py               # Unified entry point
-├── run_main_evaluation.py # Direct evaluation
-├── gradio_demo.py        # Interactive demo
-└── requirements.txt      # Dependencies
+Brain-Inspired-Design/
+├── src/                   # 核心源代码
+│   ├── agents/           # 智能体实现
+│   │   ├── core/        # 8个核心记忆处理智能体
+│   │   ├── auxiliary/   # 4个辅助功能智能体
+│   │   └── adapters/    # 智能体适配器
+│   ├── coordination/     # 智能体协调系统
+│   ├── memory/          # 记忆系统
+│   ├── services/        # OpenAI服务封装
+│   └── monitoring/      # 性能监控
+├── ui.py               # 主要交互界面
+├── main.py             # 程序入口点
+└── requirements.txt    # 依赖文件
 ```
 
-## Quick Start
+## 🛠️ 快速开始
 
-### 1. Setup Environment
+### 1. 环境设置
 
 ```bash
-# Create virtual environment
+# 创建虚拟环境
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+source venv/bin/activate  # Windows: venv\Scripts\activate
 
-# Install dependencies
+# 安装依赖
 pip install -r requirements.txt
 
-# Set up API keys
+# 设置API密钥
 export OPENAI_API_KEY="your-api-key-here"
 ```
 
-### 2. Run Evaluation
+### 2. 运行系统
 
 ```bash
-# Run main evaluation
-python run_main_evaluation.py
+# 启动交互界面
+python ui.py
 
-# Run interactive demo
-python gradio_demo.py
+# 或运行主程序
+python main.py
 ```
 
-### 3. Run Experiments
+## 🎮 使用方法
 
-```bash
-# Run ablation study
-python experiments/ablation_study.py
+### 基本对话
+- 启动 `ui.py` 进入交互界面
+- 输入任意问题或话题
+- 系统将调用12个智能体协作处理
 
-# Run baseline comparison
-python experiments/sota_comparison.py
+### 高级功能
+- **记忆查询**: 查看和搜索历史对话记忆
+- **情绪分析**: 实时显示对话情绪状态
+- **智能体监控**: 观察各智能体的工作状态
+- **记忆巩固**: 手动触发重要记忆的巩固过程
 
-# Run complete LOCOMO evaluation
-python experiments/v8_complete_locomo_evaluation.py
-```
+## 🏗️ 核心架构
 
-## Key Components
+### 记忆智能体
+- **短期记忆** (Short-term Memory): 处理即时信息
+- **长期记忆** (Long-term Memory): 存储持久化记忆
+- **记忆检索** (Memory Retrieval): 智能搜索相关记忆
+- **记忆巩固** (Consolidation): 重要记忆的强化存储
+- **记忆失真** (Memory Distortion): 模拟记忆变化过程
+- **反思** (Reflection): 元认知和自我评估
+- **遗忘** (Forgetting): 自然的记忆衰减
+- **应激反应** (Stress Response): 情绪和压力处理
 
-### Core Framework
-- `src/core/advanced_ma_cmm.py` - Advanced multi-agent framework
-- `src/core/dma_cmm_system.py` - Distributed memory management
-- `src/optimized_answer_extraction_v8.py` - V8 optimized implementation
-
-### Agents
-- Condition Extractor - Extracts conditional statements
-- Memory Manager - Manages hierarchical memory
-- Retriever - Multi-path retrieval system
-- Generator - Response generation
-- Conflict Resolver - Handles contradictions
-
-### Memory Architecture
-- Working Memory (20 items)
-- Short-term Memory (100 items)
-- Long-term Memory (1000 items)
-- Episodic Memory (500 items)
-
-## Configuration
-
-Edit `config/config.yaml` to customize:
-- API settings
-- Model parameters
-- Memory capacities
-- Retrieval thresholds
-
-## Notes
-
-This is a cleaned version of the MA-CMM project with:
-- Only essential files preserved
-- Removed duplicate and temporary files
-- Organized structure for better maintainability
-- Preserved experiment_revise from .trees directory
+### 辅助智能体
+- **对话** (Conversation): 自然语言交互
+- **执行控制** (Executive Control): 任务调度和控制
+- **感知编码** (Perception Encoding): 输入信息处理
+- **行动执行** (Action Execution): 输出行为执行
 
 ## License
 
