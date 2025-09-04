@@ -1,4 +1,3 @@
-from .condition_memory import ConditionalMemory
-from .storage import MemoryStorage
+from .memory_system import AdvancedMemorySystem, memory_system
 
-__all__ = ['ConditionalMemory', 'MemoryStorage']
+__all__ = ['AdvancedMemorySystem', 'memory_system']
