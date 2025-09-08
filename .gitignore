@@ -65,10 +65,3 @@ temp/
 *.pth
 *.h5
 checkpoints/
-
-# Data files
-data/*.db
-data/*.index
-data/*_mappings.pkl
-data/embedding_cache/
-exports/

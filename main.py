@@ -4,7 +4,7 @@
 """
 
 import sys
-import subprocess
+import os
 
 def show_help():
     print("""
@@ -26,7 +26,7 @@ def show_help():
 def main():
     if len(sys.argv) == 1:
         # 默认启动UI界面
-        subprocess.run([sys.executable, 'ui.py'])
+        os.system('python ui.py')
         return
     
     if '--help' in sys.argv:
@@ -34,7 +34,7 @@ def main():
         return
     
     if '--chat' in sys.argv:
-        subprocess.run([sys.executable, 'ui.py'])
+        os.system('python ui.py')
     else:
         print("❌ 未知选项，使用 --help 查看帮助")
         print("💡 提示: 直接运行 python main.py 启动界面")
