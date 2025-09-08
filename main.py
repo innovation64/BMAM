@@ -4,7 +4,8 @@
 """
 
 import sys
-import os
+import subprocess
+from pathlib import Path
 
 def show_help():
     print("""
@@ -26,7 +27,8 @@ def show_help():
 def main():
     if len(sys.argv) == 1:
         # 默认启动UI界面
-        os.system('python ui.py')
+        ui_path = Path(__file__).parent / 'ui.py'
+        subprocess.run([sys.executable, str(ui_path)], check=False)
         return
     
     if '--help' in sys.argv:
@@ -34,7 +36,8 @@ def main():
         return
     
     if '--chat' in sys.argv:
-        os.system('python ui.py')
+        ui_path = Path(__file__).parent / 'ui.py'
+        subprocess.run([sys.executable, str(ui_path)], check=False)
     else:
         print("❌ 未知选项，使用 --help 查看帮助")
         print("💡 提示: 直接运行 python main.py 启动界面")

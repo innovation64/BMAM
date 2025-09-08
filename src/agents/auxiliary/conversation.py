@@ -771,25 +771,65 @@ class ConversationAgent(BrainAgent):
         return any(keyword in text_lower for keyword in reference_keywords)
     
     async def _generate_base_response_with_memory(self, context: Dict[str, Any], style: Dict[str, Any]) -> str:
-        """使用记忆生成响应 - 简化版本"""
+        """使用记忆生成响应 - 改进版本"""
         user_input = context.get('user_input', '')
         memories = context.get('memories', [])
+        reference_detected = context.get('reference_detected', False)
         
-        # 构建简单的记忆上下文
+        # 构建详细的记忆上下文
         memory_context = ""
         if memories:
-            memory_context = "\n相关记忆：\n"
-            for mem in memories[:3]:  # 只使用前3条最相关的记忆
+            memory_context = "\n已检索到的相关记忆信息：\n"
+            for i, mem in enumerate(memories[:5], 1):  # 使用前5条最相关的记忆
                 content = mem.get('content', '')
-                memory_context += f"- {content[:80]}...\n"
+                importance = mem.get('importance', 0)
+                memory_context += f"{i}. {content}\n"
+                if importance > 0.7:
+                    memory_context += f"   (重要度：高)\n"
         
-        # 使用简单统一的prompt
-        prompt = f"""基于记忆回复用户：
+        # 检测用户是否在询问之前的对话内容
+        is_recall_question = any(keyword in user_input.lower() for keyword in [
+            '刚才', '之前', '前面', '刚刚', '刚说', '我说', '我提到', '记得', '什么时候'
+        ])
+        
+        # 根据情况构建不同的prompt
+        if is_recall_question and memories:
+            # 用户在询问之前的内容，且有相关记忆
+            prompt = f"""你是一个拥有记忆功能的AI助手。用户正在询问之前提到的内容。
 
-用户：{user_input}
+用户询问：{user_input}
+
+根据记忆系统的检索结果：
 {memory_context}
 
-请自然地回复用户。"""
+请基于这些记忆信息准确回答用户的问题。如果记忆中包含了用户询问的信息，请直接引用。"""
+        
+        elif is_recall_question and not memories:
+            # 用户询问之前的内容，但没有找到相关记忆
+            prompt = f"""你是一个拥有记忆功能的AI助手。
+
+用户询问：{user_input}
+
+记忆系统没有找到与此相关的历史记录。请礼貌地告知用户，并询问是否需要重新提供相关信息。"""
+        
+        elif memories:
+            # 有相关记忆的普通对话
+            prompt = f"""你是一个拥有记忆功能的AI助手。请基于用户的输入和相关记忆信息进行回复。
+
+用户输入：{user_input}
+
+相关的历史记忆：
+{memory_context}
+
+请自然地回复用户，如果记忆中有相关信息，可以适当引用。"""
+        
+        else:
+            # 没有相关记忆的普通对话
+            prompt = f"""你是一个友好的AI助手。
+
+用户输入：{user_input}
+
+请自然、友好地回复用户。"""
         
         try:
             # 调用LLM生成响应
@@ -797,9 +837,13 @@ class ConversationAgent(BrainAgent):
             return response
         except Exception as e:
             logger.error(f"LLM call failed: {e}")
-            # 简单的降级响应
-            if memories:
-                return f"根据记录：{memories[0].get('content', '')[:100]}"
+            # 改进的降级响应
+            if is_recall_question and memories:
+                # 直接从记忆中提取信息
+                memory_contents = [mem.get('content', '') for mem in memories[:3]]
+                return f"根据我的记录，{'；'.join(memory_contents)}"
+            elif is_recall_question and not memories:
+                return "抱歉，我没有找到你之前提到的相关信息。你能再说一次吗？"
             else:
                 return "抱歉，我暂时无法处理这个请求。"
     

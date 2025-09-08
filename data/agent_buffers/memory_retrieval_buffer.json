@@ -1,0 +1,221 @@
+{
+  "agent_id": "memory_retrieval",
+  "agent_name": "记忆检索智能体",
+  "brain_region": "hippocampus",
+  "created_at": "2025-09-08T14:54:13.636377",
+  "last_updated": "2025-09-08T15:43:21.374962",
+  "buffer_content": {
+    "recent_queries": [],
+    "retrieval_cache": {},
+    "search_patterns": [],
+    "index_mappings": {},
+    "recent_exchanges": [
+      {
+        "data_key": "retrieved_memories",
+        "data_hash": "a312e807",
+        "data_summary": "{'memories': [{'id': '353dfe1c-209b-4061-be8f-62abcf3cc9dd', 'content': '用户说：我刚才说我什么时候喝什么茶？\\n助手回复：抱歉，我没有找到你之前提到的关于喝茶的具体信息。你能再告诉我一下你什么时候喝什么茶吗？这样我可以更好地记住你的偏好。', 'memory_type': 'episodic', 'importance': ...",
+        "timestamp": "2025-09-08T14:58:59.992273",
+        "from_agent": "memory_retrieval",
+        "to_agent": "short_term_memory"
+      },
+      {
+        "data_key": "retrieved_memories",
+        "data_hash": "05da868f",
+        "data_summary": "{'memories': [{'id': '7e4919bc-37bb-475c-ac30-e1bc900bf95b', 'content': '用户说：我刚才说我什么时候喝什么茶？\\n助手回复：抱歉，我没有找到你之前提到的关于喝茶的具体信息。你能再告诉我一下你什么时候喝什么茶吗？这样我可以更好地记住你的偏好。', 'memory_type': 'episodic', 'importance': ...",
+        "timestamp": "2025-09-08T14:59:09.963232",
+        "from_agent": "memory_retrieval",
+        "to_agent": "short_term_memory"
+      },
+      {
+        "data_key": "retrieved_memories",
+        "data_hash": "f271531d",
+        "data_summary": "{'memories': [{'id': '7e4919bc-37bb-475c-ac30-e1bc900bf95b', 'content': '用户说：我刚才说我什么时候喝什么茶？\\n助手回复：抱歉，我没有找到你之前提到的关于喝茶的具体信息。你能再告诉我一下你什么时候喝什么茶吗？这样我可以更好地记住你的偏好。', 'memory_type': 'episodic', 'importance': ...",
+        "timestamp": "2025-09-08T14:59:17.919819",
+        "from_agent": "memory_retrieval",
+        "to_agent": "short_term_memory"
+      },
+      {
+        "data_key": "retrieved_memories",
+        "data_hash": "a76be8a0",
+        "data_summary": "{'memories': [{'id': '9f3a6896-2cf6-41f7-8ed0-3898e2f92544', 'content': '用户偏好：请记住我喜欢喝绿茶，每天下午3点左右。', 'memory_type': 'semantic', 'importance': 0.9, 'emotion_tags': ['positive', 'preference'], 'emotion_i...",
+        "timestamp": "2025-09-08T14:59:32.458206",
+        "from_agent": "memory_retrieval",
+        "to_agent": "short_term_memory"
+      },
+      {
+        "data_key": "retrieved_memories",
+        "data_hash": "148d0a32",
+        "data_summary": "{'memories': [{'id': 'e66b525d-0d45-476d-887e-ca85c9a4f007', 'content': '用户说：我刚才说我什么时候喝什么茶？\\n助手回复：抱歉，我没有找到你之前提到的关于喝茶的具体信息。你能再告诉我一下你什么时候喝什么茶吗？这样我可以更好地记住你的偏好。', 'memory_type': 'episodic', 'importance': ...",
+        "timestamp": "2025-09-08T15:23:28.818772",
+        "from_agent": "memory_retrieval",
+        "to_agent": "short_term_memory"
+      },
+      {
+        "data_key": "retrieved_memories",
+        "data_hash": "686a1e26",
+        "data_summary": "{'memories': [{'id': 'e66b525d-0d45-476d-887e-ca85c9a4f007', 'content': '用户说：我刚才说我什么时候喝什么茶？\\n助手回复：抱歉，我没有找到你之前提到的关于喝茶的具体信息。你能再告诉我一下你什么时候喝什么茶吗？这样我可以更好地记住你的偏好。', 'memory_type': 'episodic', 'importance': ...",
+        "timestamp": "2025-09-08T15:23:36.290314",
+        "from_agent": "memory_retrieval",
+        "to_agent": "short_term_memory"
+      },
+      {
+        "data_key": "retrieved_memories",
+        "data_hash": "143669a7",
+        "data_summary": "{'memories': [{'id': '815d660d-bea3-4566-93cc-f8f63244b93d', 'content': '用户偏好：请记住我喜欢喝绿茶，每天下午3点左右。', 'memory_type': 'semantic', 'importance': 0.9, 'emotion_tags': ['positive', 'preference'], 'emotion_i...",
+        "timestamp": "2025-09-08T15:24:03.122050",
+        "from_agent": "memory_retrieval",
+        "to_agent": "short_term_memory"
+      },
+      {
+        "data_key": "retrieved_memories",
+        "data_hash": "6c065000",
+        "data_summary": "{'memories': [{'id': 'e7f222c4-cb6f-4aae-aeb1-5c04fa3f331e', 'content': '用户说：我刚才说我什么时候喝什么茶？\\n助手回复：抱歉，我没有找到你之前提到的关于喝茶的具体信息。你能再告诉我一下你什么时候喝什么茶吗？这样我可以更好地记住你的偏好。', 'memory_type': 'episodic', 'importance': ...",
+        "timestamp": "2025-09-08T15:43:07.447768",
+        "from_agent": "memory_retrieval",
+        "to_agent": "short_term_memory"
+      },
+      {
+        "data_key": "retrieved_memories",
+        "data_hash": "a1faee39",
+        "data_summary": "{'memories': [{'id': 'cab08e66-dbb7-4142-ae65-b4967647e53e', 'content': '用户偏好：请记住我喜欢喝绿茶，每天下午3点左右。', 'memory_type': 'semantic', 'importance': 0.9, 'emotion_tags': ['positive', 'preference'], 'emotion_i...",
+        "timestamp": "2025-09-08T15:43:21.374831",
+        "from_agent": "memory_retrieval",
+        "to_agent": "short_term_memory"
+      }
+    ],
+    "recent_inputs": {
+      "message": {
+        "action": "semantic_search",
+        "query": "基于我的偏好，推荐一些适合下午的饮品。",
+        "k": 10
+      },
+      "timestamp": "2025-09-08T15:43:21.372607",
+      "sender": "coordinator"
+    },
+    "recent_outputs": {
+      "result": {
+        "memories": [
+          {
+            "id": "cab08e66-dbb7-4142-ae65-b4967647e53e",
+            "content": "用户偏好：请记住我喜欢喝绿茶，每天下午3点左右。",
+            "memory_type": "semantic",
+            "importance": 0.9,
+            "emotion_tags": [
+              "positive",
+              "preference"
+            ],
+            "emotion_intensity": 0.5,
+            "brain_region": "hippocampus",
+            "consolidation_level": 0,
+            "access_frequency": 1,
+            "decay_rate": 0.1,
+            "stress_marker": false,
+            "timestamp": "2025-09-08T15:43:00.995598",
+            "last_accessed": "2025-09-08T15:43:07.443990",
+            "last_consolidated": null,
+            "associations": [],
+            "source_reliability": 1.0,
+            "context_tags": [
+              "用户偏好",
+              "preference",
+              "personal_info"
+            ],
+            "metadata": {
+              "brain_region": "neocortex",
+              "consolidation_level": 1
+            },
+            "embedding": null,
+            "embedding_id": "12",
+            "similarity_score": 0.6254988312721252,
+            "search_type": "semantic"
+          },
+          {
+            "id": "f7aa5368-d934-42c3-ad7f-b0f115ee8e25",
+            "content": "用户说：请记住我喜欢喝绿茶，每天下午3点左右。\n助手回复：好的，我会记住你喜欢喝绿茶，每天下午3点左右。这样的话，到了那个时间我可以提醒你喝茶哦！如果你有其他的偏好或者想要分享的事情，随时告诉我！",
+            "memory_type": "episodic",
+            "importance": 0.5,
+            "emotion_tags": [
+              "positive"
+            ],
+            "emotion_intensity": 0.5,
+            "brain_region": "hippocampus",
+            "consolidation_level": 0,
+            "access_frequency": 0,
+            "decay_rate": 0.1,
+            "stress_marker": false,
+            "timestamp": "2025-09-08T15:43:01.613963",
+            "last_accessed": null,
+            "last_consolidated": null,
+            "associations": [],
+            "source_reliability": 1.0,
+            "context_tags": [
+              "memory_storage",
+              "完整对话"
+            ],
+            "metadata": {
+              "source": "conversation",
+              "user_input": "请记住我喜欢喝绿茶，每天下午3点左右。",
+              "assistant_response": "好的，我会记住你喜欢喝绿茶，每天下午3点左右。这样的话，到了那个时间我可以提醒你喝茶哦！如果你有其他的偏好或者想要分享的事情，随时告诉我！",
+              "memories_used": 0,
+              "threat_level": 0.0,
+              "processing_timestamp": "2025-09-08T15:43:01.613937"
+            },
+            "embedding": null,
+            "embedding_id": "13",
+            "similarity_score": 0.5165399312973022,
+            "search_type": "semantic"
+          },
+          {
+            "id": "ecf55f04-0622-4747-877f-bf69518b564a",
+            "content": "用户说：我刚才说我什么时候喝什么茶？\n助手回复：抱歉，我没有找到你之前提到的关于喝茶的具体信息。不过我记得你喜欢喝绿茶，每天下午3点左右。如果你有其他的喝茶习惯或者想法，欢迎告诉我！",
+            "memory_type": "episodic",
+            "importance": 0.5,
+            "emotion_tags": [
+              "neutral"
+            ],
+            "emotion_intensity": 0.5,
+            "brain_region": "hippocampus",
+            "consolidation_level": 0,
+            "access_frequency": 0,
+            "decay_rate": 0.1,
+            "stress_marker": false,
+            "timestamp": "2025-09-08T15:43:10.207415",
+            "last_accessed": null,
+            "last_consolidated": null,
+            "associations": [],
+            "source_reliability": 1.0,
+            "context_tags": [
+              "conversation",
+              "完整对话"
+            ],
+            "metadata": {
+              "source": "conversation",
+              "user_input": "我刚才说我什么时候喝什么茶？",
+              "assistant_response": "抱歉，我没有找到你之前提到的关于喝茶的具体信息。不过我记得你喜欢喝绿茶，每天下午3点左右。如果你有其他的喝茶习惯或者想法，欢迎告诉我！",
+              "memories_used": 2,
+              "threat_level": 0.0,
+              "processing_timestamp": "2025-09-08T15:43:10.207331"
+            },
+            "embedding": null,
+            "embedding_id": "14",
+            "similarity_score": 0.49004557728767395,
+            "search_type": "semantic"
+          }
+        ],
+        "query": "基于我的偏好，推荐一些适合下午的饮品。",
+        "count": 3,
+        "retrieval_method": "semantic"
+      },
+      "timestamp": "2025-09-08T15:43:21.373353",
+      "processing_success": true
+    }
+  },
+  "metadata": {
+    "total_operations": 35,
+    "last_operation": {
+      "type": "write",
+      "key": "recent_exchanges",
+      "timestamp": "2025-09-08T15:43:21.374964"
+    }
+  }
+}

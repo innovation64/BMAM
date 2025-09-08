@@ -5,14 +5,12 @@ Optimized Client Pool Manager
 
 import os
 import asyncio
-import logging
 from typing import Dict, Optional
 from openai import AsyncOpenAI
 import httpx
-from dotenv import load_dotenv
+from ..utils.config import get_logger, get_env
 
-load_dotenv()
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class OptimizedClientPool:
     """
@@ -53,7 +51,7 @@ class OptimizedClientPool:
                     )
                     
                     self._clients[agent_id] = AsyncOpenAI(
-                        api_key=os.getenv("OPENAI_API_KEY"),
+                        api_key=get_env("OPENAI_API_KEY"),
                         timeout=60.0,
                         max_retries=2,
                         http_client=http_client

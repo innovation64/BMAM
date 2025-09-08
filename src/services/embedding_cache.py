@@ -8,7 +8,6 @@ Provides caching for OpenAI embeddings to reduce API calls
 
 import hashlib
 import json
-import pickle
 import os
 from typing import Dict, List, Optional, Any, Tuple
 from datetime import datetime, timedelta
@@ -45,7 +44,7 @@ class EmbeddingCache:
         
         # Cache metadata
         self.cache_metadata_file = self.cache_dir / "cache_metadata.json"
-        self.cache_data_file = self.cache_dir / "cache_data.pkl"
+        self.cache_data_file = self.cache_dir / "cache_data.json"
         
         # Load existing cache
         self._load_cache()
@@ -70,13 +69,14 @@ class EmbeddingCache:
                     metadata = json.load(f)
                 
                 # Load embeddings
-                with open(self.cache_data_file, 'rb') as f:
-                    cache_data = pickle.load(f)
+                with open(self.cache_data_file, 'r') as f:
+                    cache_data = json.load(f)
                 
                 # Reconstruct memory cache with datetime objects
                 current_time = datetime.now()
-                for text_hash, (embedding, timestamp_str) in cache_data.items():
-                    timestamp = datetime.fromisoformat(timestamp_str)
+                for text_hash, entry in cache_data.items():
+                    embedding = np.array(entry['embedding'])
+                    timestamp = datetime.fromisoformat(entry['timestamp'])
                     
                     # Only load non-expired entries
                     if current_time - timestamp < self.ttl:
@@ -94,11 +94,14 @@ class EmbeddingCache:
             # Prepare data for serialization
             cache_data = {}
             for text_hash, (embedding, timestamp) in self.memory_cache.items():
-                cache_data[text_hash] = (embedding, timestamp.isoformat())
+                cache_data[text_hash] = {
+                    'embedding': embedding.tolist(),
+                    'timestamp': timestamp.isoformat()
+                }
             
             # Save embeddings
-            with open(self.cache_data_file, 'wb') as f:
-                pickle.dump(cache_data, f)
+            with open(self.cache_data_file, 'w') as f:
+                json.dump(cache_data, f, indent=2)
             
             # Save metadata
             metadata = {

@@ -23,18 +23,14 @@ import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
 
-# 添加项目根目录到Python路径
-project_root = Path(__file__).parent
-sys.path.insert(0, str(project_root))
-
 # 导入核心组件
 from src.coordination.brain_coordinator import coordinator
 from src.memory.memory_system import memory_system
 from src.coordination.agent_system import AgentMessage
 
 # 配置日志
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
+from src.utils.config import get_logger
+logger = get_logger(__name__)
 
 
 class BrainUIInterface:
@@ -758,12 +754,13 @@ def main():
         brain_ui.stop_monitoring()
         # 清理资源
         try:
-            from src.coordination.agent_system import cleanup_shared_client
+            from src.services.shared_openai_client import shared_client_manager
             import asyncio
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-            loop.run_until_complete(cleanup_shared_client())
+            loop.run_until_complete(shared_client_manager.close())
             loop.close()
+            logger.info("资源清理完成")
         except Exception as cleanup_error:
             logger.warning(f"清理资源时出错: {cleanup_error}")
 

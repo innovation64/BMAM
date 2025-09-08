@@ -11,11 +11,9 @@ from typing import Optional
 from openai import AsyncOpenAI
 import httpx
 import asyncio
-import logging
-from dotenv import load_dotenv
+from ..utils.config import get_logger, get_env
 
-load_dotenv()
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class SharedOpenAIClientManager:
     """共享的OpenAI客户端管理器 - 定期刷新连接池"""
@@ -66,7 +64,7 @@ class SharedOpenAIClientManager:
             )
             
             self._client = AsyncOpenAI(
-                api_key=os.getenv("OPENAI_API_KEY"),
+                api_key=get_env("OPENAI_API_KEY"),
                 timeout=60.0,
                 max_retries=2,
                 http_client=http_client
@@ -110,7 +108,7 @@ class SharedOpenAIClientManager:
         """获取embedding客户端"""
         if self._embedding_client is None:
             self._embedding_client = AsyncOpenAI(
-                api_key=os.getenv("OPENAI_API_KEY"),
+                api_key=get_env("OPENAI_API_KEY"),
                 timeout=45.0,
                 max_retries=2
             )

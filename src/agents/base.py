@@ -10,18 +10,12 @@ from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, field
 from datetime import datetime
 from abc import ABC, abstractmethod
-import logging
 import openai
-import os
-from dotenv import load_dotenv
+from ..utils.config import get_logger, get_env
 # 移除了shared_client_manager依赖，直接使用openai.AsyncOpenAI
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger(__name__)
-
-# Load environment variables
-load_dotenv()
+logger = get_logger(__name__)
 
 
 @dataclass
@@ -68,10 +62,10 @@ class BrainAgent(ABC):
         
         # OpenAI client - 每个智能体独立创建，简单可靠
         self.client = openai.AsyncOpenAI(
-            api_key=os.getenv("OPENAI_API_KEY"),
-            timeout=float(os.getenv("AGENT_TIMEOUT", "30.0"))
+            api_key=get_env("OPENAI_API_KEY"),
+            timeout=float(get_env("AGENT_TIMEOUT", "30.0"))
         )
-        self.model = os.getenv("DEFAULT_MODEL", "gpt-4o-mini")
+        self.model = get_env("DEFAULT_MODEL", "gpt-4o-mini")
         
         # Agent state
         self.is_active = True
@@ -107,8 +101,8 @@ class BrainAgent(ABC):
                 messages.append({"role": "user", "content": prompt})
                 
                 # Use provided parameters or fall back to environment defaults
-                actual_max_tokens = max_tokens if max_tokens is not None else int(os.getenv("MAX_TOKENS", "1500"))
-                actual_temperature = temperature if temperature is not None else float(os.getenv("TEMPERATURE", "0.7"))
+                actual_max_tokens = max_tokens if max_tokens is not None else int(get_env("MAX_TOKENS", "1500"))
+                actual_temperature = temperature if temperature is not None else float(get_env("TEMPERATURE", "0.7"))
                 
                 response = await self.client.chat.completions.create(
                     model=self.model,

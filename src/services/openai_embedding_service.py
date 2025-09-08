@@ -8,19 +8,15 @@ Provides embedding functionality using OpenAI's text-embedding-3-small API
 
 import os
 import asyncio
-import logging
 from typing import List, Dict, Any, Union
 import openai
 from openai import AsyncOpenAI
 import numpy as np
-from dotenv import load_dotenv
+from ..utils.config import get_logger, get_env
 from .embedding_cache import get_embedding_cache
 from .shared_openai_client import shared_client_manager
 
-# Load environment variables
-load_dotenv()
-
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 class OpenAIEmbeddingService:
     """OpenAI embedding service for text vectorization"""
@@ -28,9 +24,9 @@ class OpenAIEmbeddingService:
     def __init__(self, use_cache: bool = True):
         # 使用共享客户端管理器，避免多个实例创建重复连接
         self.client = shared_client_manager.get_embedding_client()
-        self.model = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
-        self.dimension = int(os.getenv("EMBEDDING_DIMENSION", "1536"))
-        self.max_length = int(os.getenv("EMBEDDING_MAX_LENGTH", "8191"))
+        self.model = get_env("EMBEDDING_MODEL", "text-embedding-3-small")
+        self.dimension = int(get_env("EMBEDDING_DIMENSION", "1536"))
+        self.max_length = int(get_env("EMBEDDING_MAX_LENGTH", "8191"))
         
         # Initialize cache
         self.use_cache = use_cache

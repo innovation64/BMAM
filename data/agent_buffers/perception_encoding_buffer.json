@@ -1,0 +1,51 @@
+{
+  "agent_id": "perception_encoding",
+  "agent_name": "感知编码智能体",
+  "brain_region": "sensory_cortex",
+  "created_at": "2025-09-08T14:54:13.637604",
+  "last_updated": "2025-09-08T15:43:20.136221",
+  "buffer_content": {
+    "encoded_inputs": [],
+    "feature_vectors": {},
+    "pattern_library": [],
+    "sensory_cache": {},
+    "recent_exchanges": [],
+    "recent_inputs": {
+      "message": {
+        "action": "encode_input",
+        "input_data": {
+          "content": "基于我的偏好，推荐一些适合下午的饮品。",
+          "type": "text",
+          "context": {}
+        }
+      },
+      "timestamp": "2025-09-08T15:43:20.135546",
+      "sender": "coordinator"
+    },
+    "recent_outputs": {
+      "result": {
+        "encoded_input": {
+          "content": "基于我的偏好，推荐一些适合下午的饮品。",
+          "features": {
+            "length": 19,
+            "word_count": 1,
+            "input_type": "text",
+            "complexity": "low"
+          },
+          "encoding_timestamp": "2025-09-08T15:43:20.135539"
+        },
+        "encoding_success": true
+      },
+      "timestamp": "2025-09-08T15:43:20.136144",
+      "processing_success": true
+    }
+  },
+  "metadata": {
+    "total_operations": 26,
+    "last_operation": {
+      "type": "write",
+      "key": "recent_outputs",
+      "timestamp": "2025-09-08T15:43:20.136224"
+    }
+  }
+}

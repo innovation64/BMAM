@@ -7,7 +7,6 @@ import os
 import json
 import uuid
 import asyncio
-import logging
 from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -15,16 +14,13 @@ from enum import Enum
 from abc import ABC, abstractmethod
 
 import openai
-from dotenv import load_dotenv
+from ..utils.config import get_logger, get_env
 
 from ..memory.memory_system import memory_system
 from ..agents.agent_buffer_system import agent_buffer_system
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-load_dotenv()
+logger = get_logger(__name__)
 
 # 全局并发控制 - 12个Agent限制2个并发请求（更保守）
 _global_semaphore = asyncio.Semaphore(2)
@@ -78,7 +74,7 @@ class BaseAgent(ABC):
         
         # 使用共享客户端
         self.client = get_shared_client()
-        self.model = os.getenv("DEFAULT_MODEL", "gpt-4o-mini")
+        self.model = get_env("DEFAULT_MODEL", "gpt-4o-mini")
         
         # Agent state
         self.is_active = True
@@ -125,8 +121,8 @@ class BaseAgent(ABC):
                 response = await self.client.chat.completions.create(
                     model=self.model,
                     messages=messages,
-                    max_tokens=int(os.getenv("MAX_TOKENS", "2000")),
-                    temperature=float(os.getenv("TEMPERATURE", "0.7"))
+                    max_tokens=int(get_env("MAX_TOKENS", "2000")),
+                    temperature=float(get_env("TEMPERATURE", "0.7"))
                 )
                 
                 result = response.choices[0].message.content.strip()
@@ -489,7 +485,7 @@ class ConsolidationAgent(BaseAgent):
             consolidation_factors['time_factor'] * 0.3
         )
         
-        should_consolidate = consolidation_score >= float(os.getenv("CONSOLIDATION_THRESHOLD", "0.7"))
+        should_consolidate = consolidation_score >= float(get_env("CONSOLIDATION_THRESHOLD", "0.7"))
         
         if should_consolidate:
             self.log_execution("Memory consolidated", {"score": consolidation_score}, "success")
@@ -733,7 +729,7 @@ class ForgettingAgent(BaseAgent):
         total_memories = stats['database'].get('total_memories', 0)
         
         # Simulate forgetting curve application
-        decay_rate = float(os.getenv("FORGETTING_CURVE_DECAY", "0.1"))
+        decay_rate = float(get_env("FORGETTING_CURVE_DECAY", "0.1"))
         affected_memories = max(1, int(total_memories * decay_rate))
         
         return {
@@ -749,7 +745,7 @@ class ForgettingAgent(BaseAgent):
         
         self.log_execution("Cleaning up memories", criteria)
         
-        cleanup_days = criteria.get('days_threshold', int(os.getenv("MEMORY_CLEANUP_DAYS", "30")))
+        cleanup_days = criteria.get('days_threshold', int(get_env("MEMORY_CLEANUP_DAYS", "30")))
         min_importance = criteria.get('min_importance', 0.2)
         
         cleaned_count = 0

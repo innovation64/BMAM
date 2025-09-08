@@ -1,0 +1,42 @@
+{
+  "agent_id": "stress_response",
+  "agent_name": "应激反应智能体",
+  "brain_region": "amygdala",
+  "created_at": "2025-09-08T14:54:13.637044",
+  "last_updated": "2025-09-08T15:43:21.374512",
+  "buffer_content": {
+    "emotional_states": [],
+    "threat_assessments": [],
+    "emotional_memories": [],
+    "arousal_levels": {},
+    "recent_exchanges": [],
+    "recent_inputs": {
+      "message": {
+        "action": "detect_threat",
+        "stimulus": {
+          "content": "基于我的偏好，推荐一些适合下午的饮品。"
+        }
+      },
+      "timestamp": "2025-09-08T15:43:21.374245",
+      "sender": "coordinator"
+    },
+    "recent_outputs": {
+      "result": {
+        "threat_detected": false,
+        "threat_level": 0.0,
+        "detected_threats": [],
+        "requires_attention": false
+      },
+      "timestamp": "2025-09-08T15:43:21.374458",
+      "processing_success": true
+    }
+  },
+  "metadata": {
+    "total_operations": 26,
+    "last_operation": {
+      "type": "write",
+      "key": "recent_outputs",
+      "timestamp": "2025-09-08T15:43:21.374514"
+    }
+  }
+}

@@ -5,13 +5,12 @@ Brain-Inspired 12-Agent Coordinator System
 
 import os
 import asyncio
-import logging
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 from datetime import datetime
 import json
 
-from dotenv import load_dotenv
+from ..utils.config import get_logger
 
 from .agent_system import (
     BaseAgent, AgentMessage, BrainRegion,
@@ -27,10 +26,7 @@ from ..memory.memory_system import memory_system
 from ..agents.agent_buffer_system import agent_buffer_system
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-load_dotenv()
+logger = get_logger(__name__)
 
 
 @dataclass
