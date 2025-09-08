@@ -1,0 +1,51 @@
+{
+  "agent_id": "executive_control",
+  "agent_name": "执行控制智能体",
+  "brain_region": "acc",
+  "created_at": "2025-09-04T16:49:31.059505",
+  "last_updated": "2025-09-08T14:10:25.384127",
+  "buffer_content": {
+    "task_queue": [],
+    "agent_routing": {},
+    "coordination_plans": [],
+    "resource_allocation": {},
+    "recent_exchanges": [],
+    "recent_inputs": {
+      "message": {
+        "action": "coordinate_agents",
+        "task_info": {
+          "user_input": "我感到很悲伤",
+          "type": "conversation",
+          "complexity": "low",
+          "context": {}
+        }
+      },
+      "timestamp": "2025-09-08T14:10:25.383690",
+      "sender": "coordinator"
+    },
+    "recent_outputs": {
+      "result": {
+        "coordination_plan": {
+          "primary_agents": [
+            "对话智能体"
+          ],
+          "secondary_agents": [
+            "记忆检索智能体"
+          ],
+          "execution_order": "sequential"
+        },
+        "estimated_duration": 1.0
+      },
+      "timestamp": "2025-09-08T14:10:25.384044",
+      "processing_success": true
+    }
+  },
+  "metadata": {
+    "total_operations": 36,
+    "last_operation": {
+      "type": "write",
+      "key": "recent_outputs",
+      "timestamp": "2025-09-08T14:10:25.384130"
+    }
+  }
+}

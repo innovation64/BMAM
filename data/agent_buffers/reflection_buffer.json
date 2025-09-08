@@ -1,0 +1,18 @@
+{
+  "agent_id": "reflection",
+  "agent_name": "反思智能体",
+  "brain_region": "default_mode",
+  "created_at": "2025-09-04T16:49:31.059120",
+  "last_updated": "2025-09-04T16:49:31.059121",
+  "buffer_content": {
+    "insights": [],
+    "patterns_discovered": [],
+    "meta_thoughts": [],
+    "connections_made": [],
+    "recent_exchanges": []
+  },
+  "metadata": {
+    "total_operations": 0,
+    "last_operation": null
+  }
+}

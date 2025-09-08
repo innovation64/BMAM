@@ -622,19 +622,12 @@ def create_brain_interface():
             performance_chart = gr.Plot(label="📈 系统性能监控")
         
         # 事件处理函数
-        def handle_conversation(message, history):
-            """处理对话的包装函数"""
+        async def handle_conversation(message, history):
+            """处理对话的异步函数"""
             if not message.strip():
                 return history, "", brain_ui._create_empty_chart(), brain_ui._get_system_status(), brain_ui._get_memory_info()
             
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            try:
-                return loop.run_until_complete(
-                    brain_ui.process_conversation(message, history)
-                )
-            finally:
-                loop.close()
+            return await brain_ui.process_conversation(message, history)
         
         def get_current_status():
             """获取当前状态"""
@@ -664,8 +657,17 @@ def create_brain_interface():
                     'conversations': brain_ui.conversation_history
                 }
                 
-                # 这里可以保存到文件或返回下载链接
-                return f"📁 对话已导出: {filename}\n包含 {len(brain_ui.conversation_history)} 轮对话"
+                # 保存到文件
+                import os
+                export_dir = "exports"
+                if not os.path.exists(export_dir):
+                    os.makedirs(export_dir)
+                
+                filepath = os.path.join(export_dir, filename)
+                with open(filepath, 'w', encoding='utf-8') as f:
+                    json.dump(export_data, f, ensure_ascii=False, indent=2, default=str)
+                
+                return f"📁 对话已导出: {filepath}\n包含 {len(brain_ui.conversation_history)} 轮对话"
             else:
                 return "📝 暂无对话记录可导出"
         

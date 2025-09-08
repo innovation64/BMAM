@@ -1,0 +1,60 @@
+{
+  "agent_id": "long_term_memory",
+  "agent_name": "长期记忆智能体",
+  "brain_region": "neocortex",
+  "created_at": "2025-09-04T16:49:31.058774",
+  "last_updated": "2025-09-04T16:57:18.116930",
+  "buffer_content": {
+    "semantic_memories": [],
+    "user_preferences": {},
+    "knowledge_base": {},
+    "associations": [],
+    "recent_exchanges": [
+      {
+        "data_key": "preference_data",
+        "data_hash": "7f26d055",
+        "data_summary": "{'memory_id': '082d547f-eeb7-470c-bd78-a7eab9f7b24f', 'preference_content': '请记住我喜欢喝绿茶，每天下午3点左右。', 'importance': 0.9}",
+        "timestamp": "2025-09-04T16:57:18.116859",
+        "from_agent": "long_term_memory",
+        "to_agent": "memory_consolidation"
+      }
+    ],
+    "recent_inputs": {
+      "message": {
+        "action": "store_long_term",
+        "memory": {
+          "content": "用户偏好：请记住我喜欢喝绿茶，每天下午3点左右。",
+          "importance": 0.9,
+          "context_tags": [
+            "用户偏好",
+            "preference",
+            "personal_info"
+          ],
+          "emotion_tags": [
+            "positive",
+            "preference"
+          ]
+        }
+      },
+      "timestamp": "2025-09-04T16:57:18.115902",
+      "sender": "coordinator"
+    },
+    "recent_outputs": {
+      "result": {
+        "success": true,
+        "memory_id": "082d547f-eeb7-470c-bd78-a7eab9f7b24f",
+        "consolidation_level": 1
+      },
+      "timestamp": "2025-09-04T16:57:18.116536",
+      "processing_success": true
+    }
+  },
+  "metadata": {
+    "total_operations": 3,
+    "last_operation": {
+      "type": "write",
+      "key": "recent_exchanges",
+      "timestamp": "2025-09-04T16:57:18.116933"
+    }
+  }
+}
