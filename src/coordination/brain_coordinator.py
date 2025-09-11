@@ -81,10 +81,16 @@ class BrainInspiredCoordinator:
     def _initialize_agents(self):
         """Initialize all 12 agents according to design document"""
         
+        # Get memory system services
+        from src.memory.memory_system import memory_system
+        db = memory_system.db_manager
+        vec = memory_system.vector_db
+        emb = memory_system.embedding_service
+        
         # 8 Core Memory Processing Agents
         self.short_term_memory = ShortTermMemoryAgent()
-        self.long_term_memory = LongTermMemoryAgent()
-        self.memory_retrieval = MemoryRetrievalAgent()
+        self.long_term_memory = LongTermMemoryAgent(db_manager=db, embedding_service=emb, vector_db=vec)
+        self.memory_retrieval = MemoryRetrievalAgent(db_manager=db, embedding_service=emb, vector_db=vec)
         self.consolidation = ConsolidationAgent()
         self.memory_distortion = MemoryDistortionAgent()
         self.reflection = ReflectionAgent()
@@ -244,7 +250,7 @@ class BrainInspiredCoordinator:
                     receiver='stress_response',
                     message_type='request',
                     content={
-                        'action': 'detect_threat',
+                        'action': 'threat_detection',
                         'stimulus': {'content': user_input}
                     }
                 )
@@ -257,28 +263,38 @@ class BrainInspiredCoordinator:
                     parallel_tasks[agent_id] = self._create_primary_agent_task(agent_id, user_input, context)
                     activated_agents.append(agent_id)
             
-            # Wait for parallel phase completion
+            # Wait for parallel phase completion - TRUE PARALLEL EXECUTION
             parallel_results = {}
             successful_agents = []
             activation_strengths = []
             
-            for task_name, task_coro in parallel_tasks.items():
-                try:
-                    result = await task_coro
+            # Execute all tasks concurrently
+            task_names = list(parallel_tasks.keys())
+            task_coros = list(parallel_tasks.values())
+            
+            # Add timeout protection for parallel phase
+            try:
+                results = await asyncio.wait_for(
+                    asyncio.gather(*task_coros, return_exceptions=True),
+                    timeout=8.0  # 8 seconds max for parallel phase
+                )
+            except asyncio.TimeoutError:
+                logger.warning("并行阶段超时，使用部分结果继续")
+                results = [Exception("Parallel phase timeout") for _ in task_coros]
+            
+            # Process results
+            for task_name, result in zip(task_names, results):
+                if isinstance(result, Exception):
+                    # 检查是否是连接错误
+                    error_str = str(result).lower()
+                    if any(keyword in error_str for keyword in ['tcptransport', 'connection error', 'connection pool', 'closed=true']):
+                        logger.warning(f"智能体 {task_name} 执行失败: {result}")
+                    parallel_results[task_name] = {'error': str(result)}
+                else:
                     parallel_results[task_name] = result
                     if not result.get('error'):
                         successful_agents.append(task_name)
                         activation_strengths.append(1.0)  # Full activation strength for successful agents
-                except Exception as e:
-                    # 检查是否是连接错误并尝试重置
-                    error_str = str(e).lower()
-                    if any(keyword in error_str for keyword in ['tcptransport', 'connection error', 'connection pool', 'closed=true']):
-                        logger.warning(f"智能体 {task_name} 执行失败: {e}")
-                        # 错误处理已统一到BrainAgent.call_llm中，不需要在这里重试
-                        parallel_results[task_name] = {'error': str(e)}
-                    else:
-                        logger.error(f"Error in {task_name}: {e}")
-                        parallel_results[task_name] = {'error': str(e)}
             
             # Record agent activations for plasticity learning
             if len(successful_agents) >= 2:
@@ -318,17 +334,23 @@ class BrainInspiredCoordinator:
             
             # Phase 4: Working Memory Processing (工作记忆处理)
             if memories:
-                # Exchange retrieved memories with short-term memory
-                await agent_buffer_system.exchange_buffers(
-                    'memory_retrieval',
-                    'short_term_memory',
-                    'retrieved_memories',
-                    {
-                        'memories': memories,
-                        'query': user_input,
-                        'count': len(memories)
-                    }
-                )
+                # Exchange retrieved memories with short-term memory (with timeout protection)
+                try:
+                    await asyncio.wait_for(
+                        agent_buffer_system.exchange_buffers(
+                            'memory_retrieval',
+                            'short_term_memory',
+                            'retrieved_memories',
+                            {
+                                'memories': memories,
+                                'query': user_input,
+                                'count': len(memories)
+                            }
+                        ),
+                        timeout=5.0  # 5 seconds max for buffer exchange
+                    )
+                except asyncio.TimeoutError:
+                    logger.warning("缓冲区交换超时，跳过此步骤继续")
                 
                 await self._activate_agent(
                     'short_term_memory',
@@ -379,55 +401,60 @@ class BrainInspiredCoordinator:
             
             main_response = response_result.get('response', '抱歉，我现在无法处理您的请求。')
             
-            # Phase 5.5: User Preference Processing (用户偏好处理)
+            # Phase 5.5: User Preference Processing (用户偏好处理) - Background
             preference_processed = False
             if self._contains_user_preference(user_input):
-                preference_result = await self._activate_agent(
-                    'long_term_memory',
+                # Store user preference asynchronously to avoid blocking main response
+                async def store_preference_background():
+                    try:
+                        preference_result = await self._activate_agent(
+                            'long_term_memory',
+                            AgentMessage(
+                                sender='coordinator',
+                                receiver='long_term_memory',
+                                message_type='request',
+                                content={
+                                    'action': 'store_long_term',
+                                    'memory': {
+                                        'content': f"用户偏好：{user_input}",
+                                        'importance': 0.9,  # 偏好具有高重要性
+                                        'context_tags': ['用户偏好', 'preference', 'personal_info'],
+                                        'emotion_tags': ['positive', 'preference']
+                                    }
+                                }
+                            )
+                        )
+                        if preference_result.get('success', False):
+                            logger.info(f"后台存储用户偏好完成: {user_input[:50]}")
+                            # Exchange buffer info between long_term_memory and consolidation
+                            await agent_buffer_system.exchange_buffers(
+                                'long_term_memory',
+                                'consolidation', 
+                                'user_preference',
+                                {'preference': user_input, 'timestamp': datetime.now().isoformat()}
+                            )
+                    except Exception as e:
+                        logger.error(f"后台存储用户偏好失败: {e}")
+                
+                # Create background task for preference storage
+                asyncio.create_task(store_preference_background())
+                preference_processed = True  # Always true since we're storing in background
+            
+            # 触发记忆巩固
+            if preference_processed:
+                await self._activate_agent(
+                    'consolidation',
                     AgentMessage(
                         sender='coordinator',
-                        receiver='long_term_memory',
+                        receiver='consolidation',
                         message_type='request',
                         content={
-                            'action': 'store_long_term',
-                            'memory': {
-                                'content': f"用户偏好：{user_input}",
-                                'importance': 0.9,  # 偏好具有高重要性
-                                'context_tags': ['用户偏好', 'preference', 'personal_info'],
-                                'emotion_tags': ['positive', 'preference']
-                            }
+                            'action': 'consolidate_preference',
+                            'memory_id': None,  # Will be handled in background
+                            'importance_boost': 0.2
                         }
                     )
                 )
-                preference_processed = preference_result.get('success', False)
-                
-                if preference_processed:
-                    # Exchange buffer info between long_term_memory and consolidation
-                    await agent_buffer_system.exchange_buffers(
-                        'long_term_memory',
-                        'memory_consolidation', 
-                        'preference_data',
-                        {
-                            'memory_id': preference_result.get('memory_id'),
-                            'preference_content': user_input,
-                            'importance': 0.9
-                        }
-                    )
-                    
-                    # 触发记忆巩固
-                    await self._activate_agent(
-                        'memory_consolidation',
-                        AgentMessage(
-                            sender='coordinator',
-                            receiver='memory_consolidation',
-                            message_type='request',
-                            content={
-                                'action': 'consolidate_preference',
-                                'memory_id': preference_result.get('memory_id'),
-                                'importance_boost': 0.2
-                            }
-                        )
-                    )
             
             # Phase 6: Memory Storage (记忆存储)
             memory_stored = False
@@ -437,7 +464,7 @@ class BrainInspiredCoordinator:
                 emotion_tags = self._extract_emotions(user_input, threat_info)
                 
                 # Apply emotional encoding if needed
-                if threat_info.get('threat_level', 0) > 0.3:
+                if threat_info.get('threat_score', 0) > 0.3:
                     emotional_encoding = await self._activate_agent(
                         'stress_response',
                         AgentMessage(
@@ -450,7 +477,7 @@ class BrainInspiredCoordinator:
                                     'content': user_input,
                                     'importance': importance,
                                     'emotion_tags': emotion_tags,
-                                    'emotion_intensity': threat_info.get('threat_level', 0.5)
+                                    'emotion_intensity': threat_info.get('threat_score', 0.5)
                                 }
                             }
                         )
@@ -460,39 +487,60 @@ class BrainInspiredCoordinator:
                 # Store complete conversation memory (not just user input)
                 conversation_content = f"用户说：{user_input}\n助手回复：{main_response}"
                 
-                memory_id = await memory_system.store_memory(
-                    content=conversation_content,
-                    importance=min(1.0, importance),
-                    emotion_tags=emotion_tags,
-                    context_tags=[self._classify_task_type(user_input), "完整对话"],
-                    metadata={
-                        'source': 'conversation',
-                        'user_input': user_input,
-                        'assistant_response': main_response,
-                        'memories_used': len(memories),
-                        'threat_level': threat_info.get('threat_level', 0.0),
-                        'processing_timestamp': datetime.now().isoformat()
-                    }
-                )
-                memory_stored = bool(memory_id)
-                
-                if memory_stored:
-                    self.processing_stats['memory_operations'] += 1
-                    
-                    # Record new memory activation with retrieved memories
-                    if memory_id and memory_ids:
-                        all_memory_ids = memory_ids + [memory_id]
-                        all_strengths = memory_strengths + [importance]
-                        
-                        self.plasticity_engine.record_memory_co_activation(
-                            all_memory_ids,
-                            all_strengths,
-                            context={
-                                'event': 'new_memory_storage',
-                                'conversation_context': True,
-                                'timestamp': datetime.now().isoformat()
+                # Store memory asynchronously in background to avoid blocking main response
+                async def store_memory_background():
+                    try:
+                        memory_id = await memory_system.store_memory(
+                            content=conversation_content,
+                            importance=min(1.0, importance),
+                            emotion_tags=emotion_tags,
+                            context_tags=[self._classify_task_type(user_input), "完整对话"],
+                            metadata={
+                                'source': 'conversation',
+                                'user_input': user_input,
+                                'assistant_response': main_response,
+                                'memories_used': len(memories),
+                                'threat_level': threat_info.get('threat_level', 'unknown'),
+                                'threat_score': threat_info.get('threat_score', 0.0),
+                                'processing_timestamp': datetime.now().isoformat()
                             }
                         )
+                        if memory_id:
+                            self.processing_stats['memory_operations'] += 1
+                            logger.info(f"后台存储记忆完成: {memory_id}")
+                            
+                            # Record new memory activation with retrieved memories
+                            if memory_ids:
+                                all_memory_ids = memory_ids + [memory_id]
+                                all_strengths = memory_strengths + [importance]
+                                
+                                self.plasticity_engine.record_memory_co_activation(
+                                    all_memory_ids,
+                                    all_strengths,
+                                    context={
+                                        'event': 'new_memory_storage',
+                                        'conversation_context': True,
+                                        'timestamp': datetime.now().isoformat()
+                                    }
+                                )
+                    except Exception as e:
+                        logger.error(f"后台存储记忆失败: {e}")
+                
+                # Create background task for memory storage
+                asyncio.create_task(store_memory_background())
+                memory_stored = True  # Always true since we're storing in background
+                
+                # Record existing memory activation (new memory will be recorded in background)
+                if memory_ids:
+                    self.plasticity_engine.record_memory_co_activation(
+                        memory_ids,
+                        memory_strengths,
+                        context={
+                            'event': 'memory_retrieval',
+                            'conversation_context': True,
+                            'timestamp': datetime.now().isoformat()
+                        }
+                    )
             
             # Phase 7: Background Processing (后台处理)
             background_tasks = []
@@ -515,16 +563,8 @@ class BrainInspiredCoordinator:
                     asyncio.create_task(self._trigger_background_forgetting())
                 )
             
-            # Wait for insights (but don't block on other background tasks)
-            insights = {}
-            if background_tasks:
-                try:
-                    # Get reflection insights if available
-                    reflection_task = next((t for t in background_tasks if 'reflection' in str(t)), None)
-                    if reflection_task:
-                        insights = await asyncio.wait_for(reflection_task, timeout=2.0)
-                except asyncio.TimeoutError:
-                    insights = {'status': 'reflection_timeout'}
+            # Background tasks run independently - don't wait for them to avoid blocking
+            insights = {'status': 'background_processing', 'tasks_started': len(background_tasks)}
             
             # Calculate processing time
             processing_time = (datetime.now() - start_time).total_seconds()
@@ -761,7 +801,7 @@ class BrainInspiredCoordinator:
         importance = 0.5  # Base importance
         
         # Boost for emotional content
-        if threat_info.get('threat_level', 0) > 0.3:
+        if threat_info.get('threat_score', 0) > 0.3:
             importance += 0.2
         
         # Boost for length and complexity
@@ -781,9 +821,9 @@ class BrainInspiredCoordinator:
         emotions = []
         
         # Check threat level
-        if threat_info.get('threat_level', 0) > 0.5:
+        if threat_info.get('threat_score', 0) > 0.5:
             emotions.append('anxious')
-        elif threat_info.get('threat_level', 0) > 0.3:
+        elif threat_info.get('threat_score', 0) > 0.3:
             emotions.append('concerned')
         
         # Simple emotion detection

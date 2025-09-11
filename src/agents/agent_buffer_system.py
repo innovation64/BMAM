@@ -269,19 +269,23 @@ class AgentBufferSystem:
         await self._ensure_initialized()
         
         async with self.locks[agent_id]:
-            buffer_path = self.buffer_dir / self.agent_buffers[agent_id]['buffer_file']
-            
-            try:
-                async with aiofiles.open(buffer_path, 'r', encoding='utf-8') as f:
-                    content = await f.read()
-                    data = json.loads(content)
-                return data['buffer_content']
-            except (json.JSONDecodeError, KeyError, FileNotFoundError) as e:
-                # 文件损坏或不存在，重新初始化
-                logger.warning(f"Buffer file corrupted for {agent_id}, reinitializing: {e}")
-                await self._initialize_buffer_file(agent_id)
-                # 返回默认结构
-                return self.agent_buffers[agent_id]['structure'].copy()
+            return await self._read_buffer_unlocked(agent_id)
+    
+    async def _read_buffer_unlocked(self, agent_id: str) -> Dict[str, Any]:
+        """读取Agent缓冲内容（假设锁已持有）"""
+        buffer_path = self.buffer_dir / self.agent_buffers[agent_id]['buffer_file']
+        
+        try:
+            async with aiofiles.open(buffer_path, 'r', encoding='utf-8') as f:
+                content = await f.read()
+                data = json.loads(content)
+            return data['buffer_content']
+        except (json.JSONDecodeError, KeyError, FileNotFoundError) as e:
+            # 文件损坏或不存在，重新初始化
+            logger.warning(f"Buffer file corrupted for {agent_id}, reinitializing: {e}")
+            await self._initialize_buffer_file(agent_id)
+            # 返回默认结构
+            return self.agent_buffers[agent_id]['structure'].copy()
     
     async def write_buffer(self, agent_id: str, key: str, value: Any, append: bool = False):
         """写入Agent的缓冲内容"""
@@ -333,6 +337,46 @@ class AgentBufferSystem:
             # 写回文件
             async with aiofiles.open(buffer_path, 'w', encoding='utf-8') as f:
                 await f.write(json.dumps(data, indent=2, ensure_ascii=False))
+
+    async def _write_buffer_unlocked(self, agent_id: str, key: str, value: Any, append: bool = False):
+        """写入Agent缓冲内容（不获取锁，调用方需保证已持有相应锁）。"""
+        if agent_id not in self.agent_buffers:
+            raise ValueError(f"Unknown agent: {agent_id}")
+
+        await self._ensure_initialized()
+
+        buffer_path = self.buffer_dir / self.agent_buffers[agent_id]['buffer_file']
+
+        # 读取现有数据，带错误处理
+        try:
+            async with aiofiles.open(buffer_path, 'r', encoding='utf-8') as f:
+                content = await f.read()
+                data = json.loads(content)
+        except (json.JSONDecodeError, KeyError, FileNotFoundError) as e:
+            # 文件损坏或不存在，重新初始化
+            logger.warning(f"Buffer file corrupted for {agent_id} during unlocked write, reinitializing: {e}")
+            await self._initialize_buffer_file(agent_id)
+            async with aiofiles.open(buffer_path, 'r', encoding='utf-8') as f:
+                content = await f.read()
+                data = json.loads(content)
+
+        # 更新缓冲内容 - 改进的append逻辑（与write_buffer保持一致）
+        if append:
+            if key not in data['buffer_content']:
+                data['buffer_content'][key] = []
+            if not isinstance(data['buffer_content'][key], list):
+                data['buffer_content'][key] = [data['buffer_content'][key]]
+            data['buffer_content'][key].append(value)
+            max_items = self.agent_buffers[agent_id]['max_items']
+            if len(data['buffer_content'][key]) > max_items:
+                data['buffer_content'][key] = data['buffer_content'][key][-max_items:]
+        else:
+            data['buffer_content'][key] = value
+
+        # 更新元数据并写回
+        data['metadata']['last_updated'] = datetime.now().isoformat()
+        async with aiofiles.open(buffer_path, 'w', encoding='utf-8') as f:
+            await f.write(json.dumps(data, indent=2, ensure_ascii=False))
     
     async def clear_buffer(self, agent_id: str):
         """清空Agent的缓冲内容"""
@@ -374,8 +418,8 @@ class AgentBufferSystem:
             import hashlib
             data_hash = hashlib.md5(str(data).encode()).hexdigest()
             
-            # 获取目标agent的当前数据
-            target_buffer = await self.read_buffer(target_agent)
+            # 直接读取目标agent数据，避免重入锁
+            target_buffer = await self._read_buffer_unlocked(target_agent)
             
             # 去重检查
             if 'recent_exchanges' in target_buffer:
@@ -394,9 +438,9 @@ class AgentBufferSystem:
                 'timestamp': datetime.now().isoformat()
             }
             
-            # 写入目标agent
-            await self.write_buffer(target_agent, data_key, data, append=True)
-            await self.write_buffer(target_agent, 'recent_exchanges', exchange_record, append=True)
+            # 写入目标agent（已持有锁，使用unlocked写入避免重入同一把锁）
+            await self._write_buffer_unlocked(target_agent, data_key, data, append=True)
+            await self._write_buffer_unlocked(target_agent, 'recent_exchanges', exchange_record, append=True)
             
             logger.debug(f"Buffer exchange: {source_agent} -> {target_agent} ({data_key})")
     

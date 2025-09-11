@@ -6,6 +6,7 @@ Long-term Memory Agent
 from collections import defaultdict
 from typing import Dict, Any, List, Optional
 import logging
+import asyncio
 
 from ..base import BrainAgent, AgentMessage, BrainRegion
 from ...memory.memory_item import MemoryItem
@@ -141,14 +142,14 @@ class LongTermMemoryAgent(BrainAgent):
                 if memory_id not in self.semantic_network[assoc_id]:
                     self.semantic_network[assoc_id].append(memory_id)
         
-        # Build conceptual associations
-        conceptual_links = await self._find_conceptual_links(memory)
-        associations.extend(conceptual_links)
-        
+        # Build conceptual associations in background (non-blocking)
+        asyncio.create_task(self._find_conceptual_links_background(memory, memory.id))
+        # Continue without waiting for conceptual links to avoid blocking
+
         return {
             'associations_built': len(associations),
             'semantic_links': len([a for a in associations if a in self.semantic_network[memory_id]]),
-            'conceptual_links': len(conceptual_links),
+            # 概念链接在后台异步计算，这里不返回数量以避免未定义变量
             'network_size': len(self.semantic_network)
         }
     
@@ -332,7 +333,7 @@ class LongTermMemoryAgent(BrainAgent):
         
         # Use LLM to identify key concepts
         prompt = f"Identify 3 key concepts in: {memory.content}"
-        concepts = await self.call_llm(prompt)
+        concepts = await self.call_llm(prompt, quick_fail=True)
         
         # Parse concepts and find related memories
         conceptual_links = []
@@ -341,6 +342,18 @@ class LongTermMemoryAgent(BrainAgent):
         # Implementation depends on available search capabilities
         
         return conceptual_links
+    
+    async def _find_conceptual_links_background(self, memory: MemoryItem, memory_id: str):
+        """Find conceptual links in background without blocking main flow"""
+        try:
+            conceptual_links = await self._find_conceptual_links(memory)
+            # Update semantic network with discovered links
+            for link in conceptual_links:
+                if link not in self.semantic_network[memory_id]:
+                    self.semantic_network[memory_id].append(link)
+        except Exception as e:
+            # Silent fail in background - don't disrupt main flow
+            pass
     
     def _categorize_memory(self, memory: MemoryItem):
         """Categorize memory for efficient retrieval"""

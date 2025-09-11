@@ -561,7 +561,7 @@ class StressResponseAgent(BrainAgent):
         prompt = f"Analyze this content for potential threats, dangers, or concerning patterns (rate 0-1): {content}"
         
         try:
-            threat_analysis = await self.call_llm(prompt)
+            threat_analysis = await self.call_llm(prompt, quick_fail=True)
             
             # Extract threat score from analysis
             import re

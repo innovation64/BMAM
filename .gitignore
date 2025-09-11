@@ -35,6 +35,7 @@ coverage.xml
 .hypothesis/
 
 # IDE
+.claude/
 .idea/
 .vscode/
 *.swp

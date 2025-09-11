@@ -99,7 +99,7 @@ class ConversationAgent(BrainAgent):
 
 请生成一个自然、有帮助的中文回复，体现对用户的了解。"""
         
-        response = await self.call_llm(prompt, context)
+        response = await self.call_llm(prompt, context, max_tokens=200, quick_fail=True)
         
         return {
             'response': response,

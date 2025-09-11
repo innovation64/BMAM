@@ -97,14 +97,15 @@ class BrainAgent(ABC):
         """Process incoming message - to be implemented by subclasses"""
         raise NotImplementedError
     
-    async def call_llm(self, prompt: str, context: Dict[str, Any] = None, max_tokens: int = None, temperature: float = None) -> str:
+    async def call_llm(self, prompt: str, context: Dict[str, Any] = None, max_tokens: int = None, temperature: float = None, quick_fail: bool = False) -> str:
         """统一的LLM调用接口 - 集成限流、统一重试策略和错误处理"""
         # 使用全局信号量进行并发控制，避免连接池竞态
         from ..coordination.clean_agent_system import _global_semaphore
         async with _global_semaphore:
             
-            # 统一应用层重试策略
-            max_retries = 2
+            # 统一应用层重试策略  
+            max_retries = 0 if quick_fail else 2
+            timeout_override = 5.0 if quick_fail else None  # 5s timeout for quick_fail
             base_delay = 1.0
             
             for attempt in range(max_retries + 1):
@@ -127,13 +128,18 @@ class BrainAgent(ABC):
                     actual_max_tokens = max_tokens if max_tokens is not None else int(get_env("MAX_TOKENS", "1500"))
                     actual_temperature = temperature if temperature is not None else float(get_env("TEMPERATURE", "0.7"))
                     
-                    response = await client.chat.completions.create(
+                    # Apply timeout override for quick_fail mode
+                    llm_call = client.chat.completions.create(
                         model=self.model,
                         messages=messages,
                         max_tokens=actual_max_tokens,
                         temperature=actual_temperature
-                        # 不再设置timeout，使用客户端的统一30秒超时
                     )
+                    
+                    if timeout_override:
+                        response = await asyncio.wait_for(llm_call, timeout=timeout_override)
+                    else:
+                        response = await llm_call
                     
                     result = response.choices[0].message.content.strip()
                     self.log_execution("LLM call success", {
