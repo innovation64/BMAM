@@ -54,12 +54,17 @@ def setup_logging(level: int = logging.INFO,
         if format is None:
             format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         
+        # 确定日志文件路径 - 固定到项目根目录
+        import os
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        log_path = os.path.join(project_root, 'bmam.log')
+        
         logging.basicConfig(
             level=level,
             format=format,
             handlers=[
                 logging.StreamHandler(),
-                logging.FileHandler('bmam.log', mode='a')
+                logging.FileHandler(log_path, mode='a')
             ]
         )
         _logging_configured = True
@@ -81,6 +86,15 @@ def get_logger(name: str) -> logging.Logger:
         setup_logging()
     
     return logging.getLogger(name)
+
+# Path utilities
+def get_project_root() -> Path:
+    """Get the absolute path to the project root directory"""
+    return Path(__file__).resolve().parent.parent.parent
+
+def get_absolute_path(relative_path: str) -> Path:
+    """Convert relative path to absolute path relative to project root"""
+    return get_project_root() / relative_path
 
 # Environment variable helpers
 def get_env(key: str, default: Optional[str] = None) -> Optional[str]:

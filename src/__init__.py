@@ -16,14 +16,14 @@ try:
     from . import memory
     from . import agents
     from . import services
-    from . import monitoring
+    from . import utils
     
     __all__ = [
         "coordination",
         "memory", 
         "agents",
         "services",
-        "monitoring"
+        "utils"
     ]
 except ImportError as e:
     # 如果某些模块不存在，继续运行但记录警告

@@ -1,0 +1,19 @@
+{
+  "agent_id": "personality",
+  "agent_name": "人格智能体",
+  "brain_region": "default_mode",
+  "buffer_content": {
+    "personality_traits": {},
+    "behavior_patterns": [],
+    "preference_history": [],
+    "interaction_style": {},
+    "recent_inputs": [],
+    "recent_outputs": [],
+    "recent_exchanges": []
+  },
+  "metadata": {
+    "created_at": "2025-09-09T23:54:48.660193",
+    "last_updated": "2025-09-09T23:54:48.660199",
+    "version": "1.0"
+  }
+}

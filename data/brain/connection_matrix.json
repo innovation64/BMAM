@@ -1,0 +1,291 @@
+{
+  "agents": [
+    "short_term_memory",
+    "long_term_memory",
+    "memory_retrieval",
+    "consolidation",
+    "memory_distortion",
+    "reflection",
+    "forgetting",
+    "stress_response",
+    "personality",
+    "conversation",
+    "executive_control",
+    "perception_encoding",
+    "action_execution"
+  ],
+  "connections": [
+    [
+      1.0,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.6,
+      0.5
+    ],
+    [
+      0.5,
+      1.0,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5
+    ],
+    [
+      0.5,
+      0.5,
+      1.0,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5
+    ],
+    [
+      0.5,
+      0.5,
+      0.5,
+      1.0,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5
+    ],
+    [
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      1.0,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5
+    ],
+    [
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      1.0,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5
+    ],
+    [
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      1.0,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5
+    ],
+    [
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      1.0,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5
+    ],
+    [
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      1.0,
+      0.5,
+      0.5,
+      0.5,
+      0.5
+    ],
+    [
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      1.0,
+      1.0,
+      0.5,
+      0.5
+    ],
+    [
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      1.0,
+      1.0,
+      0.5,
+      0.5
+    ],
+    [
+      0.6,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      1.0,
+      0.5
+    ],
+    [
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      0.5,
+      1.0
+    ]
+  ],
+  "usage_history": {
+    "conversation-executive_control": [
+      {
+        "timestamp": "2025-09-09T17:15:23.554872",
+        "strength_change": 0.1,
+        "new_strength": 0.6,
+        "activation_strength": 1.0
+      },
+      {
+        "timestamp": "2025-09-09T17:15:49.815182",
+        "strength_change": 0.1,
+        "new_strength": 0.7,
+        "activation_strength": 1.0
+      },
+      {
+        "timestamp": "2025-09-09T17:20:01.004882",
+        "strength_change": 0.1,
+        "new_strength": 0.7999999999999999,
+        "activation_strength": 1.0
+      },
+      {
+        "timestamp": "2025-09-09T17:20:03.018506",
+        "strength_change": 0.1,
+        "new_strength": 0.8999999999999999,
+        "activation_strength": 1.0
+      },
+      {
+        "timestamp": "2025-09-09T17:20:04.029415",
+        "strength_change": 0.1,
+        "new_strength": 0.9999999999999999,
+        "activation_strength": 1.0
+      },
+      {
+        "timestamp": "2025-09-09T17:20:05.033230",
+        "strength_change": 0.1,
+        "new_strength": 1.0,
+        "activation_strength": 1.0
+      },
+      {
+        "timestamp": "2025-09-09T17:20:06.037672",
+        "strength_change": 0.1,
+        "new_strength": 1.0,
+        "activation_strength": 1.0
+      },
+      {
+        "timestamp": "2025-09-09T17:20:07.043711",
+        "strength_change": 0.1,
+        "new_strength": 1.0,
+        "activation_strength": 1.0
+      },
+      {
+        "timestamp": "2025-09-09T17:20:08.047542",
+        "strength_change": 0.1,
+        "new_strength": 1.0,
+        "activation_strength": 1.0
+      }
+    ],
+    "perception_encoding-short_term_memory": [
+      {
+        "timestamp": "2025-09-09T17:20:02.010524",
+        "strength_change": 0.1,
+        "new_strength": 0.6,
+        "activation_strength": 1.0
+      }
+    ]
+  },
+  "last_activation_time": {
+    "conversation-executive_control": "2025-09-09T17:20:08.047543",
+    "perception_encoding-short_term_memory": "2025-09-09T17:20:02.010527"
+  },
+  "parameters": {
+    "learning_rate": 0.1,
+    "decay_rate": 0.01,
+    "min_strength": 0.1,
+    "max_strength": 1.0
+  },
+  "saved_at": "2025-09-10T08:38:23.936070"
+}

@@ -7,6 +7,7 @@ from collections import deque
 from datetime import datetime
 from typing import Dict, Any
 
+from typing import Dict, Any, Optional
 from ..base import BrainAgent, AgentMessage, BrainRegion
 
 
@@ -19,7 +20,7 @@ class ShortTermMemoryAgent(BrainAgent):
     主要功能：工作记忆，信息临时保持（7±2项，20-30秒）
     """
     
-    def __init__(self):
+    def __init__(self, client=None):
         super().__init__(
             agent_id="short_term_memory",
             brain_region=BrainRegion.PREFRONTAL,
@@ -29,7 +30,8 @@ class ShortTermMemoryAgent(BrainAgent):
             2. Apply Miller's 7±2 rule for working memory capacity
             3. Manage information decay over 20-30 seconds
             4. Facilitate information transfer to long-term memory
-            5. Support mental operations and information manipulation"""
+            5. Support mental operations and information manipulation""",
+            client=client  # 支持外部注入客户端
         )
         
         # Working memory buffer (Miller's 7±2 rule)
@@ -63,7 +65,7 @@ class ShortTermMemoryAgent(BrainAgent):
         memory_item = {
             'id': item.get('id', str(datetime.now().timestamp())),
             'content': item['content'],
-            'timestamp': datetime.now(),
+            'timestamp': datetime.now().isoformat(),
             'activation': 1.0,  # Initial activation level
             'rehearsals': 0,
             'modality': item.get('modality', 'verbal'),  # verbal or visual
@@ -175,7 +177,7 @@ class ShortTermMemoryAgent(BrainAgent):
                 # Rehearsal boosts activation and resets decay
                 item['activation'] = min(1.0, item['activation'] + 0.3)
                 item['rehearsals'] += 1
-                item['timestamp'] = datetime.now()  # Reset decay timer
+                item['timestamp'] = datetime.now().isoformat()  # Reset decay timer
                 
                 rehearsed_items.append(item['id'])
                 
@@ -207,15 +209,17 @@ class ShortTermMemoryAgent(BrainAgent):
         current_time = datetime.now()
         
         for item in self.working_memory:
-            time_elapsed = (current_time - item['timestamp']).total_seconds()
+            item_timestamp = datetime.fromisoformat(item['timestamp']) if isinstance(item['timestamp'], str) else item['timestamp']
+            time_elapsed = (current_time - item_timestamp).total_seconds()
             
             # Apply exponential decay (half-life ~15 seconds)
             decay_factor = 0.5 ** (time_elapsed / 15)
             item['activation'] *= decay_factor
     
-    def _calculate_time_decay(self, timestamp: datetime) -> float:
+    def _calculate_time_decay(self, timestamp: str) -> float:
         """Calculate time-based decay factor"""
-        time_elapsed = (datetime.now() - timestamp).total_seconds()
+        timestamp_dt = datetime.fromisoformat(timestamp) if isinstance(timestamp, str) else timestamp
+        time_elapsed = (datetime.now() - timestamp_dt).total_seconds()
         
         # Exponential decay with 20-30 second window
         if time_elapsed < 20:

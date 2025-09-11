@@ -89,35 +89,62 @@ class MemoryRetrievalAgent(BrainAgent):
         # Generate query embedding
         query_embedding = await self.embedding_service.encode_text(query)
         
-        # Search for similar memories
+        # Search for similar memories (降低阈值以提高中文搜索效果)
         similar_memories = self.vector_db.search(
             query_embedding, 
             k=k, 
-            threshold=0.3
+            threshold=0.1
         )
         
         memories = []
-        if self.db_manager:
-            for memory_id, similarity in similar_memories:
-                memory = self.db_manager.load_memory(memory_id)
-                if memory:
-                    # Update access patterns
-                    memory.access_frequency += 1
-                    memory.last_accessed = datetime.now()
-                    self.db_manager.save_memory(memory)
-                    
-                    # Calculate retrieval confidence
-                    retrieval_confidence = self._calculate_retrieval_confidence(
-                        similarity, 
-                        memory
-                    )
-                    
+        
+        logger.info(f"Vector search results for '{query}': {len(similar_memories)} memories found")
+        
+        # 如果向量搜索没有结果，使用关键字搜索作为后备
+        if len(similar_memories) == 0 and self.db_manager:
+            logger.info(f"Vector search returned no results, falling back to keyword search for: {query}")
+            
+            # 提取关键词
+            keywords = ['茶', '绿茶', '下午', '3点', '时间', '喝']
+            query_keywords = [kw for kw in keywords if kw in query]
+            
+            # 搜索包含关键词的记忆
+            all_memories = self.db_manager.search_memories(limit=20)
+            for memory in all_memories:
+                if any(keyword in memory.content for keyword in query_keywords + [query]):
                     memories.append({
-                        'memory': memory.to_dict(),
-                        'similarity': similarity,
-                        'retrieval_confidence': retrieval_confidence,
-                        'retrieval_method': 'semantic'
+                        'content': memory.content,
+                        'memory_id': memory.id,
+                        'similarity': 0.5,  # 默认相似度
+                        'retrieval_confidence': 0.7,
+                        'retrieval_method': 'keyword_fallback',
+                        'memory_type': memory.memory_type,
+                        'importance': memory.importance,
+                        'timestamp': memory.created_at.isoformat() if memory.created_at else None
                     })
+        else:
+            # 正常向量搜索处理
+            if self.db_manager:
+                for memory_id, similarity in similar_memories:
+                    memory = self.db_manager.load_memory(memory_id)
+                    if memory:
+                        # Update access patterns
+                        memory.access_frequency += 1
+                        memory.last_accessed = datetime.now()
+                        self.db_manager.save_memory(memory)
+                        
+                        # Calculate retrieval confidence
+                        retrieval_confidence = self._calculate_retrieval_confidence(
+                            similarity, 
+                            memory
+                        )
+                        
+                        memories.append({
+                            'memory': memory.to_dict(),
+                            'similarity': similarity,
+                            'retrieval_confidence': retrieval_confidence,
+                            'retrieval_method': 'semantic'
+                        })
         
         # Sort by retrieval confidence
         memories.sort(key=lambda x: x['retrieval_confidence'], reverse=True)

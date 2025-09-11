@@ -1,4 +1,4 @@
-from .brain_coordinator import BrainInspiredCoordinator, coordinator
-from .agent_system import BaseAgent, AgentMessage, BrainRegion
+from .brain_coordinator import BrainInspiredCoordinator
+from .clean_agent_system import BrainRegion, AgentMessage
 
-__all__ = ['BrainInspiredCoordinator', 'coordinator', 'BaseAgent', 'AgentMessage', 'BrainRegion']
+__all__ = ['BrainInspiredCoordinator', 'AgentMessage', 'BrainRegion']

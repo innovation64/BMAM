@@ -23,6 +23,7 @@ from sentence_transformers import SentenceTransformer
 import openai
 # Import MemoryItem from the dedicated module
 from .memory_item import MemoryItem
+from ..utils.config import get_absolute_path
 # Import centralized config
 from ..utils import get_logger
 
@@ -65,83 +66,30 @@ class EmbeddingService:
     """Advanced Embedding Service with Multiple Model Support"""
     
     def __init__(self):
-        self.model_name = os.getenv("EMBEDDING_MODEL", "text-embedding-3-small")
-        self.dimension = int(os.getenv("EMBEDDING_DIMENSION", "1536"))  # 默认OpenAI维度
-        self.max_length = int(os.getenv("EMBEDDING_MAX_LENGTH", "512"))
+        # 使用带缓存的OpenAI嵌入服务
+        from ..services.openai_embedding_service import OpenAIEmbeddingService
+        self.service = OpenAIEmbeddingService(use_cache=True)
+        self.dimension = self.service.dimension
+        self.model_name = self.service.model
         
-        logger.info(f"Initializing embedding service: {self.model_name}")
-        
-        try:
-            if "text-embedding" in self.model_name:
-                # OpenAI embeddings
-                self.client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-                self.model_type = "openai"
-                self.dimension = 1536  # OpenAI embedding dimension
-                logger.info("Using OpenAI text-embedding-ada-002")
-            else:
-                # SentenceTransformers
-                self.model = SentenceTransformer(self.model_name)
-                self.model_type = "sentence_transformers"
-                logger.info(f"Using SentenceTransformers: {self.model_name}")
-            
-            self.is_available = True
-            
-        except Exception as e:
-            logger.error(f"Failed to load embedding model: {e}")
-            logger.warning("Falling back to random embeddings")
-            self.model = None
-            self.model_type = "random"
-            self.is_available = False
+        logger.info(f"Initializing embedding service: {self.model_name} with caching enabled")
     
-    def encode_text(self, text: str) -> np.ndarray:
+    async def encode_text(self, text: str) -> np.ndarray:
         """Encode text to vector embedding"""
-        if not self.is_available:
-            # Fallback: deterministic random embedding
-            text_hash = hash(text) % (2**31)
-            np.random.seed(text_hash)
-            return np.random.random(self.dimension).astype(np.float32)
-        
-        try:
-            if self.model_type == "openai":
-                response = self.client.embeddings.create(
-                    model=self.model_name,
-                    input=text[:self.max_length]
-                )
-                embedding = np.array(response.data[0].embedding, dtype=np.float32)
-            else:
-                # SentenceTransformers
-                embedding = self.model.encode(text, convert_to_numpy=True)
-                embedding = embedding.astype(np.float32)
-            
-            return embedding
-            
-        except Exception as e:
-            logger.error(f"Embedding encoding failed: {e}")
-            # Fallback to deterministic random
-            text_hash = hash(text) % (2**31)
-            np.random.seed(text_hash)
-            return np.random.random(self.dimension).astype(np.float32)
+        # 直接调用embedding服务，让它处理异常和fallback
+        # 避免双重异常处理产生不一致的向量
+        result = await self.service.encode_text(text)
+        return np.array(result, dtype=np.float32)
     
-    def encode_batch(self, texts: List[str]) -> List[np.ndarray]:
-        """Batch encode texts"""
-        if self.model_type == "openai":
-            try:
-                response = self.client.embeddings.create(
-                    model=self.model_name,
-                    input=[text[:self.max_length] for text in texts]
-                )
-                embeddings = [np.array(item.embedding, dtype=np.float32) for item in response.data]
-                return embeddings
-            except Exception as e:
-                logger.error(f"Batch embedding failed: {e}")
-                return [self.encode_text(text) for text in texts]
-        else:
-            try:
-                embeddings = self.model.encode(texts, convert_to_numpy=True)
-                return [emb.astype(np.float32) for emb in embeddings]
-            except Exception as e:
-                logger.error(f"Batch embedding failed: {e}")
-                return [self.encode_text(text) for text in texts]
+    async def encode_batch(self, texts: List[str]) -> List[np.ndarray]:
+        """Encode multiple texts in batch with caching"""
+        try:
+            results = await self.service.encode_batch(texts)
+            return [np.array(result, dtype=np.float32) for result in results]
+        except Exception as e:
+            logger.error(f"Batch embedding failed: {e}")
+            # 逐一处理，让底层服务统一处理fallback
+            return [await self.encode_text(text) for text in texts]
 
 
 class FAISSVectorDatabase:
@@ -150,7 +98,7 @@ class FAISSVectorDatabase:
     def __init__(self, dimension: int = None, index_path: str = None):
         # 默认使用OpenAI的1536维，与EmbeddingService保持一致
         self.dimension = dimension or 1536
-        self.index_path = index_path or os.getenv("VECTOR_INDEX_PATH", "data/memory_vectors.index")
+        self.index_path = str(get_absolute_path(index_path or os.getenv("VECTOR_INDEX_PATH", "data/memory_vectors.index")))
         
         # Create data directory if it doesn't exist
         Path(self.index_path).parent.mkdir(parents=True, exist_ok=True)
@@ -200,7 +148,7 @@ class FAISSVectorDatabase:
             
             results = []
             for sim, idx in zip(similarities[0], indices[0]):
-                if sim >= threshold and idx in self.id_mapping:
+                if sim >= threshold and idx in self.id_mapping:  # 使用传入的threshold参数
                     memory_id = self.id_mapping[idx]
                     results.append((memory_id, float(sim)))
             
@@ -255,7 +203,8 @@ class FAISSVectorDatabase:
                 if os.path.exists(mapping_path):
                     with open(mapping_path, 'r') as f:
                         mappings = json.load(f)
-                        self.id_mapping = mappings['id_mapping']
+                        # 修复：JSON加载后键是字符串，需要转换回int
+                        self.id_mapping = {int(k): v for k, v in mappings['id_mapping'].items()}
                         self.reverse_mapping = mappings['reverse_mapping']
                 
                 logger.info(f"Loaded FAISS index with {self.index.ntotal} vectors from {self.index_path}")
@@ -452,7 +401,7 @@ class AdvancedMemorySystem:
         
         logger.info("Advanced Memory System initialized successfully")
     
-    def store_memory(self, content: str, memory_type: str = "episodic", 
+    async def store_memory(self, content: str, memory_type: str = "episodic", 
                     importance: float = 0.5, emotion_tags: List[str] = None,
                     context_tags: List[str] = None, metadata: Dict[str, Any] = None) -> str:
         """Store a new memory with embedding"""
@@ -468,7 +417,7 @@ class AdvancedMemorySystem:
             )
             
             # Generate embedding
-            memory.embedding = self.embedding_service.encode_text(content)
+            memory.embedding = await self.embedding_service.encode_text(content)
             
             # Add to vector database
             faiss_id = self.vector_db.add_vector(memory.id, memory.embedding)
@@ -480,7 +429,15 @@ class AdvancedMemorySystem:
             if success:
                 # Persist vector index
                 self.vector_db.save_index()
-                logger.info(f"Successfully stored memory {memory.id}")
+                
+                # 验证FAISS映射是否正确更新
+                if memory.id in self.vector_db.reverse_mapping:
+                    faiss_id = self.vector_db.reverse_mapping[memory.id]
+                    logger.info(f"✅ Successfully stored memory {memory.id} -> FAISS index {faiss_id}")
+                    logger.debug(f"📊 Vector DB stats: total_vectors={self.vector_db.index.ntotal}, mappings={len(self.vector_db.reverse_mapping)}")
+                else:
+                    logger.error(f"⚠️ Memory {memory.id} stored in DB but NOT in FAISS mapping!")
+                
                 return memory.id
             else:
                 logger.error(f"Failed to store memory {memory.id}")
@@ -490,12 +447,12 @@ class AdvancedMemorySystem:
             logger.error(f"Error storing memory: {e}")
             return None
     
-    def search_memories(self, query: str, search_type: str = "semantic", 
-                       k: int = 10, threshold: float = 0.3, **filters) -> List[Dict[str, Any]]:
+    async def search_memories(self, query: str, search_type: str = "semantic", 
+                       k: int = 10, threshold: float = 0.1, **filters) -> List[Dict[str, Any]]:
         """Search memories using various methods"""
         try:
             if search_type == "semantic":
-                return self._semantic_search(query, k, threshold)
+                return await self._semantic_search(query, k, threshold)
             elif search_type == "hybrid":
                 return self._hybrid_search(query, k, threshold, **filters)
             else:
@@ -505,10 +462,10 @@ class AdvancedMemorySystem:
             logger.error(f"Error searching memories: {e}", exc_info=True)
             return []
     
-    def _semantic_search(self, query: str, k: int, threshold: float) -> List[Dict[str, Any]]:
+    async def _semantic_search(self, query: str, k: int, threshold: float) -> List[Dict[str, Any]]:
         """Perform semantic search using vector similarity"""
         # Generate query embedding
-        query_embedding = self.embedding_service.encode_text(query)
+        query_embedding = await self.embedding_service.encode_text(query)
         
         # Search similar vectors
         similar_memories = self.vector_db.search(query_embedding, k, threshold)
@@ -586,7 +543,7 @@ class AdvancedMemorySystem:
             'database': db_stats,
             'vectors': vector_stats,
             'embedding_model': self.embedding_service.model_name,
-            'embedding_type': self.embedding_service.model_type
+            'embedding_type': 'openai_cached'
         }
 
 

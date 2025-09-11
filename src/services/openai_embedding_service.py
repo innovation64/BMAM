@@ -1,6 +1,6 @@
 """
-OpenAI Embedding Service
-OpenAI嵌入服务
+OpenAI Embedding Service with Built-in Cache
+OpenAI嵌入服务（集成缓存功能）
 
 Provides embedding functionality using OpenAI's text-embedding-3-small API
 使用OpenAI的text-embedding-3-small API提供嵌入功能
@@ -8,29 +8,141 @@ Provides embedding functionality using OpenAI's text-embedding-3-small API
 
 import os
 import asyncio
-from typing import List, Dict, Any, Union
+import hashlib
+import json
+from typing import List, Dict, Any, Union, Optional, Tuple
+from datetime import datetime, timedelta
+from pathlib import Path
 import openai
 from openai import AsyncOpenAI
 import numpy as np
-from ..utils.config import get_logger, get_env
-from .embedding_cache import get_embedding_cache
+from ..utils.config import get_logger, get_env, get_absolute_path
 from .shared_openai_client import shared_client_manager
 
 logger = get_logger(__name__)
+
+class EmbeddingCache:
+    """嵌入向量缓存 - 内置实现"""
+    
+    def __init__(self, cache_dir: str = "data/embedding_cache", max_size: int = 10000, ttl_hours: int = 24):
+        self.cache_dir = get_absolute_path(cache_dir)
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        self.cache_file = self.cache_dir / "embeddings.json"
+        self.max_size = max_size
+        self.ttl = timedelta(hours=ttl_hours)
+        self._cache = {}
+        self._load_cache()
+    
+    def _get_cache_key(self, text: str) -> str:
+        """生成缓存键"""
+        return hashlib.md5(text.encode()).hexdigest()
+    
+    def _load_cache(self):
+        """加载缓存"""
+        if self.cache_file.exists():
+            try:
+                with open(self.cache_file, 'r') as f:
+                    data = json.load(f)
+                    self._cache = data.get('cache', {})
+            except Exception as e:
+                logger.warning(f"Failed to load cache: {e}")
+                self._cache = {}
+    
+    def _save_cache(self):
+        """保存缓存"""
+        try:
+            with open(self.cache_file, 'w') as f:
+                json.dump({'cache': self._cache}, f)
+        except Exception as e:
+            logger.warning(f"Failed to save cache: {e}")
+    
+    def get(self, text: str) -> Optional[List[float]]:
+        """获取缓存的嵌入"""
+        key = self._get_cache_key(text)
+        if key in self._cache:
+            entry = self._cache[key]
+            if datetime.fromisoformat(entry['timestamp']) + self.ttl > datetime.now():
+                return entry['embedding']
+        return None
+    
+    def put(self, text: str, embedding: List[float]):
+        """存储嵌入到缓存"""
+        key = self._get_cache_key(text)
+        self._cache[key] = {
+            'embedding': embedding,
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        # 简单的LRU清理
+        if len(self._cache) > self.max_size:
+            oldest_key = min(self._cache.keys(), key=lambda k: self._cache[k]['timestamp'])
+            del self._cache[oldest_key]
+        
+        self._save_cache()
+    
+    async def get_embedding(self, text: str, compute_func):
+        """获取嵌入向量，使用缓存或计算新的"""
+        # 先检查缓存
+        cached = self.get(text)
+        if cached is not None:
+            return np.array(cached)
+        
+        # 缓存中没有，计算新的
+        embedding = await compute_func(text)
+        
+        # 存储到缓存
+        if isinstance(embedding, np.ndarray):
+            self.put(text, embedding.tolist())
+        else:
+            self.put(text, embedding)
+        
+        return embedding
+    
+    async def get_batch_embeddings(self, texts: List[str], compute_func):
+        """批量获取嵌入向量，使用缓存或计算新的"""
+        results = []
+        uncached_texts = []
+        uncached_indices = []
+        
+        # 检查哪些文本已经缓存
+        for i, text in enumerate(texts):
+            cached = self.get(text)
+            if cached is not None:
+                results.append(np.array(cached))
+            else:
+                results.append(None)  # 占位符
+                uncached_texts.append(text)
+                uncached_indices.append(i)
+        
+        # 如果有未缓存的文本，批量计算
+        if uncached_texts:
+            new_embeddings = await compute_func(uncached_texts)
+            
+            # 存储到缓存并填充结果
+            for j, idx in enumerate(uncached_indices):
+                embedding = new_embeddings[j]
+                if isinstance(embedding, np.ndarray):
+                    self.put(texts[idx], embedding.tolist())
+                else:
+                    self.put(texts[idx], embedding)
+                results[idx] = embedding
+        
+        return results
+
 
 class OpenAIEmbeddingService:
     """OpenAI embedding service for text vectorization"""
     
     def __init__(self, use_cache: bool = True):
         # 使用共享客户端管理器，避免多个实例创建重复连接
-        self.client = shared_client_manager.get_embedding_client()
+        self.client = None  # 延迟初始化
         self.model = get_env("EMBEDDING_MODEL", "text-embedding-3-small")
         self.dimension = int(get_env("EMBEDDING_DIMENSION", "1536"))
         self.max_length = int(get_env("EMBEDDING_MAX_LENGTH", "8191"))
         
-        # Initialize cache
+        # Initialize built-in cache
         self.use_cache = use_cache
-        self.cache = get_embedding_cache() if use_cache else None
+        self.cache = EmbeddingCache() if use_cache else None
         
         logger.info(f"Initialized OpenAI embedding service with model: {self.model}")
         logger.info(f"Embedding dimension: {self.dimension}")
@@ -69,6 +181,10 @@ class OpenAIEmbeddingService:
         实际调用OpenAI API计算嵌入向量
         """
         try:
+            # 动态获取客户端
+            if self.client is None:
+                self.client = await shared_client_manager.get_embedding_client()
+                
             # 让OpenAI客户端自己处理重试，我们不再手动重试
             response = await self.client.embeddings.create(
                 model=self.model,
@@ -80,30 +196,39 @@ class OpenAIEmbeddingService:
             return np.array(embedding, dtype=np.float32)
             
         except Exception as e:
-            logger.warning(f"Embedding API failed: {e}")
+            # 准确记录异常类型和详细信息，避免misleading日志
+            error_type = type(e).__name__
+            error_msg = str(e)
+            logger.error(f"Embedding API failed: {error_type}: {error_msg}")
             
-            # 根据错误类型提供更好的备用方案
-            if "Connection error" in str(e):
-                logger.warning(f"网络连接问题，为文本 '{text[:30]}...' 使用备用向量")
-                # 使用基于文本内容的伪随机向量，保证相同文本产生相同向量
-                import hashlib
-                text_hash = hashlib.md5(text.encode()).hexdigest()
-                np.random.seed(int(text_hash[:8], 16))
-                fallback_vector = np.random.normal(0, 0.1, self.dimension).astype(np.float32)
-                np.random.seed()  # 重置随机种子
-                return fallback_vector
-            elif "rate limit" in str(e).lower():
-                logger.warning("API调用频率限制，使用零向量备用方案")
-                return np.zeros(self.dimension, dtype=np.float32)
+            # 记录更多调试信息
+            if hasattr(e, '__cause__'):
+                logger.error(f"Caused by: {e.__cause__}")
+            logger.error(f"Text length: {len(text)} chars")
+            
+            # 更精确的异常类型判断
+            import openai
+            if isinstance(e, (openai.APIConnectionError, ConnectionError)):
+                logger.warning(f"网络连接异常，为文本 '{text[:30]}...' 使用备用向量")
+            elif isinstance(e, openai.RateLimitError) or "rate limit" in error_msg.lower():
+                logger.warning("API调用频率限制，为了避免进一步限制，使用备用向量")
+            elif isinstance(e, openai.APITimeoutError):
+                logger.warning("API调用超时，使用备用向量")
             else:
-                # 其他错误，使用基于内容的确定性向量
-                logger.warning(f"API调用失败: {e}")
-                import hashlib
-                text_hash = hashlib.md5(text.encode()).hexdigest()
-                np.random.seed(int(text_hash[:8], 16))
-                fallback_vector = np.random.normal(0, 0.1, self.dimension).astype(np.float32)
-                np.random.seed()
-                return fallback_vector
+                logger.warning(f"其他API错误 ({error_type})，使用备用向量")
+            
+            # 统一使用基于文本内容的确定性向量（但要确保与真实embedding有一定相似性）
+            import hashlib
+            text_hash = hashlib.md5(text.encode()).hexdigest()
+            np.random.seed(int(text_hash[:8], 16))
+            # 使用更接近真实embedding分布的参数：mean=0, std=0.3左右
+            fallback_vector = np.random.normal(0, 0.3, self.dimension).astype(np.float32)
+            # L2归一化，让它更接近OpenAI embedding的分布特征
+            norm = np.linalg.norm(fallback_vector)
+            if norm > 0:
+                fallback_vector = fallback_vector / norm
+            np.random.seed()  # 重置随机种子
+            return fallback_vector
     
     async def encode_batch(self, texts: List[str], batch_size: int = 100) -> List[np.ndarray]:
         """
@@ -148,6 +273,10 @@ class OpenAIEmbeddingService:
                 continue
             
             try:
+                # 动态获取客户端
+                if self.client is None:
+                    self.client = await shared_client_manager.get_embedding_client()
+                    
                 response = await self.client.embeddings.create(
                     model=self.model,
                     input=valid_texts,

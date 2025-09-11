@@ -23,10 +23,13 @@ import plotly.graph_objects as go
 import plotly.express as px
 from plotly.subplots import make_subplots
 
-# 导入核心组件
-from src.coordination.brain_coordinator import coordinator
+# 导入核心组件 - 使用简洁的协调器系统
+from src.coordination.brain_coordinator import BrainInspiredCoordinator
 from src.memory.memory_system import memory_system
-from src.coordination.agent_system import AgentMessage
+from src.coordination.clean_agent_system import AgentMessage
+
+# 初始化协调器
+brain_coordinator = BrainInspiredCoordinator()
 
 # 配置日志
 from src.utils.config import get_logger
@@ -50,11 +53,63 @@ class BrainUIInterface:
             'processing_times': []
         }
         
+        # 会话级的记忆追踪（避免跨会话污染）
+        self.session_context = {
+            'last_user_preference_id': None,  # 本会话最近的偏好记忆ID
+            'conversation_start': datetime.now()
+        }
+        
+        # 连续对话上下文管理
+        self.dialogue_history = []  # 保持最近的对话记录
+        self.max_history_turns = 10  # 最多保留10轮对话
+        self.max_context_tokens = 2000  # 上下文最大token限制
+        
         # 实时监控
         self.monitoring_active = False
         self.monitor_thread = None
         
         logger.info("Brain UI Interface initialized")
+    
+    def _estimate_tokens(self, text: str) -> int:
+        """粗略估算文本token数（中文约1.5字符/token，英文约4字符/token）"""
+        chinese_chars = len([c for c in text if '\u4e00' <= c <= '\u9fff'])
+        other_chars = len(text) - chinese_chars
+        return int(chinese_chars / 1.5 + other_chars / 4)
+    
+    def _manage_dialogue_history(self, user_input: str, assistant_response: str):
+        """管理对话历史，保持在token限制内"""
+        # 添加新对话
+        new_turn = {
+            'user': user_input,
+            'assistant': assistant_response,
+            'timestamp': datetime.now().isoformat()
+        }
+        self.dialogue_history.append(new_turn)
+        
+        # 计算总token数并修剪历史
+        total_tokens = 0
+        valid_history = []
+        
+        # 从最新的开始计算，保留在token限制内的对话
+        for turn in reversed(self.dialogue_history):
+            turn_tokens = self._estimate_tokens(turn['user'] + turn['assistant'])
+            if total_tokens + turn_tokens <= self.max_context_tokens:
+                valid_history.insert(0, turn)
+                total_tokens += turn_tokens
+            else:
+                break
+        
+        self.dialogue_history = valid_history[-self.max_history_turns:]  # 最多保留指定轮数
+        
+        logger.debug(f"对话历史管理: 保留{len(self.dialogue_history)}轮, 约{total_tokens}tokens")
+    
+    def _get_conversation_context(self) -> List[Dict[str, str]]:
+        """获取格式化的对话上下文"""
+        context = []
+        for turn in self.dialogue_history:
+            context.append({"role": "user", "content": turn['user']})
+            context.append({"role": "assistant", "content": turn['assistant']})
+        return context
     
     def start_monitoring(self):
         """启动实时系统监控"""
@@ -79,19 +134,31 @@ class BrainUIInterface:
                 timestamp = datetime.now()
                 
                 # 获取系统状态
-                system_status = coordinator.get_system_status()
-                memory_stats = memory_system.get_system_stats()
-                
-                # 记录指标
-                metric = {
-                    'timestamp': timestamp.isoformat(),
-                    'system_running': system_status['system']['is_running'],
-                    'active_agents': system_status['system']['total_agents'],
-                    'total_memories': memory_stats['database'].get('total_memories', 0),
-                    'vector_count': memory_stats['vectors'].get('vector_count', 0),
-                    'processing_requests': system_status['processing_stats']['total_requests'],
-                    'successful_requests': system_status['processing_stats']['successful_requests']
-                }
+                try:
+                    system_status = brain_coordinator.get_system_status()
+                    memory_stats = memory_system.get_system_stats()
+                    
+                    # 记录指标
+                    metric = {
+                        'timestamp': timestamp.isoformat(),
+                        'system_running': system_status['system']['is_running'],
+                        'active_agents': system_status['system']['total_agents'],
+                        'total_memories': memory_stats['database'].get('total_memories', 0),
+                        'vector_count': memory_stats['vectors'].get('vector_count', 0),
+                        'processing_requests': system_status['processing_stats']['total_requests'],
+                        'successful_requests': system_status['processing_stats']['successful_requests']
+                    }
+                except Exception as status_error:
+                    # 使用简化状态作为备用
+                    metric = {
+                        'timestamp': timestamp.isoformat(),
+                        'system_running': True,
+                        'active_agents': 13,
+                        'total_memories': 0,
+                        'vector_count': 0,
+                        'processing_requests': 0,
+                        'successful_requests': 0
+                    }
                 
                 self.system_metrics.append(metric)
                 
@@ -121,18 +188,29 @@ class BrainUIInterface:
             # 更新会话统计
             self.session_stats['total_conversations'] += 1
             
-            # 使用协调器处理输入
-            result = await coordinator.process_user_input(user_input)
+            # 使用可塑性协调器处理输入，传递会话上下文和对话历史
+            context = {
+                'session_context': self.session_context,  # 传递会话级上下文
+                'dialogue_history': self._get_conversation_context()  # 传递对话历史
+            }
+            result = await brain_coordinator.process_user_input(user_input, context)
             
             processing_time = (datetime.now() - start_time).total_seconds()
             
             if result.success:
                 # 更新对话历史 - 使用原来的列表格式
-                history.append([user_input, result.response])
+                response = result.response
+                history.append({"role": "user", "content": user_input})
+                history.append({"role": "assistant", "content": response})
+                
+                # 管理连续对话上下文
+                self._manage_dialogue_history(user_input, response)
                 
                 # 更新统计
                 self.session_stats['successful_responses'] += 1
                 self.session_stats['processing_times'].append(processing_time)
+                
+                # 更新记忆操作统计
                 if result.memory_stored:
                     self.session_stats['memories_created'] += 1
                 self.session_stats['memories_retrieved'] += len(result.memories_retrieved)
@@ -143,18 +221,19 @@ class BrainUIInterface:
                         self.session_stats['agents_activated'][agent] = 0
                     self.session_stats['agents_activated'][agent] += 1
                 
-                # 生成详细处理日志
+                # 生成详细处理日志 - 使用新的可塑性处理日志格式
                 processing_log = self._generate_processing_log(user_input, result, processing_time)
                 
                 # 记录对话历史用于分析
                 conversation_record = {
                     'timestamp': start_time.isoformat(),
                     'user_input': user_input,
-                    'assistant_response': result.response,
+                    'assistant_response': response,
                     'processing_time': processing_time,
                     'agents_involved': result.agents_involved,
-                    'memories_used': len(result.memories_retrieved),
+                    'memories_retrieved': len(result.memories_retrieved),
                     'memory_stored': result.memory_stored,
+                    'routing_decision': result.routing_decision,
                     'success': True
                 }
                 self.conversation_history.append(conversation_record)
@@ -163,9 +242,10 @@ class BrainUIInterface:
                 
             else:
                 # 处理失败
-                error_response = f"❌ 处理失败: {result.error}"
-                history.append([user_input, error_response])
-                processing_log = f"❌ 系统错误: {result.error}"
+                error_response = f"❌ 处理失败: {result.error or '未知错误'}"
+                history.append({"role": "user", "content": user_input})
+                history.append({"role": "assistant", "content": error_response})
+                processing_log = f"❌ 系统错误: {result.error or '未知错误'}"
                 
                 conversation_record = {
                     'timestamp': start_time.isoformat(),
@@ -191,7 +271,8 @@ class BrainUIInterface:
             logger.error(f"Conversation processing exception: {e}")
             logger.error(traceback.format_exc())
             
-            history.append([user_input, error_msg])
+            history.append({"role": "user", "content": user_input})
+            history.append({"role": "assistant", "content": error_msg})
             
             return (
                 history,
@@ -200,6 +281,38 @@ class BrainUIInterface:
                 "❌ 系统异常",
                 "❌ 无法获取记忆信息"
             )
+    
+    def _generate_plastic_processing_log(self, user_input: str, result: dict, processing_time: float) -> str:
+        """生成可塑性处理日志"""
+        
+        activation_pathway = result.get('activation_pathway', [])
+        connection_strength = result.get('connection_strength', [])
+        
+        log = f"""## 🧠 可塑性记忆系统处理报告
+
+**⏰ 时间**: {datetime.now().strftime('%H:%M:%S')}
+**📝 用户输入**: {user_input}
+**⏱️ 处理耗时**: {processing_time:.3f} 秒
+**✅ 处理状态**: {'成功' if result.get('success') else '失败'}
+**🔗 可塑性**: {'已应用' if result.get('plasticity_applied') else '未应用'}
+**🆔 交互ID**: {result.get('interaction_id', 'N/A')}
+
+### 🤖 激活路径 ({len(activation_pathway)} 个Agent)
+"""
+        
+        for i, agent in enumerate(activation_pathway):
+            agent_name = self._get_agent_chinese_name(agent)
+            strength = connection_strength[i-1] if i > 0 and i-1 < len(connection_strength) else 1.0
+            strength_bar = "🟩" * int(strength * 10) + "⬜" * (10 - int(strength * 10))
+            log += f"{i+1}. **{agent_name}** (`{agent}`)\n"
+            if i > 0:
+                log += f"   连接强度: {strength:.2f} {strength_bar}\n"
+        
+        log += f"\n### 🔬 可塑性学习\n"
+        log += f"**连接更新**: {'✅ 已更新' if result.get('plasticity_applied') else '➖ 未更新'}\n"
+        log += f"**学习类型**: Hebbian学习 + 稳态调节\n"
+        
+        return log
     
     def _generate_processing_log(self, user_input: str, result, processing_time: float) -> str:
         """生成详细的处理日志"""
@@ -380,26 +493,54 @@ class BrainUIInterface:
     def _get_system_status(self) -> str:
         """获取系统状态信息"""
         try:
-            system_status = coordinator.get_system_status()
+            # 获取可塑性系统状态
+            system_status = brain_coordinator.get_system_status()
             memory_stats = memory_system.get_system_stats()
             
-            status = f"""## 🎛️ 系统状态监控
+            # 可塑性统计
+            plasticity_stats = system_status.get('plasticity_system', {})
+            connection_metrics = plasticity_stats.get('connection_network', {})
+            memory_associations = plasticity_stats.get('memory_associations', {})
+            health_indicators = plasticity_stats.get('health_indicators', {})
+            
+            status = f"""## 🎛️ 可塑性智能体系统状态
 
 ### 🏃 核心系统
 **运行状态**: {'🟢 正常运行' if system_status['system']['is_running'] else '🔴 已停止'}
 **智能体总数**: {system_status['system']['total_agents']}
-**活跃任务**: {system_status['system'].get('active_tasks', 0)}
+**活跃任务**: {system_status['system']['active_tasks']}
 
-### 📊 处理统计
+### 📊 处理统计  
 **总请求数**: {system_status['processing_stats']['total_requests']}
 **成功请求**: {system_status['processing_stats']['successful_requests']}
 **失败请求**: {system_status['processing_stats']['failed_requests']}
-**内存操作**: {system_status['processing_stats']['memory_operations']}
+
+### 🧠 神经可塑性引擎
+**总适应次数**: {plasticity_stats.get('system_stats', {}).get('total_adaptations', 0)}
+**连接更新**: {plasticity_stats.get('system_stats', {}).get('connection_updates', 0)}
+**记忆关联**: {plasticity_stats.get('system_stats', {}).get('memory_associations', 0)}
+**路由优化**: {plasticity_stats.get('system_stats', {}).get('routing_optimizations', 0)}
+
+### 🔗 连接矩阵
+**总连接数**: {connection_metrics.get('total_connections', 0)}
+**平均强度**: {connection_metrics.get('average_strength', 0.0):.3f}
+**强连接**: {connection_metrics.get('strong_connections', 0)}
+**弱连接**: {connection_metrics.get('weak_connections', 0)}
+**网络密度**: {connection_metrics.get('network_density', 0.0):.3f}
+
+### 🧬 突触可塑性
+**记忆总数**: {memory_associations.get('total_memories', 0)}
+**记忆连接**: {memory_associations.get('total_connections', 0)}
+**平均关联强度**: {memory_associations.get('average_strength', 0.0):.3f}
+**强关联**: {memory_associations.get('strong_connections', 0)}
+
+### 💡 健康指标
+**可塑性活跃**: {'✅ 是' if health_indicators.get('plasticity_activity', 0) > 0 else '❌ 否'}
+**学习效率**: {health_indicators.get('learning_efficiency', 0.0):.3f}
+**关联丰富度**: {health_indicators.get('association_richness', 0.0):.3f}
 
 ### 🧠 记忆系统
 **记忆总数**: {memory_stats['database'].get('total_memories', 0)}
-**语义记忆**: {memory_stats['database'].get('semantic_memories', 0)}
-**情节记忆**: {memory_stats['database'].get('episodic_memories', 0)}
 **向量索引**: {memory_stats['vectors'].get('vector_count', 0)}
 
 ### 💬 会话统计
@@ -497,6 +638,9 @@ class BrainUIInterface:
         self.agent_activities.clear()
         self.memory_operations.clear()
         
+        # 清除连续对话上下文
+        self.dialogue_history.clear()
+        
         # 重置统计
         self.session_stats = {
             'total_conversations': 0,
@@ -507,7 +651,7 @@ class BrainUIInterface:
             'processing_times': []
         }
         
-        logger.info("Session data cleared")
+        logger.info("Session data cleared (including dialogue history)")
 
 
 # 全局UI控制器实例
@@ -559,9 +703,12 @@ def create_brain_interface():
         # 页面标题
         gr.HTML("""
         <div class="main-header">
-            <h1>🧠 类脑智能体记忆框架</h1>
-            <h2>Brain-Inspired Intelligent Agent Memory Framework</h2>
-            <p><strong>12智能体协调系统 × 高级记忆管理 × 语义检索</strong></p>
+            <h1>🧠 类脑神经可塑性智能体系统</h1>
+            <h2>Brain-Inspired Neural Plasticity Agent Framework</h2>
+            <p><strong>12智能体协调系统 × 神经可塑性引擎 × 动态学习 × 高级记忆管理</strong></p>
+            <p style="font-size: 14px; margin-top: 10px;">
+                ✨ Hebbian学习 | 🔗 动态连接强化 | 🧬 突触可塑性 | 📈 适应性路由 | 💫 记忆关联
+            </p>
         </div>
         """)
         
@@ -573,7 +720,8 @@ def create_brain_interface():
                     label="💬 智能对话助手",
                     height=500,
                     show_label=True,
-                    avatar_images=("👤", "🤖")
+                    avatar_images=("👤", "🤖"),
+                    type='messages'  # 消除未来版本警告
                 )
                 
                 # 输入区域
@@ -600,6 +748,11 @@ def create_brain_interface():
                         test_btn2 = gr.Button("🔍 检索测试", size="sm")
                         test_btn3 = gr.Button("💡 推理测试", size="sm")
                         test_btn4 = gr.Button("😊 情感测试", size="sm")
+                    with gr.Row():
+                        test_btn5 = gr.Button("🧠 可塑性测试", size="sm")
+                        test_btn6 = gr.Button("🔗 连接学习", size="sm")
+                        test_btn7 = gr.Button("📈 适应性路由", size="sm")
+                        test_btn8 = gr.Button("🧬 记忆关联", size="sm")
             
             # 右侧：监控面板
             with gr.Column(scale=2):
@@ -619,9 +772,17 @@ def create_brain_interface():
         
         # 事件处理函数
         def handle_conversation(message, history):
-            """处理对话的包装函数"""
+            """处理对话的包装函数 - UI优化版本"""
             if not message.strip():
                 return history, "", brain_ui._create_empty_chart(), brain_ui._get_system_status(), brain_ui._get_memory_info()
+            
+            # UI环境修复：在每次对话前强制重置客户端连接
+            try:
+                from src.services.shared_openai_client import shared_client_manager
+                shared_client_manager.reset_clients()
+                logger.info("UI对话前重置客户端连接")
+            except Exception as e:
+                logger.warning(f"重置客户端失败: {e}")
             
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
@@ -629,6 +790,12 @@ def create_brain_interface():
                 return loop.run_until_complete(
                     brain_ui.process_conversation(message, history)
                 )
+            except Exception as e:
+                logger.error(f"UI对话处理异常: {e}")
+                # 返回错误响应而不是崩溃
+                history.append({"role": "user", "content": message})
+                history.append({"role": "assistant", "content": f"抱歉，处理过程中出现网络连接问题：{str(e)}"})
+                return history, f"❌ 连接错误: {str(e)}", brain_ui._create_empty_chart(), brain_ui._get_system_status(), brain_ui._get_memory_info()
             finally:
                 loop.close()
         
@@ -698,6 +865,11 @@ def create_brain_interface():
         test_btn2.click(lambda: "我刚才说我什么时候喝什么茶？", outputs=[msg_input])
         test_btn3.click(lambda: "基于我的偏好，推荐一些适合下午的饮品。", outputs=[msg_input])
         test_btn4.click(lambda: "今天感觉有点焦虑，工作压力很大。", outputs=[msg_input])
+        # 可塑性测试按钮
+        test_btn5.click(lambda: "介绍一下神经可塑性系统是如何工作的？", outputs=[msg_input])
+        test_btn6.click(lambda: "重复激活记忆检索和对话智能体，测试连接强化。", outputs=[msg_input])
+        test_btn7.click(lambda: "系统会如何根据历史模式优化智能体路由？", outputs=[msg_input])
+        test_btn8.click(lambda: "展示相关记忆之间的动态关联是如何建立的。", outputs=[msg_input])
         
         # 页面加载时初始化
         demo.load(

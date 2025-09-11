@@ -3,16 +3,28 @@
   "agent_name": "遗忘智能体",
   "brain_region": "inhibition",
   "created_at": "2025-09-08T14:54:13.636903",
-  "last_updated": "2025-09-08T14:54:13.636907",
+  "last_updated": "2025-09-09T17:20:05.034075",
   "buffer_content": {
     "forgetting_schedule": [],
     "removed_memories": [],
     "decay_rates": {},
     "importance_threshold": 0.3,
-    "recent_exchanges": []
+    "recent_exchanges": [],
+    "recent_inputs": {
+      "message": {
+        "action": "apply_forgetting_curve"
+      },
+      "timestamp": "2025-09-09T17:20:05.034037",
+      "sender": "coordinator"
+    },
+    "recent_outputs": []
   },
   "metadata": {
-    "total_operations": 0,
-    "last_operation": null
+    "total_operations": 1,
+    "last_operation": {
+      "type": "write",
+      "key": "recent_inputs",
+      "timestamp": "2025-09-09T17:20:05.034077"
+    }
   }
 }

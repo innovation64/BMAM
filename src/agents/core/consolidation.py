@@ -395,7 +395,7 @@ class ConsolidationAgent(BrainAgent):
                         'memory_id': memory_id,
                         'content': memory.content,
                         'replay_strength': replay_strength,
-                        'timestamp': datetime.now()
+                        'timestamp': datetime.now().isoformat()
                     })
                 
                 self.db_manager.save_memory(memory)

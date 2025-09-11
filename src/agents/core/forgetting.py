@@ -652,7 +652,7 @@ class ForgettingAgent(BrainAgent):
             if suppression_success:
                 # Record suppression
                 self.suppression_history[memory_id] = {
-                    'timestamp': datetime.now(),
+                    'timestamp': datetime.now().isoformat(),
                     'original_importance': memory.importance,
                     'suppression_strength': suppression_success['strength']
                 }

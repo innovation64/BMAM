@@ -186,7 +186,7 @@ class MemoryDistortionAgent(BrainAgent):
         # Cache result for future use
         self.source_reliability_cache[memory_id] = {
             'confidence': source_confidence,
-            'timestamp': datetime.now()
+            'timestamp': datetime.now().isoformat()
         }
         
         return {

@@ -34,7 +34,9 @@
         "from_agent": "long_term_memory",
         "to_agent": "memory_consolidation"
       }
-    ]
+    ],
+    "recent_inputs": [],
+    "recent_outputs": []
   },
   "metadata": {
     "total_operations": 3,

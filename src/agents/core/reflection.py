@@ -188,7 +188,7 @@ class ReflectionAgent(BrainAgent):
             'memory_id': insight_memory.id,
             'level': best_insight['level'],
             'confidence': best_insight['confidence'],
-            'timestamp': datetime.now()
+            'timestamp': datetime.now().isoformat()
         })
         self.insights_generated += 1
         

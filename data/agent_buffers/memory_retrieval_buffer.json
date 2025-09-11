@@ -3,7 +3,7 @@
   "agent_name": "记忆检索智能体",
   "brain_region": "hippocampus",
   "created_at": "2025-09-08T14:54:13.636377",
-  "last_updated": "2025-09-08T15:43:21.374962",
+  "last_updated": "2025-09-09T17:23:54.965932",
   "buffer_content": {
     "recent_queries": [],
     "retrieval_cache": {},
@@ -83,15 +83,287 @@
         "to_agent": "short_term_memory"
       }
     ],
-    "recent_inputs": {
-      "message": {
-        "action": "semantic_search",
-        "query": "基于我的偏好，推荐一些适合下午的饮品。",
-        "k": 10
+    "recent_inputs": [
+      {
+        "message": {
+          "action": "semantic_search",
+          "query": "请记住我喜欢喝绿茶，每天下午3点左右。",
+          "k": 10
+        },
+        "timestamp": "2025-09-09T17:23:54.965518",
+        "sender": "coordinator"
       },
-      "timestamp": "2025-09-08T15:43:21.372607",
-      "sender": "coordinator"
-    },
+      {
+        "message": {
+          "action": "semantic_search",
+          "query": "请记住我喜欢喝绿茶，每天下午3点左右。",
+          "k": 10
+        },
+        "timestamp": "2025-09-09T23:54:48.666770",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "semantic_search",
+          "query": "我刚才说我什么时候喝什么茶？",
+          "k": 10
+        },
+        "timestamp": "2025-09-09T23:56:36.539541",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "semantic_search",
+          "query": "请记住我喜欢喝绿茶，每天下午3点左右。",
+          "k": 10
+        },
+        "timestamp": "2025-09-10T10:03:58.599909",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "semantic_search",
+          "query": "我刚才说我什么时候喝什么茶？",
+          "k": 10
+        },
+        "timestamp": "2025-09-10T10:04:11.445158",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "semantic_search",
+          "query": "请记住我喜欢喝绿茶，每天下午3点左右。",
+          "k": 10
+        },
+        "timestamp": "2025-09-10T10:13:19.640422",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "semantic_search",
+          "query": "我刚才说我什么时候喝什么茶？",
+          "k": 10
+        },
+        "timestamp": "2025-09-10T10:13:28.720331",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "semantic_search",
+          "query": "我刚才说我什么时候喝什么茶？",
+          "k": 10
+        },
+        "timestamp": "2025-09-10T10:15:48.241430",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "semantic_search",
+          "query": "请记住我喜欢喝绿茶，每天下午3点左右。",
+          "k": 10
+        },
+        "timestamp": "2025-09-10T10:15:57.835644",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "semantic_search",
+          "query": "请记住我喜欢喝绿茶，每天下午3点左右。",
+          "k": 10
+        },
+        "timestamp": "2025-09-10T10:20:52.641938",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "semantic_search",
+          "query": "我刚才说我什么时候喝什么茶？",
+          "k": 10
+        },
+        "timestamp": "2025-09-10T10:20:59.469797",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "semantic_search",
+          "query": "请记住我喜欢喝绿茶，每天下午3点左右。",
+          "k": 10
+        },
+        "timestamp": "2025-09-10T10:27:39.194505",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "semantic_search",
+          "query": "我刚才说我什么时候喝什么茶？",
+          "k": 10
+        },
+        "timestamp": "2025-09-10T10:27:51.677167",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "semantic_search",
+          "query": "请记住我喜欢喝绿茶，每天下午3点左右。",
+          "k": 10
+        },
+        "timestamp": "2025-09-10T10:39:26.743373",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "semantic_search",
+          "query": "我刚才说我什么时候喝什么茶？",
+          "k": 10
+        },
+        "timestamp": "2025-09-10T10:39:33.053193",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "semantic_search",
+          "query": "请记住我喜欢喝绿茶",
+          "k": 10
+        },
+        "timestamp": "2025-09-10T10:47:46.479779",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "semantic_search",
+          "query": "我刚才说我喜欢喝什么？",
+          "k": 10
+        },
+        "timestamp": "2025-09-10T10:47:51.553652",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "semantic_search",
+          "query": "请记住我喜欢喝绿茶，每天下午3点左右。",
+          "k": 10
+        },
+        "timestamp": "2025-09-10T10:50:24.522578",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "semantic_search",
+          "query": "我刚才说我什么时候喝什么茶？",
+          "k": 10
+        },
+        "timestamp": "2025-09-10T10:50:32.435918",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "semantic_search",
+          "query": "基于我的偏好，推荐一些适合下午的饮品。",
+          "k": 10
+        },
+        "timestamp": "2025-09-10T10:50:41.967062",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "semantic_search",
+          "query": "今天感觉有点焦虑，工作压力很大。",
+          "k": 10
+        },
+        "timestamp": "2025-09-10T10:50:53.685644",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "semantic_search",
+          "query": "介绍一下神经可塑性系统是如何工作的？",
+          "k": 10
+        },
+        "timestamp": "2025-09-10T10:51:04.236448",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "semantic_search",
+          "query": "重复激活记忆检索和对话智能体，测试连接强化。",
+          "k": 10
+        },
+        "timestamp": "2025-09-10T10:51:26.954812",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "semantic_search",
+          "query": "系统会如何根据历史模式优化智能体路由？",
+          "k": 10
+        },
+        "timestamp": "2025-09-10T10:52:17.449147",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "semantic_search",
+          "query": "展示相关记忆之间的动态关联是如何建立的。",
+          "k": 10
+        },
+        "timestamp": "2025-09-10T10:52:58.019021",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "semantic_search",
+          "query": "介绍一下神经可塑性系统是如何工作的？",
+          "k": 10
+        },
+        "timestamp": "2025-09-11T09:17:14.007117",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "semantic_search",
+          "query": "我刚才说我什么时候喝什么茶？",
+          "k": 10
+        },
+        "timestamp": "2025-09-11T09:17:30.370244",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "semantic_search",
+          "query": "我提到过什么战争吗",
+          "k": 10
+        },
+        "timestamp": "2025-09-11T09:17:59.948860",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "semantic_search",
+          "query": "讲述俄乌战争的获利方",
+          "k": 10
+        },
+        "timestamp": "2025-09-11T09:18:21.057172",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "semantic_search",
+          "query": "我提到过什么战争吗",
+          "k": 10
+        },
+        "timestamp": "2025-09-11T09:18:51.941222",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "semantic_search",
+          "query": "????我再问一次我提到过什么战争吗",
+          "k": 10
+        },
+        "timestamp": "2025-09-11T09:19:25.339706",
+        "sender": "coordinator"
+      }
+    ],
     "recent_outputs": {
       "result": {
         "memories": [
@@ -211,11 +483,12 @@
     }
   },
   "metadata": {
-    "total_operations": 35,
+    "total_operations": 48,
     "last_operation": {
       "type": "write",
-      "key": "recent_exchanges",
-      "timestamp": "2025-09-08T15:43:21.374964"
-    }
+      "key": "recent_inputs",
+      "timestamp": "2025-09-09T17:23:54.965979"
+    },
+    "last_updated": "2025-09-11T09:19:25.341073"
   }
 }

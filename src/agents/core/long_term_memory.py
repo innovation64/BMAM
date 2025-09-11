@@ -56,6 +56,8 @@ class LongTermMemoryAgent(BrainAgent):
         action = message.content.get('action')
         
         if action == 'store_long_term':
+            memory_content = message.content.get('memory', {}).get('content', 'N/A')
+            logger.debug(f"🧠 LongTermMemoryAgent: storing memory content='{memory_content[:50]}...'")
             return await self._store_long_term_memory(message.content['memory'])
         elif action == 'build_associations':
             return await self._build_semantic_associations(message.content['memory_id'])
@@ -71,54 +73,37 @@ class LongTermMemoryAgent(BrainAgent):
         return {'error': f'Unknown action: {action}'}
     
     async def _store_long_term_memory(self, memory_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Store memory in long-term storage with semantic encoding"""
+        """Store memory in long-term storage with semantic encoding - 统一使用memory_system"""
         
-        # Create memory item
-        memory = MemoryItem(
+        # 调用统一的memory_system，确保向量库与数据库同步更新
+        from ...memory.memory_system import memory_system
+        
+        memory_id = await memory_system.store_memory(
             content=memory_data['content'],
-            memory_type=memory_data.get('memory_type', 'semantic'),
-            brain_region=BrainRegion.NEOCORTEX,
+            memory_type=memory_data.get('memory_type', 'semantic'), 
             importance=memory_data.get('importance', 0.5),
-            consolidation_level=memory_data.get('consolidation_level', 1),
             emotion_tags=memory_data.get('emotion_tags', []),
-            context_tags=memory_data.get('context_tags', [])
+            context_tags=memory_data.get('context_tags', []),
+            metadata=memory_data.get('metadata', {})
         )
         
-        # Generate embedding if embedding service is available
-        if self.embedding_service:
-            memory.embedding = await self.embedding_service.encode_text(memory.content)
-            
-            # Add to vector database if available
-            if self.vector_db:
-                embedding_id = self.vector_db.add_vector(memory.id, memory.embedding)
-                memory.embedding_id = str(embedding_id)
-        
-        # Save to persistent storage if available
-        success = False
-        if self.db_manager:
-            success = self.db_manager.save_memory(memory)
-            
-            if success and self.vector_db:
-                self.vector_db.save_index()
-        else:
-            # Fallback: store in local structure
-            self.memory_categories[memory.memory_type].append(memory)
-            success = True
+        success = memory_id is not None
         
         if success:
             self.total_memories += 1
+            logger.info(f"✅ Successfully stored memory {memory_id} via memory_system: '{memory_data['content'][:50]}...'")
             
-            # Build initial associations
-            await self._build_semantic_associations(memory.id)
-            
-            # Categorize memory
-            self._categorize_memory(memory)
+            # Build initial associations - 使用返回的memory_id
+            await self._build_semantic_associations(memory_id)
+        else:
+            logger.error(f"❌ Failed to store memory via memory_system: '{memory_data['content'][:50]}...'")
+            memory_id = "failed"
         
         return {
             'stored': success,
-            'memory_id': memory.id,
-            'memory_type': memory.memory_type,
-            'consolidation_level': memory.consolidation_level,
+            'memory_id': memory_id,
+            'memory_type': memory_data.get('memory_type', 'semantic'),
+            'consolidation_level': memory_data.get('consolidation_level', 1),
             'total_memories': self.total_memories
         }
     

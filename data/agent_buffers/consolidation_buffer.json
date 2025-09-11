@@ -1,0 +1,19 @@
+{
+  "agent_id": "consolidation",
+  "agent_name": "记忆巩固智能体",
+  "brain_region": "hippocampus",
+  "buffer_content": {
+    "consolidation_queue": [],
+    "consolidation_history": [],
+    "importance_scores": {},
+    "scheduled_tasks": [],
+    "recent_inputs": [],
+    "recent_outputs": [],
+    "recent_exchanges": []
+  },
+  "metadata": {
+    "created_at": "2025-09-09T23:54:48.659027",
+    "last_updated": "2025-09-09T23:54:48.659036",
+    "version": "1.0"
+  }
+}

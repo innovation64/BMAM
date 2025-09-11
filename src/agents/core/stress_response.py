@@ -141,7 +141,7 @@ class StressResponseAgent(BrainAgent):
         
         # Record threat detection
         threat_record = {
-            'timestamp': datetime.now(),
+            'timestamp': datetime.now().isoformat(),
             'threat_score': threat_score,
             'threat_level': threat_level,
             'stimulus': stimulus,
@@ -211,7 +211,7 @@ class StressResponseAgent(BrainAgent):
             'emotion_tags': emotions,
             'emotion_intensity': emotion_intensity,
             'emotional_state': self.emotional_state.copy(),
-            'timestamp': datetime.now()
+            'timestamp': datetime.now().isoformat()
         }
         
         self.emotional_buffer.append(emotional_record)
@@ -251,7 +251,7 @@ class StressResponseAgent(BrainAgent):
             
             # Record stress event
             stress_event = {
-                'timestamp': datetime.now(),
+                'timestamp': datetime.now().isoformat(),
                 'stressor': stressor,
                 'stressor_response': stressor_response,
                 'stress_level_before': old_stress,

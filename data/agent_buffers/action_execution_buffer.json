@@ -9,7 +9,9 @@
     "execution_history": [],
     "motor_plans": {},
     "feedback_signals": [],
-    "recent_exchanges": []
+    "recent_exchanges": [],
+    "recent_inputs": [],
+    "recent_outputs": []
   },
   "metadata": {
     "total_operations": 0,

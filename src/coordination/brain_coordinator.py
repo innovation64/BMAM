@@ -12,18 +12,19 @@ import json
 
 from ..utils.config import get_logger
 
-from .agent_system import (
-    BaseAgent, AgentMessage, BrainRegion,
-    # Core agents
+from .clean_agent_system import (
+    BrainRegion, AgentMessage,
+    # Core agents - directly imported
     ShortTermMemoryAgent, LongTermMemoryAgent, MemoryRetrievalAgent,
     ConsolidationAgent, MemoryDistortionAgent, ReflectionAgent,
-    ForgettingAgent, StressResponseAgent,
-    # Auxiliary agents - 使用agent_system中的实现
+    ForgettingAgent, StressResponseAgent, PersonalityAgent,
+    # Auxiliary agents - clean implementation
     ConversationAgent, ExecutiveControlAgent,
     PerceptionEncodingAgent, ActionExecutionAgent
 )
 from ..memory.memory_system import memory_system
 from ..agents.agent_buffer_system import agent_buffer_system
+from ..brain.neural_plasticity import NeuralPlasticityEngine
 
 # Configure logging
 logger = get_logger(__name__)
@@ -70,7 +71,12 @@ class BrainInspiredCoordinator:
         # Initialize all 12 agents
         self._initialize_agents()
         
+        # Initialize Neural Plasticity Engine
+        agent_names = list(self.agents.keys())
+        self.plasticity_engine = NeuralPlasticityEngine(agent_names)
+        
         logger.info(f"Successfully initialized 12-agent system with {len(self.agents)} agents")
+        logger.info("Neural Plasticity Engine integrated - system now has adaptive learning!")
     
     def _initialize_agents(self):
         """Initialize all 12 agents according to design document"""
@@ -85,7 +91,8 @@ class BrainInspiredCoordinator:
         self.forgetting = ForgettingAgent()
         self.stress_response = StressResponseAgent()
         
-        # 4 Auxiliary Functional Agents
+        # 4 Auxiliary Functional Agents  
+        self.personality = PersonalityAgent()  # 人格智能体 - 摇光明明
         self.conversation = ConversationAgent()
         self.executive_control = ExecutiveControlAgent()
         self.perception_encoding = PerceptionEncodingAgent()
@@ -104,6 +111,7 @@ class BrainInspiredCoordinator:
             'stress_response': self.stress_response,
             
             # Auxiliary agents
+            'personality': self.personality,  # 人格智能体 - 摇光明明  
             'conversation': self.conversation,
             'executive_control': self.executive_control,
             'perception_encoding': self.perception_encoding,
@@ -138,7 +146,11 @@ class BrainInspiredCoordinator:
             await asyncio.gather(*self.agent_tasks.values(), return_exceptions=True)
         
         self.agent_tasks.clear()
-        logger.info("Brain-Inspired Coordinator System stopped")
+        
+        # Stop plasticity engine and save data
+        await self.plasticity_engine.stop_plasticity_engine()
+        
+        logger.info("Brain-Inspired Coordinator System stopped with plasticity data saved")
     
     async def process_user_input(self, user_input: str, context: Dict[str, Any] = None) -> ProcessingResult:
         """
@@ -175,7 +187,12 @@ class BrainInspiredCoordinator:
             
             encoded_input = perception_result.get('encoded_input', {})
             
-            # Phase 2: Executive Control - Task Routing (执行控制 - 任务路由)
+            # Phase 2: Executive Control - Task Routing with Plasticity (执行控制 - 任务路由)
+            task_type = self._classify_task_type(user_input)
+            
+            # Get optimal agent sequence from plasticity engine
+            optimal_agents = self.plasticity_engine.optimize_routing_strategy(task_type)
+            
             routing_result = await self._activate_agent(
                 'executive_control',
                 AgentMessage(
@@ -186,20 +203,23 @@ class BrainInspiredCoordinator:
                         'action': 'coordinate_agents',
                         'task_info': {
                             'user_input': user_input,
-                            'type': self._classify_task_type(user_input),
+                            'type': task_type,
                             'complexity': encoded_input.get('features', {}).get('complexity', 'medium'),
-                            'context': context or {}
+                            'context': context or {},
+                            'optimal_sequence': optimal_agents[:3]  # Top 3 from plasticity
                         }
                     }
                 )
             )
             
             coordination_plan = routing_result.get('coordination_plan', {})
-            primary_agents = coordination_plan.get('primary_agents', ['conversation'])
-            secondary_agents = coordination_plan.get('secondary_agents', ['memory_retrieval'])
+            # Use plasticity-optimized agents if executive control doesn't override
+            primary_agents = coordination_plan.get('primary_agents', optimal_agents[:2])
+            secondary_agents = coordination_plan.get('secondary_agents', optimal_agents[2:4])
             
             # Phase 3: Parallel Agent Activation (并行智能体激活)
             parallel_tasks = {}
+            activated_agents = ['memory_retrieval', 'stress_response']
             
             # Always retrieve memories first
             parallel_tasks['memory_retrieval'] = self._activate_agent(
@@ -235,38 +255,71 @@ class BrainInspiredCoordinator:
                 agent_id = self._map_agent_name(agent_name)
                 if agent_id and agent_id in self.agents:
                     parallel_tasks[agent_id] = self._create_primary_agent_task(agent_id, user_input, context)
+                    activated_agents.append(agent_id)
             
             # Wait for parallel phase completion
             parallel_results = {}
+            successful_agents = []
+            activation_strengths = []
+            
             for task_name, task_coro in parallel_tasks.items():
                 try:
-                    parallel_results[task_name] = await task_coro
+                    result = await task_coro
+                    parallel_results[task_name] = result
+                    if not result.get('error'):
+                        successful_agents.append(task_name)
+                        activation_strengths.append(1.0)  # Full activation strength for successful agents
                 except Exception as e:
                     # 检查是否是连接错误并尝试重置
                     error_str = str(e).lower()
                     if any(keyword in error_str for keyword in ['tcptransport', 'connection error', 'connection pool', 'closed=true']):
-                        logger.warning(f"智能体 {task_name} 连接错误，正在重置客户端并重试: {e}")
-                        try:
-                            from ..services.shared_openai_client import shared_client_manager
-                            shared_client_manager.reset_clients()
-                            # 重试一次
-                            parallel_results[task_name] = await task_coro
-                            logger.info(f"智能体 {task_name} 重试成功")
-                        except Exception as retry_e:
-                            logger.error(f"智能体 {task_name} 重试失败: {retry_e}")
-                            parallel_results[task_name] = {'error': str(retry_e)}
+                        logger.warning(f"智能体 {task_name} 执行失败: {e}")
+                        # 错误处理已统一到BrainAgent.call_llm中，不需要在这里重试
+                        parallel_results[task_name] = {'error': str(e)}
                     else:
                         logger.error(f"Error in {task_name}: {e}")
                         parallel_results[task_name] = {'error': str(e)}
+            
+            # Record agent activations for plasticity learning
+            if len(successful_agents) >= 2:
+                await self.plasticity_engine.start_plasticity_engine()
+                self.plasticity_engine.record_agent_activation(
+                    successful_agents,
+                    activation_strengths,
+                    context={
+                        'user_input': user_input,
+                        'task_type': self._classify_task_type(user_input),
+                        'timestamp': datetime.now().isoformat()
+                    }
+                )
             
             # Extract retrieved memories
             memories = parallel_results.get('memory_retrieval', {}).get('memories', [])
             threat_info = parallel_results.get('stress_detection', {})
             
+            # Initialize memory tracking variables
+            memory_ids = []
+            memory_strengths = []
+            
+            # Record memory co-activation for plasticity learning
+            if memories:
+                memory_ids = [mem.get('id', f"memory_{i}") for i, mem in enumerate(memories)]
+                memory_strengths = [mem.get('similarity_score', 0.5) for mem in memories]
+                
+                self.plasticity_engine.record_memory_co_activation(
+                    memory_ids,
+                    memory_strengths,
+                    context={
+                        'query': user_input,
+                        'retrieval_context': 'user_query',
+                        'timestamp': datetime.now().isoformat()
+                    }
+                )
+            
             # Phase 4: Working Memory Processing (工作记忆处理)
             if memories:
                 # Exchange retrieved memories with short-term memory
-                agent_buffer_system.exchange_buffers(
+                await agent_buffer_system.exchange_buffers(
                     'memory_retrieval',
                     'short_term_memory',
                     'retrieved_memories',
@@ -293,7 +346,19 @@ class BrainInspiredCoordinator:
                     )
                 )
             
-            # Phase 5: Response Generation (响应生成)
+            # Phase 5: Response Generation with Plasticity Insights (响应生成)
+            # Get suggested memories from plasticity engine
+            plasticity_memories = []
+            if memories:
+                memory_ids = [mem.get('id', f"memory_{i}") for i, mem in enumerate(memories)]
+                associated_memories = self.plasticity_engine.get_associated_memories(
+                    memory_ids[:3],  # Top 3 memories for association
+                    association_threshold=0.2,
+                    max_associations=5
+                )
+                plasticity_memories = [{'id': mem_id, 'plasticity_strength': strength} 
+                                     for mem_id, strength in associated_memories]
+            
             response_result = await self._activate_agent(
                 'conversation',
                 AgentMessage(
@@ -305,6 +370,7 @@ class BrainInspiredCoordinator:
                         'user_input': user_input,
                         'context': context or {},
                         'memories': memories[:5],  # Top 5 most relevant
+                        'plasticity_memories': plasticity_memories,
                         'threat_info': threat_info,
                         'primary_results': {k: v for k, v in parallel_results.items() if k not in ['memory_retrieval', 'stress_detection']}
                     }
@@ -337,7 +403,7 @@ class BrainInspiredCoordinator:
                 
                 if preference_processed:
                     # Exchange buffer info between long_term_memory and consolidation
-                    agent_buffer_system.exchange_buffers(
+                    await agent_buffer_system.exchange_buffers(
                         'long_term_memory',
                         'memory_consolidation', 
                         'preference_data',
@@ -394,7 +460,7 @@ class BrainInspiredCoordinator:
                 # Store complete conversation memory (not just user input)
                 conversation_content = f"用户说：{user_input}\n助手回复：{main_response}"
                 
-                memory_id = memory_system.store_memory(
+                memory_id = await memory_system.store_memory(
                     content=conversation_content,
                     importance=min(1.0, importance),
                     emotion_tags=emotion_tags,
@@ -412,6 +478,21 @@ class BrainInspiredCoordinator:
                 
                 if memory_stored:
                     self.processing_stats['memory_operations'] += 1
+                    
+                    # Record new memory activation with retrieved memories
+                    if memory_id and memory_ids:
+                        all_memory_ids = memory_ids + [memory_id]
+                        all_strengths = memory_strengths + [importance]
+                        
+                        self.plasticity_engine.record_memory_co_activation(
+                            all_memory_ids,
+                            all_strengths,
+                            context={
+                                'event': 'new_memory_storage',
+                                'conversation_context': True,
+                                'timestamp': datetime.now().isoformat()
+                            }
+                        )
             
             # Phase 7: Background Processing (后台处理)
             background_tasks = []
@@ -479,13 +560,8 @@ class BrainInspiredCoordinator:
             # 检查是否是连接错误，如果是则重置OpenAI客户端
             error_str = str(e).lower()
             if any(keyword in error_str for keyword in ['tcptransport', 'connection error', 'connection pool', 'closed=true']):
-                logger.warning(f"检测到TCP连接错误，正在重置OpenAI客户端: {e}")
-                try:
-                    from ..services.shared_openai_client import shared_client_manager
-                    shared_client_manager.reset_clients()
-                    logger.info("OpenAI客户端已重置")
-                except Exception as reset_e:
-                    logger.error(f"重置客户端时出错: {reset_e}")
+                logger.warning(f"检测到连接错误: {e}")
+                # 连接错误处理已统一到BrainAgent.call_llm中，避免竞态条件
             
             logger.error(f"Error processing user input: {e}")
             
@@ -513,7 +589,7 @@ class BrainInspiredCoordinator:
             
             # Read agent's current buffer state
             try:
-                buffer_content = agent_buffer_system.read_buffer(agent_id)
+                buffer_content = await agent_buffer_system.read_buffer(agent_id)
                 # Add ONLY essential buffer data to avoid infinite nesting
                 if hasattr(message, 'content') and isinstance(message.content, dict):
                     # Only pass essential data, not the entire buffer including recent_inputs
@@ -530,26 +606,39 @@ class BrainInspiredCoordinator:
             
             # Update agent buffer with processing results
             try:
+                # Sanitize function for JSON serialization
+                def sanitize_for_json(obj):
+                    if isinstance(obj, dict):
+                        return {k: sanitize_for_json(v) for k, v in obj.items()}
+                    elif isinstance(obj, list):
+                        return [sanitize_for_json(item) for item in obj]
+                    elif hasattr(obj, '__dict__'):
+                        return str(obj)  # Convert objects to string representation
+                    elif isinstance(obj, (str, int, float, bool)) or obj is None:
+                        return obj
+                    else:
+                        return str(obj)  # Convert everything else to string
+                
                 # Store ONLY the original message content, not the enriched version
                 original_content = {k: v for k, v in message.content.items() if k != 'buffer_data'}
-                agent_buffer_system.write_buffer(
+                await agent_buffer_system.write_buffer(
                     agent_id, 
                     'recent_inputs', 
                     {
-                        'message': original_content,
+                        'message': sanitize_for_json(original_content),
                         'timestamp': datetime.now().isoformat(),
                         'sender': message.sender
                     },
                     append=True
                 )
                 
-                # Store processing results if available
+                # Store processing results if available - sanitize for JSON
                 if result and not result.get('error'):
-                    agent_buffer_system.write_buffer(
+                    await agent_buffer_system.write_buffer(
                         agent_id,
                         'recent_outputs',
                         {
-                            'result': result,
+                            'result': sanitize_for_json(result),
                             'timestamp': datetime.now().isoformat(),
                             'processing_success': True
                         },
@@ -789,7 +878,10 @@ class BrainInspiredCoordinator:
                 logger.error(f"Message bus error: {e}")
     
     def get_system_status(self) -> Dict[str, Any]:
-        """Get comprehensive system status"""
+        """Get comprehensive system status including plasticity insights"""
+        # Get plasticity insights
+        plasticity_insights = self.plasticity_engine.get_plasticity_insights()
+        
         return {
             'system': {
                 'is_running': self.is_running,
@@ -798,6 +890,7 @@ class BrainInspiredCoordinator:
             },
             'processing_stats': self.processing_stats,
             'memory_system': memory_system.get_system_stats(),
+            'plasticity_system': plasticity_insights,
             'agent_status': {
                 agent_id: {
                     'is_active': agent.is_active,
@@ -810,13 +903,16 @@ class BrainInspiredCoordinator:
         }
 
 
-# Global coordinator instance
-coordinator = BrainInspiredCoordinator()
+# Global coordinator instance removed - to avoid duplicate initialization
 
 
 async def main():
     """Test the coordinator system"""
     print("Testing Brain-Inspired Coordinator System...")
+    
+    # 创建协调器实例
+    coordinator = BrainInspiredCoordinator()
+    await coordinator.initialize()
     
     # Test cases
     test_inputs = [

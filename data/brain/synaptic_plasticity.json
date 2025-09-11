@@ -1,0 +1,14 @@
+{
+  "memory_connections": {},
+  "activation_history": {},
+  "co_activation_count": {},
+  "parameters": {
+    "ltp_threshold": 0.3,
+    "ltd_threshold": 0.1,
+    "learning_rate": 0.15,
+    "decay_rate": 0.02,
+    "min_strength": 0.05,
+    "max_strength": 1.0
+  },
+  "saved_at": "2025-09-10T08:38:23.937466"
+}

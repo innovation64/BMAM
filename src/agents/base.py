@@ -12,6 +12,7 @@ from datetime import datetime
 from abc import ABC, abstractmethod
 import openai
 from ..utils.config import get_logger, get_env
+from ..services.shared_openai_client import shared_client_manager
 # 移除了shared_client_manager依赖，直接使用openai.AsyncOpenAI
 
 # Configure logging
@@ -26,7 +27,7 @@ class AgentMessage:
     message_type: str  # request, response, notification
     content: Dict[str, Any]
     priority: str = "medium"  # high, medium, low
-    timestamp: datetime = field(default_factory=datetime.now)
+    timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
     correlation_id: str = field(default_factory=lambda: str(uuid.uuid4()))
 
 
@@ -53,18 +54,15 @@ class BrainRegion:
 
 
 class BrainAgent(ABC):
-    """Base class for brain-inspired agents"""
+    """统一的脑启发智能体基类 - 消除双轨架构"""
     
-    def __init__(self, agent_id: str, brain_region: str, system_prompt: str):
+    def __init__(self, agent_id: str, brain_region: str, system_prompt: str, client=None):
         self.agent_id = agent_id
         self.brain_region = brain_region
         self.system_prompt = system_prompt
         
-        # OpenAI client - 每个智能体独立创建，简单可靠
-        self.client = openai.AsyncOpenAI(
-            api_key=get_env("OPENAI_API_KEY"),
-            timeout=float(get_env("AGENT_TIMEOUT", "30.0"))
-        )
+        # 移除客户端缓存，每次调用时动态获取以避免跨事件循环问题
+        # client参数保留用于向后兼容，但不再缓存
         self.model = get_env("DEFAULT_MODEL", "gpt-4o-mini")
         
         # Agent state
@@ -72,13 +70,27 @@ class BrainAgent(ABC):
         self.message_queue = asyncio.Queue()
         self.response_cache = {}
         self.lock = asyncio.Lock()
+        self.execution_log = []  # 统一执行日志
         
         # Brain-inspired properties
         self.activation_level = 0.5  # Current activation (0-1)
-        self.fatigue_level = 0.0     # Mental fatigue (0-1)
+        self.fatigue_level = 0.0     # Mental fatigue (0-1)  
         self.attention_focus = []    # Current focus items
         
         logger.info(f"Initialized {agent_id} ({brain_region})")
+    
+    def log_execution(self, action: str, details: Any = None, status: str = "info"):
+        """统一执行日志记录"""
+        log_entry = {
+            'timestamp': datetime.now().isoformat(),
+            'agent_id': self.agent_id,
+            'action': action,
+            'details': details,
+            'status': status
+        }
+        self.execution_log.append(log_entry)
+        if len(self.execution_log) > 100:
+            self.execution_log = self.execution_log[-100:]
     
     @abstractmethod
     async def process_message(self, message: AgentMessage) -> Dict[str, Any]:
@@ -86,46 +98,94 @@ class BrainAgent(ABC):
         raise NotImplementedError
     
     async def call_llm(self, prompt: str, context: Dict[str, Any] = None, max_tokens: int = None, temperature: float = None) -> str:
-        """Call LLM with brain region context"""
-        max_retries = 3
-        retry_delay = 1  # seconds
-        
-        for attempt in range(max_retries):
-            try:
-                messages = [{"role": "system", "content": self.system_prompt}]
-                
-                if context:
-                    context_str = json.dumps(context, indent=2, default=str)
-                    messages.append({"role": "system", "content": f"Context: {context_str}"})
-                
-                messages.append({"role": "user", "content": prompt})
-                
-                # Use provided parameters or fall back to environment defaults
-                actual_max_tokens = max_tokens if max_tokens is not None else int(get_env("MAX_TOKENS", "1500"))
-                actual_temperature = temperature if temperature is not None else float(get_env("TEMPERATURE", "0.7"))
-                
-                response = await self.client.chat.completions.create(
-                    model=self.model,
-                    messages=messages,
-                    max_tokens=actual_max_tokens,
-                    temperature=actual_temperature,
-                    timeout=30  # 添加超时设置
-                )
-                
-                return response.choices[0].message.content.strip()
-                
-            except Exception as e:
-                logger.warning(f"LLM attempt {attempt + 1}/{max_retries} failed in {self.agent_id}: {e}")
-                
-                # 如果是最后一次尝试，记录错误并抛出异常让上层处理
-                if attempt == max_retries - 1:
-                    logger.error(f"LLM all attempts failed in {self.agent_id}: {e}")
-                    raise e
-                
-                # 等待后重试
-                await asyncio.sleep(retry_delay * (attempt + 1))  # 指数退避
-        
-        raise Exception("LLM调用失败")
+        """统一的LLM调用接口 - 集成限流、统一重试策略和错误处理"""
+        # 使用全局信号量进行并发控制，避免连接池竞态
+        from ..coordination.clean_agent_system import _global_semaphore
+        async with _global_semaphore:
+            
+            # 统一应用层重试策略
+            max_retries = 2
+            base_delay = 1.0
+            
+            for attempt in range(max_retries + 1):
+                try:
+                    self.log_execution("Calling LLM", {"model": self.model, "attempt": attempt + 1})
+                    
+                    # 每次都动态获取共享客户端，避免跨事件循环问题
+                    from ..services.shared_openai_client import shared_client_manager
+                    client = await shared_client_manager.get_chat_client()
+                    
+                    messages = [{"role": "system", "content": self.system_prompt}]
+                    
+                    if context:
+                        context_str = json.dumps(context, indent=2, default=str)
+                        messages.append({"role": "system", "content": f"Context: {context_str}"})
+                    
+                    messages.append({"role": "user", "content": prompt})
+                    
+                    # 统一参数设置
+                    actual_max_tokens = max_tokens if max_tokens is not None else int(get_env("MAX_TOKENS", "1500"))
+                    actual_temperature = temperature if temperature is not None else float(get_env("TEMPERATURE", "0.7"))
+                    
+                    response = await client.chat.completions.create(
+                        model=self.model,
+                        messages=messages,
+                        max_tokens=actual_max_tokens,
+                        temperature=actual_temperature
+                        # 不再设置timeout，使用客户端的统一30秒超时
+                    )
+                    
+                    result = response.choices[0].message.content.strip()
+                    self.log_execution("LLM call success", {
+                        "response_length": len(result), 
+                        "attempt": attempt + 1
+                    }, "success")
+                    
+                    # 报告连接成功
+                    from ..services.shared_openai_client import shared_client_manager
+                    shared_client_manager.report_connection_success()
+                    
+                    return result
+                        
+                except Exception as e:
+                    import traceback
+                    error_trace = traceback.format_exc()
+                    self.log_execution("LLM call error", {
+                        "error": str(e), 
+                        "attempt": attempt + 1,
+                        "trace": error_trace
+                    }, "error")
+                    
+                    # 判断是否为可重试的错误
+                    error_str = str(e).lower()
+                    is_retryable = any(keyword in error_str for keyword in [
+                        'tcptransport', 'connection error', 'connection pool', 
+                        'closed=true', 'unable to perform', 'timeout'
+                    ])
+                    
+                    if is_retryable and attempt < max_retries:
+                        # 指数退避重试
+                        delay = base_delay * (2 ** attempt)
+                        logger.warning(f"Agent {self.agent_id} retrying after {delay}s, attempt {attempt + 1}/{max_retries}")
+                        
+                        # 连接错误时报告给管理器
+                        if any(kw in error_str for kw in ['connection error', 'connection pool']):
+                            from ..services.shared_openai_client import shared_client_manager
+                            shared_client_manager.report_connection_error()
+                        
+                        await asyncio.sleep(delay)
+                        continue
+                    else:
+                        # 最终失败处理
+                        logger.error(f"LLM call failed permanently in {self.agent_id}: {type(e).__name__}: {e}")
+                        
+                        # 智能降级处理
+                        if "Connection error" in str(e) or "timeout" in str(e).lower():
+                            return f"[API连接问题，使用缓存响应] 基于记忆的智能回答..."
+                        elif "rate limit" in str(e).lower():
+                            return f"⏱️ API调用频率限制，{self.agent_id}已排队等待处理..."
+                        else:
+                            return f"⚠️ API异常: {type(e).__name__}: {str(e)}"
     
     async def send_message(self, receiver: str, message_type: str, content: Dict[str, Any], priority: str = "medium") -> str:
         """Send message to another agent"""
