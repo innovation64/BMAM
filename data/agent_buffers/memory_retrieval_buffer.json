@@ -362,6 +362,141 @@
         },
         "timestamp": "2025-09-11T09:19:25.339706",
         "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "semantic_search",
+          "query": "我刚才说我什么时候喝什么茶？",
+          "k": 10
+        },
+        "timestamp": "2025-09-11T09:45:14.083927",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "semantic_search",
+          "query": "请记住我喜欢喝绿茶，每天下午3点左右。",
+          "k": 10
+        },
+        "timestamp": "2025-09-11T09:45:21.843005",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "semantic_search",
+          "query": "我刚才说我什么时候喝什么茶？",
+          "k": 10
+        },
+        "timestamp": "2025-09-11T09:45:30.042347",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "semantic_search",
+          "query": "基于我的偏好，推荐一些适合下午的饮品。",
+          "k": 10
+        },
+        "timestamp": "2025-09-11T09:45:42.817511",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "semantic_search",
+          "query": "今天感觉有点焦虑，工作压力很大。",
+          "k": 10
+        },
+        "timestamp": "2025-09-11T09:45:55.308706",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "semantic_search",
+          "query": "介绍一下神经可塑性系统是如何工作的？",
+          "k": 10
+        },
+        "timestamp": "2025-09-11T09:46:04.692859",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "semantic_search",
+          "query": "重复激活记忆检索和对话智能体，测试连接强化。",
+          "k": 10
+        },
+        "timestamp": "2025-09-11T09:46:17.425354",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "semantic_search",
+          "query": "系统会如何根据历史模式优化智能体路由？",
+          "k": 10
+        },
+        "timestamp": "2025-09-11T09:46:34.440786",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "semantic_search",
+          "query": "我提到过什么战争",
+          "k": 10
+        },
+        "timestamp": "2025-09-11T09:47:14.923283",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "semantic_search",
+          "query": "展示相关记忆之间的动态关联是如何建立的。",
+          "k": 10
+        },
+        "timestamp": "2025-09-11T09:47:37.812024",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "semantic_search",
+          "query": "俄乌战争的受益方是谁",
+          "k": 10
+        },
+        "timestamp": "2025-09-11T09:50:04.616044",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "semantic_search",
+          "query": "我刚才提到过什么战争",
+          "k": 10
+        },
+        "timestamp": "2025-09-11T09:51:06.997876",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "semantic_search",
+          "query": "基于我的偏好，推荐一些适合下午的饮品。",
+          "k": 10
+        },
+        "timestamp": "2025-09-11T09:51:31.057354",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "semantic_search",
+          "query": "我喜欢喝什么茶",
+          "k": 10
+        },
+        "timestamp": "2025-09-11T09:51:49.490217",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "semantic_search",
+          "query": "我刚才说我什么时候喝什么茶？",
+          "k": 10
+        },
+        "timestamp": "2025-09-11T09:52:04.124662",
+        "sender": "coordinator"
       }
     ],
     "recent_outputs": {
@@ -489,6 +624,6 @@
       "key": "recent_inputs",
       "timestamp": "2025-09-09T17:23:54.965979"
     },
-    "last_updated": "2025-09-11T09:19:25.341073"
+    "last_updated": "2025-09-11T09:52:04.125043"
   }
 }

@@ -10,13 +10,40 @@
     "decay_rates": {},
     "importance_threshold": 0.3,
     "recent_exchanges": [],
-    "recent_inputs": {
-      "message": {
-        "action": "apply_forgetting_curve"
+    "recent_inputs": [
+      {
+        "message": {
+          "action": "apply_forgetting_curve"
+        },
+        "timestamp": "2025-09-09T17:20:05.034037",
+        "sender": "coordinator"
       },
-      "timestamp": "2025-09-09T17:20:05.034037",
-      "sender": "coordinator"
-    },
+      {
+        "message": {
+          "action": "apply_forgetting_curve"
+        },
+        "timestamp": "2025-09-11T09:46:00.010630",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "cleanup_memories",
+          "criteria": {
+            "days_threshold": 7,
+            "min_importance": 0.1
+          }
+        },
+        "timestamp": "2025-09-11T09:47:45.712467",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "apply_forgetting_curve"
+        },
+        "timestamp": "2025-09-11T09:52:08.582527",
+        "sender": "coordinator"
+      }
+    ],
     "recent_outputs": []
   },
   "metadata": {
@@ -25,6 +52,7 @@
       "type": "write",
       "key": "recent_inputs",
       "timestamp": "2025-09-09T17:20:05.034077"
-    }
+    },
+    "last_updated": "2025-09-11T09:52:08.582668"
   }
 }

@@ -21,6 +21,10 @@ from .shared_openai_client import shared_client_manager
 
 logger = get_logger(__name__)
 
+class EmbeddingFailureError(Exception):
+    """嵌入向量计算失败异常"""
+    pass
+
 class EmbeddingCache:
     """嵌入向量缓存 - 内置实现"""
     
@@ -135,7 +139,7 @@ class OpenAIEmbeddingService:
     
     def __init__(self, use_cache: bool = True):
         # 使用共享客户端管理器，避免多个实例创建重复连接
-        self.client = None  # 延迟初始化
+        # 移除客户端缓存，每次调用时动态获取避免跨事件循环问题
         self.model = get_env("EMBEDDING_MODEL", "text-embedding-3-small")
         self.dimension = int(get_env("EMBEDDING_DIMENSION", "1536"))
         self.max_length = int(get_env("EMBEDDING_MAX_LENGTH", "8191"))
@@ -158,6 +162,9 @@ class OpenAIEmbeddingService:
             
         Returns:
             numpy array of embedding vector
+        
+        Raises:
+            EmbeddingFailureError: When API fails and fallback is disabled
         """
         
         if not text or not text.strip():
@@ -171,7 +178,11 @@ class OpenAIEmbeddingService:
         
         # Use cache if enabled
         if self.use_cache and self.cache:
-            return await self.cache.get_embedding(text, self._compute_embedding)
+            try:
+                return await self.cache.get_embedding(text, self._compute_embedding)
+            except EmbeddingFailureError:
+                logger.warning(f"Embedding failed for text: '{text[:50]}...', skipping to prevent pollution")
+                raise
         else:
             return await self._compute_embedding(text)
     
@@ -181,12 +192,11 @@ class OpenAIEmbeddingService:
         实际调用OpenAI API计算嵌入向量
         """
         try:
-            # 动态获取客户端
-            if self.client is None:
-                self.client = await shared_client_manager.get_embedding_client()
+            # 每次都动态获取客户端，避免跨事件循环问题
+            client = await shared_client_manager.get_embedding_client()
                 
             # 让OpenAI客户端自己处理重试，我们不再手动重试
-            response = await self.client.embeddings.create(
+            response = await client.embeddings.create(
                 model=self.model,
                 input=text,
                 dimensions=self.dimension
@@ -209,26 +219,16 @@ class OpenAIEmbeddingService:
             # 更精确的异常类型判断
             import openai
             if isinstance(e, (openai.APIConnectionError, ConnectionError)):
-                logger.warning(f"网络连接异常，为文本 '{text[:30]}...' 使用备用向量")
+                logger.warning(f"网络连接异常，为文本 '{text[:30]}...' 抛出异常以避免污染向量库")
             elif isinstance(e, openai.RateLimitError) or "rate limit" in error_msg.lower():
-                logger.warning("API调用频率限制，为了避免进一步限制，使用备用向量")
+                logger.warning("API调用频率限制，抛出异常以避免污染向量库")
             elif isinstance(e, openai.APITimeoutError):
-                logger.warning("API调用超时，使用备用向量")
+                logger.warning("API调用超时，抛出异常以避免污染向量库")
             else:
-                logger.warning(f"其他API错误 ({error_type})，使用备用向量")
+                logger.warning(f"其他API错误 ({error_type})，抛出异常以避免污染向量库")
             
-            # 统一使用基于文本内容的确定性向量（但要确保与真实embedding有一定相似性）
-            import hashlib
-            text_hash = hashlib.md5(text.encode()).hexdigest()
-            np.random.seed(int(text_hash[:8], 16))
-            # 使用更接近真实embedding分布的参数：mean=0, std=0.3左右
-            fallback_vector = np.random.normal(0, 0.3, self.dimension).astype(np.float32)
-            # L2归一化，让它更接近OpenAI embedding的分布特征
-            norm = np.linalg.norm(fallback_vector)
-            if norm > 0:
-                fallback_vector = fallback_vector / norm
-            np.random.seed()  # 重置随机种子
-            return fallback_vector
+            # 不再返回fallback向量，而是抛出异常，防止污染FAISS
+            raise EmbeddingFailureError(f"OpenAI embedding failed: {error_msg}") from e
     
     async def encode_batch(self, texts: List[str], batch_size: int = 100) -> List[np.ndarray]:
         """
@@ -241,6 +241,9 @@ class OpenAIEmbeddingService:
             
         Returns:
             List of embedding vectors
+            
+        Raises:
+            EmbeddingFailureError: When API fails and fallback is disabled
         """
         
         if not texts:
@@ -248,8 +251,12 @@ class OpenAIEmbeddingService:
         
         # Use cache if enabled
         if self.use_cache and self.cache:
-            return await self.cache.get_batch_embeddings(texts, 
-                lambda uncached_texts: self._compute_batch_embeddings(uncached_texts, batch_size))
+            try:
+                return await self.cache.get_batch_embeddings(texts, 
+                    lambda uncached_texts: self._compute_batch_embeddings(uncached_texts, batch_size))
+            except EmbeddingFailureError:
+                logger.warning("Batch embedding failed, skipping to prevent vector pollution")
+                raise
         else:
             return await self._compute_batch_embeddings(texts, batch_size)
     
@@ -273,11 +280,10 @@ class OpenAIEmbeddingService:
                 continue
             
             try:
-                # 动态获取客户端
-                if self.client is None:
-                    self.client = await shared_client_manager.get_embedding_client()
+                # 每次都动态获取客户端，避免跨事件循环问题
+                client = await shared_client_manager.get_embedding_client()
                     
-                response = await self.client.embeddings.create(
+                response = await client.embeddings.create(
                     model=self.model,
                     input=valid_texts,
                     dimensions=self.dimension
@@ -296,12 +302,8 @@ class OpenAIEmbeddingService:
                 
             except Exception as e:
                 logger.error(f"Error generating batch embeddings: {e}")
-                # Add random vectors as fallback
-                fallback_embeddings = [
-                    np.random.rand(self.dimension).astype(np.float32) 
-                    for _ in range(len(batch))
-                ]
-                embeddings.extend(fallback_embeddings)
+                # 不再添加fallback向量，而是抛出异常防止污染FAISS
+                raise EmbeddingFailureError(f"Batch embedding failed: {e}") from e
         
         return embeddings
     

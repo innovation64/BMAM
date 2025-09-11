@@ -76,10 +76,13 @@ class EmbeddingService:
     
     async def encode_text(self, text: str) -> np.ndarray:
         """Encode text to vector embedding"""
-        # 直接调用embedding服务，让它处理异常和fallback
-        # 避免双重异常处理产生不一致的向量
-        result = await self.service.encode_text(text)
-        return np.array(result, dtype=np.float32)
+        # 直接调用embedding服务，现在会在API失败时抛出异常防止污染
+        try:
+            result = await self.service.encode_text(text)
+            return np.array(result, dtype=np.float32)
+        except Exception as e:
+            logger.warning(f"Embedding service failed for text: {e}")
+            raise  # 重新抛出异常让调用者处理
     
     async def encode_batch(self, texts: List[str]) -> List[np.ndarray]:
         """Encode multiple texts in batch with caching"""
@@ -88,8 +91,17 @@ class EmbeddingService:
             return [np.array(result, dtype=np.float32) for result in results]
         except Exception as e:
             logger.error(f"Batch embedding failed: {e}")
-            # 逐一处理，让底层服务统一处理fallback
-            return [await self.encode_text(text) for text in texts]
+            # 逐一处理，但如果单个也失败则跳过防止污染
+            results = []
+            for text in texts:
+                try:
+                    embedding = await self.encode_text(text)
+                    results.append(embedding)
+                except Exception as embed_error:
+                    logger.warning(f"Skipping text embedding due to error: {embed_error}")
+                    # 跳过失败的文本，不添加到结果中
+                    continue
+            return results
 
 
 class FAISSVectorDatabase:
@@ -215,6 +227,74 @@ class FAISSVectorDatabase:
             logger.error(f"Failed to load FAISS index: {e}")
             logger.info("Starting with empty FAISS index")
             self.index = faiss.IndexFlatIP(self.dimension)
+    
+    def clean_corrupted_index(self):
+        """Clean corrupted FAISS index by rebuilding from scratch"""
+        logger.info("Cleaning corrupted FAISS index...")
+        
+        with self.lock:
+            # Reset index and mappings
+            self.index = faiss.IndexFlatIP(self.dimension)
+            self.id_mapping.clear()
+            self.reverse_mapping.clear()
+            
+            # Remove corrupted files
+            try:
+                if os.path.exists(self.index_path):
+                    os.remove(self.index_path)
+                    logger.info(f"Removed corrupted index file: {self.index_path}")
+                
+                mapping_path = self.index_path.replace('.index', '_mappings.json')
+                if os.path.exists(mapping_path):
+                    os.remove(mapping_path)
+                    logger.info(f"Removed corrupted mapping file: {mapping_path}")
+                    
+            except Exception as e:
+                logger.warning(f"Failed to remove corrupted files: {e}")
+            
+            logger.info("FAISS index cleaned successfully")
+    
+    def rebuild_index_from_database(self, db_manager):
+        """Rebuild FAISS index from clean database records"""
+        logger.info("Rebuilding FAISS index from database...")
+        
+        from .memory_system import EmbeddingService
+        embedding_service = EmbeddingService()
+        
+        with self.lock:
+            # Get all memories from database
+            memories = db_manager.search_memories()
+            
+            clean_count = 0
+            for memory in memories:
+                try:
+                    # Re-encode content to get clean embedding
+                    import asyncio
+                    
+                    # Create temporary event loop if needed
+                    try:
+                        loop = asyncio.get_event_loop()
+                    except RuntimeError:
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                    
+                    # Get clean embedding
+                    embedding = loop.run_until_complete(
+                        embedding_service.encode_text(memory.content)
+                    )
+                    
+                    # Add to index
+                    faiss_id = self.add_vector(memory.id, embedding)
+                    logger.debug(f"Rebuilt vector for memory {memory.id}")
+                    clean_count += 1
+                    
+                except Exception as e:
+                    logger.warning(f"Failed to rebuild vector for memory {memory.id}: {e}")
+                    continue
+            
+            # Save clean index
+            self.save_index()
+            logger.info(f"Rebuilt FAISS index with {clean_count} clean vectors")
 
 
 class DatabaseManager:
@@ -417,11 +497,16 @@ class AdvancedMemorySystem:
             )
             
             # Generate embedding
-            memory.embedding = await self.embedding_service.encode_text(content)
-            
-            # Add to vector database
-            faiss_id = self.vector_db.add_vector(memory.id, memory.embedding)
-            memory.embedding_id = str(faiss_id)
+            try:
+                memory.embedding = await self.embedding_service.encode_text(content)
+                
+                # Add to vector database
+                faiss_id = self.vector_db.add_vector(memory.id, memory.embedding)
+                memory.embedding_id = str(faiss_id)
+            except Exception as e:
+                logger.warning(f"Failed to generate embedding for memory: {e}")
+                # Don't store memory without valid embedding to prevent FAISS pollution
+                return None
             
             # Save to persistent storage
             success = self.db_manager.save_memory(memory)
@@ -464,11 +549,16 @@ class AdvancedMemorySystem:
     
     async def _semantic_search(self, query: str, k: int, threshold: float) -> List[Dict[str, Any]]:
         """Perform semantic search using vector similarity"""
-        # Generate query embedding
-        query_embedding = await self.embedding_service.encode_text(query)
-        
-        # Search similar vectors
-        similar_memories = self.vector_db.search(query_embedding, k, threshold)
+        try:
+            # Generate query embedding
+            query_embedding = await self.embedding_service.encode_text(query)
+            
+            # Search similar vectors
+            similar_memories = self.vector_db.search(query_embedding, k, threshold)
+        except Exception as e:
+            logger.warning(f"Failed to generate query embedding for '{query}': {e}")
+            # Fall back to keyword search if embedding fails
+            return []
         
         # Load full memory objects
         results = []

@@ -17,6 +17,37 @@ import threading
 import time
 from pathlib import Path
 
+# 全局事件循环管理
+_global_loop = None
+_loop_thread = None
+
+def _get_or_create_event_loop():
+    """获取或创建全局事件循环"""
+    global _global_loop, _loop_thread
+    
+    if _global_loop is None or _global_loop.is_closed():
+        def run_loop():
+            global _global_loop
+            _global_loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(_global_loop)
+            _global_loop.run_forever()
+        
+        _loop_thread = threading.Thread(target=run_loop, daemon=True)
+        _loop_thread.start()
+        
+        # 等待循环启动
+        import time
+        while _global_loop is None:
+            time.sleep(0.01)
+    
+    return _global_loop
+
+def _run_async_in_global_loop(coro):
+    """在全局事件循环中运行协程"""
+    loop = _get_or_create_event_loop()
+    future = asyncio.run_coroutine_threadsafe(coro, loop)
+    return future.result()
+
 import gradio as gr
 import pandas as pd
 import plotly.graph_objects as go
@@ -784,10 +815,9 @@ def create_brain_interface():
             except Exception as e:
                 logger.warning(f"重置客户端失败: {e}")
             
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+            # 使用全局事件循环，避免频繁创建/销毁
             try:
-                return loop.run_until_complete(
+                return _run_async_in_global_loop(
                     brain_ui.process_conversation(message, history)
                 )
             except Exception as e:
@@ -796,8 +826,6 @@ def create_brain_interface():
                 history.append({"role": "user", "content": message})
                 history.append({"role": "assistant", "content": f"抱歉，处理过程中出现网络连接问题：{str(e)}"})
                 return history, f"❌ 连接错误: {str(e)}", brain_ui._create_empty_chart(), brain_ui._get_system_status(), brain_ui._get_memory_info()
-            finally:
-                loop.close()
         
         def get_current_status():
             """获取当前状态"""
@@ -927,11 +955,8 @@ def main():
         # 清理资源
         try:
             from src.services.shared_openai_client import shared_client_manager
-            import asyncio
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            loop.run_until_complete(shared_client_manager.close())
-            loop.close()
+            # 使用全局事件循环进行清理
+            _run_async_in_global_loop(shared_client_manager.close())
             logger.info("资源清理完成")
         except Exception as cleanup_error:
             logger.warning(f"清理资源时出错: {cleanup_error}")

@@ -255,6 +255,46 @@
         },
         "timestamp": "2025-09-10T10:50:27.149663",
         "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "store_long_term",
+          "memory": {
+            "content": "用户偏好：请记住我喜欢喝绿茶，每天下午3点左右。",
+            "importance": 0.9,
+            "context_tags": [
+              "用户偏好",
+              "preference",
+              "personal_info"
+            ],
+            "emotion_tags": [
+              "positive",
+              "preference"
+            ]
+          }
+        },
+        "timestamp": "2025-09-11T09:45:25.893212",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "store_long_term",
+          "memory": {
+            "content": "用户偏好：我喜欢喝什么茶",
+            "importance": 0.9,
+            "context_tags": [
+              "用户偏好",
+              "preference",
+              "personal_info"
+            ],
+            "emotion_tags": [
+              "positive",
+              "preference"
+            ]
+          }
+        },
+        "timestamp": "2025-09-11T09:51:55.732390",
+        "sender": "coordinator"
       }
     ],
     "recent_outputs": [
@@ -378,6 +418,28 @@
         },
         "timestamp": "2025-09-10T10:50:27.150917",
         "processing_success": true
+      },
+      {
+        "result": {
+          "stored": true,
+          "memory_id": "4a7d912c-a2c9-41ac-a095-1efd96c1a355",
+          "memory_type": "semantic",
+          "consolidation_level": 1,
+          "total_memories": 1
+        },
+        "timestamp": "2025-09-11T09:45:25.894242",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "stored": true,
+          "memory_id": "a74931a6-98d0-46e2-ad00-12bc14c2ec7c",
+          "memory_type": "semantic",
+          "consolidation_level": 1,
+          "total_memories": 2
+        },
+        "timestamp": "2025-09-11T09:51:55.733240",
+        "processing_success": true
       }
     ],
     "last_user_preference_id": "bb1974bd-49d2-42ee-bc6a-a941dfba7fa5"
@@ -389,6 +451,6 @@
       "key": "recent_outputs",
       "timestamp": "2025-09-09T17:23:54.971603"
     },
-    "last_updated": "2025-09-10T10:50:27.151194"
+    "last_updated": "2025-09-11T09:51:55.733455"
   }
 }
