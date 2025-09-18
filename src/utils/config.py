@@ -6,6 +6,8 @@ import logging
 import os
 from pathlib import Path
 from typing import Optional
+from dataclasses import dataclass
+from functools import lru_cache
 from dotenv import load_dotenv
 
 # Load environment variables once at module import
@@ -127,3 +129,28 @@ def require_env(key: str) -> str:
     if value is None:
         raise ValueError(f"Required environment variable '{key}' is not set")
     return value
+
+
+@dataclass(frozen=True)
+class SystemSettings:
+    parallel_phase_timeout: float
+    buffer_exchange_timeout: float
+    buffer_retention_hours: int
+    buffer_cleanup_frequency: int
+    max_faiss_vectors: int
+    faiss_compaction_frequency: int
+    fallback_cache_size: int
+
+
+@lru_cache(maxsize=1)
+def get_settings() -> SystemSettings:
+    """Centralized application settings sourced from env with sane defaults."""
+    return SystemSettings(
+        parallel_phase_timeout=float(get_env("PARALLEL_PHASE_TIMEOUT", "8.0")),
+        buffer_exchange_timeout=float(get_env("BUFFER_EXCHANGE_TIMEOUT", "5.0")),
+        buffer_retention_hours=int(get_env("BUFFER_RETENTION_HOURS", "24")),
+        buffer_cleanup_frequency=int(get_env("BUFFER_CLEANUP_FREQUENCY", "20")),
+        max_faiss_vectors=int(get_env("MAX_FAISS_VECTORS", "5000")),
+        faiss_compaction_frequency=int(get_env("FAISS_COMPACTION_FREQUENCY", "50")),
+        fallback_cache_size=int(get_env("FALLBACK_CACHE_SIZE", "50")),
+    )

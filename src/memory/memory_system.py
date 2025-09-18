@@ -175,6 +175,14 @@ class FAISSVectorDatabase:
                 del self.id_mapping[faiss_id]
                 del self.reverse_mapping[memory_id]
                 logger.debug(f"Removed vector for memory {memory_id}")
+
+    def reset(self):
+        """Rebuild FAISS structures from scratch."""
+        with self.lock:
+            self.index = faiss.IndexFlatIP(self.dimension)
+            self.id_mapping.clear()
+            self.reverse_mapping.clear()
+            logger.info("FAISS index reset; mappings cleared")
     
     def save_index(self):
         """Persist FAISS index and mappings to disk"""
@@ -438,13 +446,56 @@ class DatabaseManager:
                         embedding_id=record.embedding_id
                     )
                     memories.append(memory)
-                    
+
             finally:
                 session.close()
         except Exception as e:
             logger.error(f"Failed to search memories: {e}")
-        
+
         return memories
+
+    def get_recent_memories(self, limit: int = 1000) -> List[MemoryItem]:
+        """Fetch most recent active memories for maintenance tasks."""
+        try:
+            session = self.get_session()
+            try:
+                records = (
+                    session.query(MemoryRecord)
+                    .filter_by(is_active=True)
+                    .order_by(MemoryRecord.timestamp.desc())
+                    .limit(limit)
+                    .all()
+                )
+
+                return [
+                    MemoryItem(
+                        id=record.id,
+                        content=record.content,
+                        memory_type=record.memory_type,
+                        importance=record.importance,
+                        emotion_tags=record.emotion_tags or [],
+                        emotion_intensity=record.emotion_intensity,
+                        brain_region=record.brain_region,
+                        consolidation_level=record.consolidation_level,
+                        access_frequency=record.access_frequency,
+                        decay_rate=record.decay_rate,
+                        stress_marker=record.stress_marker,
+                        timestamp=record.timestamp,
+                        last_accessed=record.last_accessed,
+                        last_consolidated=record.last_consolidated,
+                        associations=record.associations or [],
+                        source_reliability=record.source_reliability,
+                        context_tags=record.context_tags or [],
+                        metadata=record.memory_metadata or {},
+                        embedding_id=record.embedding_id
+                    )
+                    for record in records
+                ]
+            finally:
+                session.close()
+        except Exception as exc:
+            logger.error(f"Failed to fetch recent memories: {exc}")
+            return []
     
     def get_memory_stats(self) -> Dict[str, Any]:
         """Get memory database statistics"""
@@ -603,7 +654,7 @@ class AdvancedMemorySystem:
     def _keyword_search(self, query: str, **filters) -> List[Dict[str, Any]]:
         """Simple keyword-based search"""
         memories = self.db_manager.search_memories(**filters)
-        
+
         results = []
         query_lower = query.lower()
         for memory in memories:
@@ -611,10 +662,48 @@ class AdvancedMemorySystem:
                 result = memory.to_dict()
                 result['search_type'] = 'keyword'
                 results.append(result)
-        
+
         logger.info(f"Keyword search for '{query}' found {len(results)} results")
         return results
-    
+
+    async def enforce_storage_limits(self, max_vectors: int = 5000) -> bool:
+        """Rebuild FAISS index if vector count exceeds configured limit."""
+        if max_vectors <= 0:
+            return False
+
+        current_total = self.vector_db.index.ntotal
+        if current_total <= max_vectors:
+            return False
+
+        logger.warning(
+            "FAISS index size %s exceeds limit %s; rebuilding with most recent memories",
+            current_total,
+            max_vectors,
+        )
+
+        recent_memories = self.db_manager.get_recent_memories(limit=max_vectors)
+        if not recent_memories:
+            logger.warning("No recent memories available for compaction; aborting rebuild")
+            return False
+
+        self.vector_db.reset()
+
+        try:
+            texts = [memory.content for memory in recent_memories]
+            embeddings = await self.embedding_service.encode_batch(texts)
+        except Exception as exc:
+            logger.error(f"Failed to rebuild FAISS index during compaction: {exc}")
+            return False
+
+        for memory, embedding in zip(recent_memories, embeddings):
+            if embedding is None:
+                continue
+            self.vector_db.add_vector(memory.id, embedding)
+
+        self.vector_db.save_index()
+        logger.info("FAISS index compacted to %s vectors", self.vector_db.index.ntotal)
+        return True
+
     def get_memory(self, memory_id: str) -> Optional[Dict[str, Any]]:
         """Get specific memory by ID"""
         memory = self.db_manager.load_memory(memory_id)

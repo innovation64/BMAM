@@ -6,12 +6,14 @@ Base Agent Class for Brain-Inspired Memory System
 import asyncio
 import json
 import uuid
+import hashlib
+from collections import OrderedDict
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, field
 from datetime import datetime
 from abc import ABC, abstractmethod
 import openai
-from ..utils.config import get_logger, get_env
+from ..utils.config import get_logger, get_env, get_settings
 from ..services.shared_openai_client import shared_client_manager
 # 移除了shared_client_manager依赖，直接使用openai.AsyncOpenAI
 
@@ -68,7 +70,9 @@ class BrainAgent(ABC):
         # Agent state
         self.is_active = True
         self.message_queue = asyncio.Queue()
-        self.response_cache = {}
+        self.settings = get_settings()
+        self.response_cache: OrderedDict[str, str] = OrderedDict()
+        self._fallback_cache_size = self.settings.fallback_cache_size
         self.lock = asyncio.Lock()
         self.execution_log = []  # 统一执行日志
         
@@ -102,12 +106,13 @@ class BrainAgent(ABC):
         # 使用全局信号量进行并发控制，避免连接池竞态
         from ..coordination.clean_agent_system import _global_semaphore
         async with _global_semaphore:
-            
+
             # 统一应用层重试策略  
             max_retries = 0 if quick_fail else 2
             timeout_override = 5.0 if quick_fail else None  # 5s timeout for quick_fail
             base_delay = 1.0
-            
+            cache_key = self._build_cache_key(prompt, context)
+
             for attempt in range(max_retries + 1):
                 try:
                     self.log_execution("Calling LLM", {"model": self.model, "attempt": attempt + 1})
@@ -146,13 +151,14 @@ class BrainAgent(ABC):
                         "response_length": len(result), 
                         "attempt": attempt + 1
                     }, "success")
-                    
+
                     # 报告连接成功
                     from ..services.shared_openai_client import shared_client_manager
                     shared_client_manager.report_connection_success()
-                    
+
+                    self._store_cached_response(cache_key, result)
                     return result
-                        
+
                 except Exception as e:
                     import traceback
                     error_trace = traceback.format_exc()
@@ -173,7 +179,7 @@ class BrainAgent(ABC):
                         # 指数退避重试
                         delay = base_delay * (2 ** attempt)
                         logger.warning(f"Agent {self.agent_id} retrying after {delay}s, attempt {attempt + 1}/{max_retries}")
-                        
+
                         # 连接错误时报告给管理器
                         if any(kw in error_str for kw in ['connection error', 'connection pool']):
                             from ..services.shared_openai_client import shared_client_manager
@@ -184,7 +190,12 @@ class BrainAgent(ABC):
                     else:
                         # 最终失败处理
                         logger.error(f"LLM call failed permanently in {self.agent_id}: {type(e).__name__}: {e}")
-                        
+
+                        cached = self._get_cached_response(cache_key)
+                        if cached:
+                            logger.info("Serving cached response for %s after LLM failure", self.agent_id)
+                            return f"[缓存响应]\n{cached}"
+
                         # 智能降级处理
                         if "Connection error" in str(e) or "timeout" in str(e).lower():
                             return f"[API连接问题，使用缓存响应] 基于记忆的智能回答..."
@@ -192,6 +203,28 @@ class BrainAgent(ABC):
                             return f"⏱️ API调用频率限制，{self.agent_id}已排队等待处理..."
                         else:
                             return f"⚠️ API异常: {type(e).__name__}: {str(e)}"
+
+    def _build_cache_key(self, prompt: str, context: Optional[Dict[str, Any]]) -> str:
+        payload = {
+            'prompt': prompt,
+            'context': context or {}
+        }
+        serialized = json.dumps(payload, sort_keys=True, default=str)
+        return hashlib.md5(serialized.encode('utf-8')).hexdigest()
+
+    def _store_cached_response(self, cache_key: str, response: str):
+        if not response:
+            return
+        self.response_cache[cache_key] = response
+        self.response_cache.move_to_end(cache_key)
+        while len(self.response_cache) > self._fallback_cache_size:
+            self.response_cache.popitem(last=False)
+
+    def _get_cached_response(self, cache_key: str) -> Optional[str]:
+        if cache_key in self.response_cache:
+            self.response_cache.move_to_end(cache_key)
+            return self.response_cache[cache_key]
+        return None
     
     async def send_message(self, receiver: str, message_type: str, content: Dict[str, Any], priority: str = "medium") -> str:
         """Send message to another agent"""

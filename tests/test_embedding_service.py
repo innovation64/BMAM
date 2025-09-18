@@ -11,6 +11,7 @@ import numpy as np
 from pathlib import Path
 import json
 from unittest.mock import AsyncMock, patch
+import pytest
 
 import sys
 import os

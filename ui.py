@@ -58,6 +58,7 @@ from plotly.subplots import make_subplots
 from src.coordination.brain_coordinator import BrainInspiredCoordinator
 from src.memory.memory_system import memory_system
 from src.coordination.clean_agent_system import AgentMessage
+from src.agents.agent_buffer_system import agent_buffer_system
 
 # 初始化协调器
 brain_coordinator = BrainInspiredCoordinator()
@@ -89,7 +90,10 @@ class BrainUIInterface:
             'last_user_preference_id': None,  # 本会话最近的偏好记忆ID
             'conversation_start': datetime.now()
         }
-        
+
+        self.available_agents = sorted(agent_buffer_system.agent_buffers.keys())
+        self.default_agent = self.available_agents[0] if self.available_agents else None
+
         # 连续对话上下文管理
         self.dialogue_history = []  # 保持最近的对话记录
         self.max_history_turns = 10  # 最多保留10轮对话
@@ -638,11 +642,115 @@ class BrainUIInterface:
                     info += f"**{agent_name}**: {count}次\n"
             else:
                 info += "**暂无激活记录**\n"
-            
+
             return info
-            
+
         except Exception as e:
             return f"❌ 获取记忆信息失败: {str(e)}"
+
+    def get_plasticity_overview(self) -> str:
+        """格式化神经可塑性洞察"""
+        try:
+            insights = brain_coordinator.get_system_status().get('plasticity_system', {})
+            connection_metrics = insights.get('connection_network', {})
+            adaptation_patterns = insights.get('adaptation_patterns', {})
+            system_stats = insights.get('system_stats', {})
+
+            dominant_pairs = adaptation_patterns.get('dominant_agent_pairs', [])
+
+            overview = "## 🔗 神经可塑性洞察\n\n"
+            overview += "### 📡 网络指标\n"
+            overview += f"- 总连接数：{connection_metrics.get('total_connections', 0)}\n"
+            overview += f"- 平均连接强度：{connection_metrics.get('average_strength', 0.0):.3f}\n"
+            overview += f"- 网络密度：{connection_metrics.get('network_density', 0.0):.3f}\n"
+            overview += f"- 强连接数量：{connection_metrics.get('strong_connections', 0)}\n\n"
+
+            overview += "### 🧠 学习活动\n"
+            overview += f"- 总适应次数：{system_stats.get('total_adaptations', 0)}\n"
+            overview += f"- 连接更新：{system_stats.get('connection_updates', 0)}\n"
+            overview += f"- 记忆关联：{system_stats.get('memory_associations', 0)}\n"
+            overview += f"- 路由优化：{system_stats.get('routing_optimizations', 0)}\n"
+            overview += f"- 学习速度指标：{insights.get('learning_velocity', 0.0):.3f}\n\n"
+
+            if dominant_pairs:
+                overview += "### 🧬 活跃连接对\n"
+                for pair in dominant_pairs[:5]:
+                    src, dst, strength = pair
+                    overview += f"- {self._get_agent_chinese_name(src)} ↔ {self._get_agent_chinese_name(dst)}：{strength:.3f}\n"
+                overview += "\n"
+
+            associated = insights.get('memory_associations', {})
+            overview += "### 📚 记忆关联\n"
+            overview += f"- 总记忆数：{associated.get('total_memories', 0)}\n"
+            overview += f"- 关联连接数：{associated.get('total_connections', 0)}\n"
+            overview += f"- 平均关联强度：{associated.get('average_strength', 0.0):.3f}\n"
+
+            return overview
+        except Exception as e:
+            return f"❌ 获取可塑性洞察失败: {str(e)}"
+
+    def get_buffer_snapshot(self, agent_id: Optional[str]) -> str:
+        """读取并格式化智能体缓冲信息"""
+        if not agent_id:
+            return "请选择智能体查看缓冲内容"
+        try:
+            buffer_content = _run_async_in_global_loop(agent_buffer_system.read_buffer(agent_id))
+            recent_inputs = buffer_content.get('recent_inputs', [])[-5:]
+            recent_outputs = buffer_content.get('recent_outputs', [])[-5:]
+            recent_exchanges = buffer_content.get('recent_exchanges', [])[-5:]
+
+            snapshot = f"## 📦 {self._get_agent_chinese_name(agent_id)} 缓冲概览\n"
+            snapshot += f"- 最近输入：{len(buffer_content.get('recent_inputs', []))} 条\n"
+            snapshot += f"- 最近输出：{len(buffer_content.get('recent_outputs', []))} 条\n"
+            snapshot += f"- 最近交换：{len(buffer_content.get('recent_exchanges', []))} 条\n\n"
+
+            def _format_entries(entries, title):
+                if not entries:
+                    return f"### {title}\n无记录\n\n"
+                section = f"### {title}\n"
+                for item in reversed(entries):
+                    timestamp = item.get('timestamp', 'N/A')
+                    try:
+                        summary = json.dumps({k: v for k, v in item.items() if k != 'timestamp'}, ensure_ascii=False)
+                    except Exception:
+                        summary = str({k: v for k, v in item.items() if k != 'timestamp'})
+                    section += f"- `{timestamp}` \n  - {summary}\n"
+                section += "\n"
+                return section
+
+            snapshot += _format_entries(recent_inputs, "最近输入（最新5条）")
+            snapshot += _format_entries(recent_outputs, "最近输出（最新5条）")
+            snapshot += _format_entries(recent_exchanges, "最近交换（最新5条）")
+
+            return snapshot
+        except Exception as e:
+            return f"❌ 读取缓冲失败: {str(e)}"
+
+    def get_agent_logs(self, agent_id: Optional[str]) -> str:
+        """获取智能体执行日志"""
+        if not agent_id:
+            return "请选择智能体查看执行日志"
+        agent = brain_coordinator.agents.get(agent_id)
+        if not agent:
+            return f"⚠️ 未找到智能体 `{agent_id}`"
+
+        logs = agent.execution_log[-10:]
+        if not logs:
+            return f"## 📜 {self._get_agent_chinese_name(agent_id)} 最近执行日志\n暂无记录"
+
+        markdown = f"## 📜 {self._get_agent_chinese_name(agent_id)} 最近执行日志\n"
+        for entry in reversed(logs):
+            timestamp = entry.get('timestamp', 'N/A')
+            action = entry.get('action', 'unknown')
+            status = entry.get('status', 'info')
+            details = entry.get('details')
+            markdown += f"- `{timestamp}` **{action}** (状态: {status})\n"
+            if details:
+                try:
+                    markdown += f"  - 详情: {json.dumps(details, ensure_ascii=False)}\n"
+                except Exception:
+                    markdown += f"  - 详情: {details}\n"
+        return markdown
     
     def _create_empty_chart(self) -> go.Figure:
         """创建空图表占位符"""
@@ -792,6 +900,22 @@ def create_brain_interface():
                 
                 with gr.Tab("🧠 记忆信息"):
                     memory_info = gr.Markdown("## 🧠 记忆系统\n\n加载中...")
+
+                with gr.Tab("🔗 可塑性洞察"):
+                    plasticity_info = gr.Markdown("## 🔗 神经可塑性洞察\n\n加载中...")
+
+                with gr.Tab("📦 缓冲监控"):
+                    agent_selector = gr.Dropdown(
+                        choices=brain_ui.available_agents,
+                        value=brain_ui.default_agent,
+                        label="选择智能体",
+                        interactive=bool(brain_ui.available_agents),
+                        info="查看指定智能体的缓冲内容"
+                    )
+                    buffer_info = gr.Markdown("## 📦 智能体缓冲\n\n等待选择...")
+
+                with gr.Tab("📜 Agent日志"):
+                    agent_logs = gr.Markdown("## 📜 智能体执行日志\n\n等待选择...")
         
         # 详细日志区域
         with gr.Row():
@@ -800,12 +924,24 @@ def create_brain_interface():
         # 性能监控图表
         with gr.Row():
             performance_chart = gr.Plot(label="📈 系统性能监控")
-        
+
+        selected_agent_state = gr.State(brain_ui.default_agent)
+
         # 事件处理函数
-        def handle_conversation(message, history):
+        def handle_conversation(message, history, agent_id):
             """处理对话的包装函数 - UI优化版本"""
+            target_agent = agent_id or brain_ui.default_agent
             if not message.strip():
-                return history, "", brain_ui._create_empty_chart(), brain_ui._get_system_status(), brain_ui._get_memory_info()
+                return (
+                    history,
+                    "",
+                    brain_ui._create_empty_chart(),
+                    brain_ui._get_system_status(),
+                    brain_ui._get_memory_info(),
+                    brain_ui.get_plasticity_overview(),
+                    brain_ui.get_buffer_snapshot(target_agent),
+                    brain_ui.get_agent_logs(target_agent)
+                )
             
             # UI环境修复：在每次对话前强制重置客户端连接
             try:
@@ -817,31 +953,71 @@ def create_brain_interface():
             
             # 使用全局事件循环，避免频繁创建/销毁
             try:
-                return _run_async_in_global_loop(
+                updated = _run_async_in_global_loop(
                     brain_ui.process_conversation(message, history)
+                )
+                updated_history, processing_log, performance_chart, system_status_md, memory_info_md = updated
+                return (
+                    updated_history,
+                    processing_log,
+                    performance_chart,
+                    system_status_md,
+                    memory_info_md,
+                    brain_ui.get_plasticity_overview(),
+                    brain_ui.get_buffer_snapshot(target_agent),
+                    brain_ui.get_agent_logs(target_agent)
                 )
             except Exception as e:
                 logger.error(f"UI对话处理异常: {e}")
                 # 返回错误响应而不是崩溃
                 history.append({"role": "user", "content": message})
                 history.append({"role": "assistant", "content": f"抱歉，处理过程中出现网络连接问题：{str(e)}"})
-                return history, f"❌ 连接错误: {str(e)}", brain_ui._create_empty_chart(), brain_ui._get_system_status(), brain_ui._get_memory_info()
-        
-        def get_current_status():
+                return (
+                    history,
+                    f"❌ 连接错误: {str(e)}",
+                    brain_ui._create_empty_chart(),
+                    brain_ui._get_system_status(),
+                    brain_ui._get_memory_info(),
+                    brain_ui.get_plasticity_overview(),
+                    brain_ui.get_buffer_snapshot(target_agent),
+                    brain_ui.get_agent_logs(target_agent)
+                )
+
+        def get_current_status(agent_id):
             """获取当前状态"""
-            return brain_ui._get_system_status(), brain_ui._get_memory_info(), brain_ui._create_performance_chart()
-        
-        def clear_all_data():
+            target_agent = agent_id or brain_ui.default_agent
+            return (
+                brain_ui._get_system_status(),
+                brain_ui._get_memory_info(),
+                brain_ui._create_performance_chart(),
+                brain_ui.get_plasticity_overview(),
+                brain_ui.get_buffer_snapshot(target_agent),
+                brain_ui.get_agent_logs(target_agent)
+            )
+
+        def clear_all_data(agent_id):
             """清除所有数据"""
             brain_ui.clear_session_data()
+            target_agent = agent_id or brain_ui.default_agent
             return (
                 [],  # 清空对话
                 "## 🔄 数据已清除\n\n所有会话数据和统计信息已重置。",
                 brain_ui._create_empty_chart(),
                 brain_ui._get_system_status(),
-                brain_ui._get_memory_info()
+                brain_ui._get_memory_info(),
+                brain_ui.get_plasticity_overview(),
+                brain_ui.get_buffer_snapshot(target_agent),
+                brain_ui.get_agent_logs(target_agent)
             )
-        
+
+        def on_agent_change(agent_id, current_state):
+            target_agent = agent_id or current_state or brain_ui.default_agent
+            return (
+                target_agent,
+                brain_ui.get_buffer_snapshot(target_agent),
+                brain_ui.get_agent_logs(target_agent)
+            )
+
         def export_conversation():
             """导出对话记录"""
             if brain_ui.conversation_history:
@@ -863,30 +1039,39 @@ def create_brain_interface():
         # 绑定事件
         send_btn.click(
             handle_conversation,
-            inputs=[msg_input, chatbot],
-            outputs=[chatbot, processing_log, performance_chart, system_status, memory_info]
+            inputs=[msg_input, chatbot, selected_agent_state],
+            outputs=[chatbot, processing_log, performance_chart, system_status, memory_info, plasticity_info, buffer_info, agent_logs]
         ).then(lambda: "", outputs=[msg_input])
-        
+
         msg_input.submit(
             handle_conversation,
-            inputs=[msg_input, chatbot],
-            outputs=[chatbot, processing_log, performance_chart, system_status, memory_info]
+            inputs=[msg_input, chatbot, selected_agent_state],
+            outputs=[chatbot, processing_log, performance_chart, system_status, memory_info, plasticity_info, buffer_info, agent_logs]
         ).then(lambda: "", outputs=[msg_input])
-        
+
         clear_btn.click(
             clear_all_data,
-            outputs=[chatbot, processing_log, performance_chart, system_status, memory_info]
+            inputs=[selected_agent_state],
+            outputs=[chatbot, processing_log, performance_chart, system_status, memory_info, plasticity_info, buffer_info, agent_logs]
         )
-        
+
         refresh_btn.click(
             get_current_status,
-            outputs=[system_status, memory_info, performance_chart]
+            inputs=[selected_agent_state],
+            outputs=[system_status, memory_info, performance_chart, plasticity_info, buffer_info, agent_logs]
         )
-        
+
         export_btn.click(
             export_conversation,
             outputs=[processing_log]
         )
+
+        if brain_ui.available_agents:
+            agent_selector.change(
+                on_agent_change,
+                inputs=[agent_selector, selected_agent_state],
+                outputs=[selected_agent_state, buffer_info, agent_logs]
+            )
         
         # 快速测试按钮
         test_btn1.click(lambda: "请记住我喜欢喝绿茶，每天下午3点左右。", outputs=[msg_input])
@@ -902,7 +1087,8 @@ def create_brain_interface():
         # 页面加载时初始化
         demo.load(
             get_current_status,
-            outputs=[system_status, memory_info, performance_chart]
+            inputs=[selected_agent_state],
+            outputs=[system_status, memory_info, performance_chart, plasticity_info, buffer_info, agent_logs]
         )
     
     return demo

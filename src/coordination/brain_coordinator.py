@@ -5,12 +5,12 @@ Brain-Inspired 12-Agent Coordinator System
 
 import os
 import asyncio
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Coroutine
 from dataclasses import dataclass
 from datetime import datetime
 import json
 
-from ..utils.config import get_logger
+from ..utils.config import get_logger, get_settings
 
 from .clean_agent_system import (
     BrainRegion, AgentMessage,
@@ -53,10 +53,11 @@ class BrainInspiredCoordinator:
     
     def __init__(self):
         logger.info("Initializing Brain-Inspired 12-Agent Coordinator...")
-        
+
         # Communication system
         self.message_bus = asyncio.Queue()
         self.agent_tasks = {}
+        self._task_counter = 0
         self.is_running = False
         
         # Processing statistics (initialize before agents)
@@ -67,7 +68,9 @@ class BrainInspiredCoordinator:
             'agent_activations': {},
             'memory_operations': 0
         }
-        
+
+        self.settings = get_settings()
+
         # Initialize all 12 agents
         self._initialize_agents()
         
@@ -77,7 +80,13 @@ class BrainInspiredCoordinator:
         
         logger.info(f"Successfully initialized 12-agent system with {len(self.agents)} agents")
         logger.info("Neural Plasticity Engine integrated - system now has adaptive learning!")
-    
+
+    async def initialize(self):
+        """Public initializer kept for backwards compatibility (see main())."""
+        if not self.is_running:
+            await self.start_system()
+        return self
+
     def _initialize_agents(self):
         """Initialize all 12 agents according to design document"""
         
@@ -142,17 +151,17 @@ class BrainInspiredCoordinator:
     async def stop_system(self):
         """Stop the coordination system"""
         self.is_running = False
-        
+
         # Cancel all agent tasks
-        for task in self.agent_tasks.values():
+        for task in list(self.agent_tasks.values()):
             if not task.done():
                 task.cancel()
-        
+
         if self.agent_tasks:
             await asyncio.gather(*self.agent_tasks.values(), return_exceptions=True)
-        
+
         self.agent_tasks.clear()
-        
+
         # Stop plasticity engine and save data
         await self.plasticity_engine.stop_plasticity_engine()
         
@@ -276,7 +285,7 @@ class BrainInspiredCoordinator:
             try:
                 results = await asyncio.wait_for(
                     asyncio.gather(*task_coros, return_exceptions=True),
-                    timeout=8.0  # 8 seconds max for parallel phase
+                    timeout=self.settings.parallel_phase_timeout
                 )
             except asyncio.TimeoutError:
                 logger.warning("并行阶段超时，使用部分结果继续")
@@ -347,7 +356,7 @@ class BrainInspiredCoordinator:
                                 'count': len(memories)
                             }
                         ),
-                        timeout=5.0  # 5 seconds max for buffer exchange
+                        timeout=self.settings.buffer_exchange_timeout
                     )
                 except asyncio.TimeoutError:
                     logger.warning("缓冲区交换超时，跳过此步骤继续")
@@ -437,7 +446,7 @@ class BrainInspiredCoordinator:
                         logger.error(f"后台存储用户偏好失败: {e}")
                 
                 # Create background task for preference storage
-                asyncio.create_task(store_preference_background())
+                self._create_background_task("store_user_preference", store_preference_background())
                 preference_processed = True  # Always true since we're storing in background
             
             # 触发记忆巩固
@@ -527,7 +536,7 @@ class BrainInspiredCoordinator:
                         logger.error(f"后台存储记忆失败: {e}")
                 
                 # Create background task for memory storage
-                asyncio.create_task(store_memory_background())
+                self._create_background_task("store_conversation_memory", store_memory_background())
                 memory_stored = True  # Always true since we're storing in background
                 
                 # Record existing memory activation (new memory will be recorded in background)
@@ -548,19 +557,48 @@ class BrainInspiredCoordinator:
             # Reflection and insights
             if len(memories) > 3:
                 background_tasks.append(
-                    asyncio.create_task(self._trigger_background_reflection(memories))
+                    self._create_background_task(
+                        "background_reflection",
+                        self._trigger_background_reflection(memories)
+                    )
                 )
             
             # Memory consolidation
             if memory_stored and importance > 0.7:
                 background_tasks.append(
-                    asyncio.create_task(self._trigger_background_consolidation())
+                    self._create_background_task(
+                        "background_consolidation",
+                        self._trigger_background_consolidation()
+                    )
                 )
             
             # Forgetting (higher frequency for buffer maintenance)
             if self.processing_stats['total_requests'] % 5 == 0:
                 background_tasks.append(
-                    asyncio.create_task(self._trigger_background_forgetting())
+                    self._create_background_task(
+                        "background_forgetting",
+                        self._trigger_background_forgetting()
+                    )
+                )
+
+            if self.processing_stats['total_requests'] % self.settings.buffer_cleanup_frequency == 0:
+                background_tasks.append(
+                    self._create_background_task(
+                        "buffer_cleanup",
+                        agent_buffer_system.cleanup_stale_entries(
+                            max_age_hours=self.settings.buffer_retention_hours
+                        )
+                    )
+                )
+
+            if self.processing_stats['total_requests'] % self.settings.faiss_compaction_frequency == 0:
+                background_tasks.append(
+                    self._create_background_task(
+                        "faiss_compaction",
+                        memory_system.enforce_storage_limits(
+                            max_vectors=self.settings.max_faiss_vectors
+                        )
+                    )
                 )
             
             # Background tasks run independently - don't wait for them to avoid blocking
@@ -922,6 +960,19 @@ class BrainInspiredCoordinator:
                 continue
             except Exception as e:
                 logger.error(f"Message bus error: {e}")
+
+    def _create_background_task(self, label: str, coro: Coroutine[Any, Any, Any]) -> asyncio.Task:
+        """Trackable helper for background tasks to ensure clean shutdown."""
+        self._task_counter += 1
+        task_name = f"{label}_{self._task_counter}"
+        task = asyncio.create_task(coro)
+        self.agent_tasks[task_name] = task
+
+        def _cleanup(_: asyncio.Task, name: str = task_name):
+            self.agent_tasks.pop(name, None)
+
+        task.add_done_callback(_cleanup)
+        return task
     
     def get_system_status(self) -> Dict[str, Any]:
         """Get comprehensive system status including plasticity insights"""

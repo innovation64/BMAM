@@ -270,36 +270,39 @@ class OpenAIEmbeddingService:
         # Process in batches to avoid API limits
         for i in range(0, len(texts), batch_size):
             batch = texts[i:i + batch_size]
-            
-            # Filter out empty texts
-            valid_texts = [text for text in batch if text and text.strip()]
-            
-            if not valid_texts:
-                # Add zero vectors for empty batch
-                embeddings.extend([np.zeros(self.dimension, dtype=np.float32)] * len(batch))
-                continue
-            
+
+            # Track empty inputs to preserve alignment with original order
+            empties = [not text or not text.strip() for text in batch]
+            valid_texts = [text for text, is_empty in zip(batch, empties) if not is_empty]
+
             try:
-                # 每次都动态获取客户端，避免跨事件循环问题
-                client = await shared_client_manager.get_embedding_client()
-                    
-                response = await client.embeddings.create(
-                    model=self.model,
-                    input=valid_texts,
-                    dimensions=self.dimension
-                )
-                
-                batch_embeddings = []
-                for data in response.data:
-                    embedding = np.array(data.embedding, dtype=np.float32)
-                    batch_embeddings.append(embedding)
-                
-                embeddings.extend(batch_embeddings)
-                
+                batch_embeddings: List[np.ndarray] = []
+
+                if valid_texts:
+                    # 每次都动态获取客户端，避免跨事件循环问题
+                    client = await shared_client_manager.get_embedding_client()
+
+                    response = await client.embeddings.create(
+                        model=self.model,
+                        input=valid_texts,
+                        dimensions=self.dimension
+                    )
+
+                    for data in response.data:
+                        embedding = np.array(data.embedding, dtype=np.float32)
+                        batch_embeddings.append(embedding)
+
+                valid_iter = iter(batch_embeddings)
+                for is_empty in empties:
+                    if is_empty:
+                        embeddings.append(np.zeros(self.dimension, dtype=np.float32))
+                    else:
+                        embeddings.append(next(valid_iter))
+
                 # Add some delay between batches to respect rate limits
                 if i + batch_size < len(texts):
                     await asyncio.sleep(0.1)
-                
+
             except Exception as e:
                 logger.error(f"Error generating batch embeddings: {e}")
                 # 不再添加fallback向量，而是抛出异常防止污染FAISS

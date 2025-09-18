@@ -7,8 +7,9 @@ Agent Buffer System
 
 import os
 import json
+import hashlib
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 import asyncio
 import aiofiles
@@ -406,16 +407,33 @@ class AgentBufferSystem:
         """在两个Agent之间交换缓冲数据"""
         if source_agent not in self.agent_buffers or target_agent not in self.agent_buffers:
             raise ValueError("Invalid agent IDs for buffer exchange")
-        
+
         await self._ensure_initialized()
-        
+
+        if source_agent == target_agent:
+            async with self.locks[source_agent]:
+                await self._write_buffer_unlocked(target_agent, data_key, data, append=True)
+                await self._write_buffer_unlocked(
+                    target_agent,
+                    'recent_exchanges',
+                    {
+                        'source': source_agent,
+                        'target': target_agent,
+                        'data_key': data_key,
+                        'data_summary': str(data)[:200],
+                        'data_hash': hashlib.md5(str(data).encode()).hexdigest(),
+                        'timestamp': datetime.now().isoformat()
+                    },
+                    append=True
+                )
+            return
+
         # 使用有序锁避免死锁
         first_lock = self.locks[min(source_agent, target_agent)]
         second_lock = self.locks[max(source_agent, target_agent)]
-        
+
         async with first_lock, second_lock:
             # 计算数据摘要用于去重检查
-            import hashlib
             data_hash = hashlib.md5(str(data).encode()).hexdigest()
             
             # 直接读取目标agent数据，避免重入锁
@@ -441,9 +459,9 @@ class AgentBufferSystem:
             # 写入目标agent（已持有锁，使用unlocked写入避免重入同一把锁）
             await self._write_buffer_unlocked(target_agent, data_key, data, append=True)
             await self._write_buffer_unlocked(target_agent, 'recent_exchanges', exchange_record, append=True)
-            
+
             logger.debug(f"Buffer exchange: {source_agent} -> {target_agent} ({data_key})")
-    
+
     async def get_agent_status(self, agent_id: str) -> Dict[str, Any]:
         """获取Agent的缓冲状态"""
         if agent_id not in self.agent_buffers:
@@ -479,7 +497,7 @@ class AgentBufferSystem:
         tasks = [self.get_agent_status(agent_id) for agent_id in self.agent_buffers]
         results = await asyncio.gather(*tasks, return_exceptions=True)
         return {agent_id: result for agent_id, result in zip(self.agent_buffers.keys(), results)}
-    
+
     async def save_user_preference(self, preference_type: str, preference_data: Dict[str, Any]):
         """保存用户偏好到长期记忆"""
         preference_entry = {
@@ -487,10 +505,54 @@ class AgentBufferSystem:
             'data': preference_data,
             'timestamp': datetime.now().isoformat()
         }
-        
+
         # 修复：user_preferences现在是列表，可以正常append
         await self.write_buffer('long_term_memory', 'user_preferences', preference_entry, append=True)
         logger.info(f"Saved user preference: {preference_type}")
+
+    async def cleanup_stale_entries(self, max_age_hours: int = 24):
+        """Remove stale recent_* entries to keep buffer footprint bounded."""
+        await self._ensure_initialized()
+        cutoff = datetime.now() - timedelta(hours=max_age_hours)
+
+        for agent_id in self.agent_buffers:
+            async with self.locks[agent_id]:
+                buffer_path = self.buffer_dir / self.agent_buffers[agent_id]['buffer_file']
+                try:
+                    async with aiofiles.open(buffer_path, 'r', encoding='utf-8') as f:
+                        data = json.loads(await f.read())
+                except Exception as exc:
+                    logger.warning(f"Failed to load buffer for cleanup ({agent_id}): {exc}")
+                    continue
+
+                content = data.get('buffer_content', {})
+                cleaned = False
+
+                for key in ['recent_inputs', 'recent_outputs', 'recent_exchanges']:
+                    entries = content.get(key)
+                    if isinstance(entries, list) and entries:
+                        filtered = []
+                        for entry in entries:
+                            timestamp = None
+                            if isinstance(entry, dict):
+                                timestamp = entry.get('timestamp') or entry.get('time')
+                            if isinstance(timestamp, str):
+                                try:
+                                    timestamp = datetime.fromisoformat(timestamp)
+                                except ValueError:
+                                    timestamp = None
+                            if not isinstance(timestamp, datetime) or timestamp >= cutoff:
+                                filtered.append(entry)
+                        if len(filtered) != len(entries):
+                            content[key] = filtered
+                            cleaned = True
+
+                if cleaned:
+                    data['buffer_content'] = content
+                    data.setdefault('metadata', {})['last_updated'] = datetime.now().isoformat()
+                    async with aiofiles.open(buffer_path, 'w', encoding='utf-8') as f:
+                        await f.write(json.dumps(data, indent=2, ensure_ascii=False))
+                    logger.debug(f"Cleaned stale buffer entries for {agent_id}")
 
 
 # 创建全局实例，但不立即初始化文件
