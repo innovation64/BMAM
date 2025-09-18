@@ -99,7 +99,7 @@ class ForgettingAgent(BrainAgent):
         if not self.db_manager:
             return {'error': 'Database manager not available'}
         
-        memories = self.db_manager.load_memories_by_criteria()
+        memories = self.db_manager.search_memories()
         
         decay_results = {
             'total_processed': len(memories),
@@ -173,7 +173,7 @@ class ForgettingAgent(BrainAgent):
             return {'error': 'Database manager not available'}
         
         # Load memories that might be affected by decay
-        all_memories = self.db_manager.load_memories_by_criteria()
+        all_memories = self.db_manager.search_memories()
         
         if not all_memories:
             return {
@@ -275,7 +275,7 @@ class ForgettingAgent(BrainAgent):
                     memories_to_suppress = []
             else:
                 # Content pattern - find matching memories
-                all_memories = self.db_manager.load_memories_by_criteria()
+                all_memories = self.db_manager.search_memories()
                 memories_to_suppress = [
                     m for m in all_memories 
                     if target.lower() in m.content.lower()
@@ -323,7 +323,7 @@ class ForgettingAgent(BrainAgent):
             return {'error': 'Database manager not available'}
         
         # Load all memories for interference analysis
-        all_memories = self.db_manager.load_memories_by_criteria()
+        all_memories = self.db_manager.search_memories()
         
         if len(all_memories) < 2:
             return {
@@ -408,7 +408,7 @@ class ForgettingAgent(BrainAgent):
             target_capacity = self.capacity_limit
         
         # Load all memories and sort by importance
-        all_memories = self.db_manager.load_memories_by_criteria()
+        all_memories = self.db_manager.search_memories()
         
         if len(all_memories) <= target_capacity:
             return {
@@ -484,7 +484,7 @@ class ForgettingAgent(BrainAgent):
             return {'error': 'Database manager not available'}
         
         # Load memories and filter by context
-        all_memories = self.db_manager.load_memories_by_criteria()
+        all_memories = self.db_manager.search_memories()
         contextual_candidates = []
         
         for memory in all_memories:
@@ -559,7 +559,7 @@ class ForgettingAgent(BrainAgent):
         suppression_strength = emotion_criteria.get('suppression_strength', 0.6)
         
         # Load memories and find emotional candidates
-        all_memories = self.db_manager.load_memories_by_criteria()
+        all_memories = self.db_manager.search_memories()
         emotional_candidates = []
         
         for memory in all_memories:
@@ -721,7 +721,7 @@ class ForgettingAgent(BrainAgent):
         if not self.db_manager:
             return {'error': 'Database manager not available'}
         
-        all_memories = self.db_manager.load_memories_by_criteria()
+        all_memories = self.db_manager.search_memories()
         active_memories = [m for m in all_memories if not m.metadata.get('deactivated', False)]
         
         capacity_status = {
@@ -764,7 +764,7 @@ class ForgettingAgent(BrainAgent):
             return {'error': 'Database manager not available'}
         
         # Load memories matching criteria
-        memories = self.db_manager.load_memories_by_criteria()
+        memories = self.db_manager.search_memories()
         
         # Filter based on criteria
         candidates = self._filter_memories_by_criteria(memories, criteria)
@@ -806,7 +806,7 @@ class ForgettingAgent(BrainAgent):
         if not self.db_manager:
             return {'error': 'Database manager not available'}
         
-        all_memories = self.db_manager.load_memories_by_criteria()
+        all_memories = self.db_manager.search_memories()
         forgotten_memories = [m for m in all_memories if m.metadata.get('marked_for_forgetting', False)]
         deactivated_memories = [m for m in all_memories if m.metadata.get('deactivated', False)]
         
@@ -845,7 +845,7 @@ class ForgettingAgent(BrainAgent):
         if not self.db_manager:
             return {'error': 'Database manager not available'}
         
-        all_memories = self.db_manager.load_memories_by_criteria()
+        all_memories = self.db_manager.search_memories()
         
         # Multi-criteria pruning evaluation
         pruning_scores = []

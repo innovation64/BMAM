@@ -91,11 +91,11 @@ class BrainInspiredCoordinator:
         self.short_term_memory = ShortTermMemoryAgent()
         self.long_term_memory = LongTermMemoryAgent(db_manager=db, embedding_service=emb, vector_db=vec)
         self.memory_retrieval = MemoryRetrievalAgent(db_manager=db, embedding_service=emb, vector_db=vec)
-        self.consolidation = ConsolidationAgent()
-        self.memory_distortion = MemoryDistortionAgent()
-        self.reflection = ReflectionAgent()
-        self.forgetting = ForgettingAgent()
-        self.stress_response = StressResponseAgent()
+        self.consolidation = ConsolidationAgent(db_manager=db)
+        self.memory_distortion = MemoryDistortionAgent(db_manager=db)
+        self.reflection = ReflectionAgent(db_manager=db, embedding_service=emb)
+        self.forgetting = ForgettingAgent(db_manager=db)
+        self.stress_response = StressResponseAgent(db_manager=db)
         
         # 4 Auxiliary Functional Agents  
         self.personality = PersonalityAgent()  # 人格智能体 - 摇光明明
@@ -243,7 +243,7 @@ class BrainInspiredCoordinator:
             )
             
             # Stress/Threat Detection
-            parallel_tasks['stress_detection'] = self._activate_agent(
+            parallel_tasks['stress_response'] = self._activate_agent(
                 'stress_response',
                 AgentMessage(
                     sender='coordinator',
@@ -292,7 +292,7 @@ class BrainInspiredCoordinator:
                     parallel_results[task_name] = {'error': str(result)}
                 else:
                     parallel_results[task_name] = result
-                    if not result.get('error'):
+                    if not result.get('error') and task_name in self.agents:
                         successful_agents.append(task_name)
                         activation_strengths.append(1.0)  # Full activation strength for successful agents
             
@@ -311,7 +311,7 @@ class BrainInspiredCoordinator:
             
             # Extract retrieved memories
             memories = parallel_results.get('memory_retrieval', {}).get('memories', [])
-            threat_info = parallel_results.get('stress_detection', {})
+            threat_info = parallel_results.get('stress_response', {})
             
             # Initialize memory tracking variables
             memory_ids = []
@@ -394,7 +394,7 @@ class BrainInspiredCoordinator:
                         'memories': memories[:5],  # Top 5 most relevant
                         'plasticity_memories': plasticity_memories,
                         'threat_info': threat_info,
-                        'primary_results': {k: v for k, v in parallel_results.items() if k not in ['memory_retrieval', 'stress_detection']}
+                        'primary_results': {k: v for k, v in parallel_results.items() if k not in ['memory_retrieval', 'stress_response']}
                     }
                 )
             )
@@ -879,18 +879,24 @@ class BrainInspiredCoordinator:
             request_count = self.processing_stats['total_requests']
             
             if request_count % 10 == 0:
-                # 每10次请求执行完整的记忆清理
-                action = 'cleanup_memories'
+                # 每10次请求执行一次选择性遗忘
+                action = 'selective_forgetting'
                 content = {
                     'action': action,
                     'criteria': {
-                        'days_threshold': 7,
-                        'min_importance': 0.1
+                        'max_age_days': 7,
+                        'max_importance': 0.2,
+                        'max_access_frequency': 3,
+                        'age_weight': 0.5,
+                        'importance_weight': 0.4,
+                        'access_weight': 0.2,
+                        'importance_reduction': 0.4,
+                        'decay_increase': 0.25
                     }
                 }
             else:
-                # 其他时候应用遗忘曲线
-                action = 'apply_forgetting_curve'
+                # 其他时候应用被动遗忘曲线
+                action = 'passive_decay'
                 content = {'action': action}
             
             await self._activate_agent(
