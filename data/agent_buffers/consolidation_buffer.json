@@ -7,13 +7,23 @@
     "consolidation_history": [],
     "importance_scores": {},
     "scheduled_tasks": [],
-    "recent_inputs": [],
+    "recent_inputs": [
+      {
+        "message": {
+          "action": "consolidate_preference",
+          "memory_id": null,
+          "importance_boost": 0.2
+        },
+        "timestamp": "2025-09-28T15:26:30.890475",
+        "sender": "coordinator"
+      }
+    ],
     "recent_outputs": [],
     "recent_exchanges": []
   },
   "metadata": {
-    "created_at": "2025-09-09T23:54:48.659027",
-    "last_updated": "2025-09-09T23:54:48.659036",
+    "created_at": "2025-09-18T15:48:39.206510",
+    "last_updated": "2025-09-28T15:26:30.890603",
     "version": "1.0"
   }
 }

@@ -17,7 +17,7 @@ from .clean_agent_system import (
     # Core agents - directly imported
     ShortTermMemoryAgent, LongTermMemoryAgent, MemoryRetrievalAgent,
     ConsolidationAgent, MemoryDistortionAgent, ReflectionAgent,
-    ForgettingAgent, StressResponseAgent, PersonalityAgent,
+    ForgettingAgent, StressResponseAgent, PersonalityAgent, PersonaMemoryAgent,
     # Auxiliary agents - clean implementation
     ConversationAgent, ExecutiveControlAgent,
     PerceptionEncodingAgent, ActionExecutionAgent
@@ -105,9 +105,10 @@ class BrainInspiredCoordinator:
         self.reflection = ReflectionAgent(db_manager=db, embedding_service=emb)
         self.forgetting = ForgettingAgent(db_manager=db)
         self.stress_response = StressResponseAgent(db_manager=db)
-        
+
         # 4 Auxiliary Functional Agents  
-        self.personality = PersonalityAgent()  # 人格智能体 - 摇光明明
+        self.persona_memory = PersonaMemoryAgent(db_manager=db, embedding_service=emb, vector_db=vec)
+        self.personality = PersonalityAgent(persona_memory_agent=self.persona_memory)  # 人格智能体 - 摇光明明
         self.conversation = ConversationAgent()
         self.executive_control = ExecutiveControlAgent()
         self.perception_encoding = PerceptionEncodingAgent()
@@ -126,6 +127,7 @@ class BrainInspiredCoordinator:
             'stress_response': self.stress_response,
             
             # Auxiliary agents
+            'persona_memory': self.persona_memory,
             'personality': self.personality,  # 人格智能体 - 摇光明明  
             'conversation': self.conversation,
             'executive_control': self.executive_control,
@@ -181,6 +183,8 @@ class BrainInspiredCoordinator:
                 await self.start_system()
             
             logger.info(f"Processing user input: {user_input[:50]}...")
+
+            base_context = dict(context) if isinstance(context, dict) else {}
             
             # Phase 1: Perception Encoding (感知编码)
             perception_result = await self._activate_agent(
@@ -194,7 +198,7 @@ class BrainInspiredCoordinator:
                         'input_data': {
                             'content': user_input,
                             'type': 'text',
-                            'context': context or {}
+                            'context': base_context
                         }
                     }
                 )
@@ -220,7 +224,7 @@ class BrainInspiredCoordinator:
                             'user_input': user_input,
                             'type': task_type,
                             'complexity': encoded_input.get('features', {}).get('complexity', 'medium'),
-                            'context': context or {},
+                            'context': base_context,
                             'optimal_sequence': optimal_agents[:3]  # Top 3 from plasticity
                         }
                     }
@@ -269,7 +273,7 @@ class BrainInspiredCoordinator:
             for agent_name in primary_agents:
                 agent_id = self._map_agent_name(agent_name)
                 if agent_id and agent_id in self.agents:
-                    parallel_tasks[agent_id] = self._create_primary_agent_task(agent_id, user_input, context)
+                    parallel_tasks[agent_id] = self._create_primary_agent_task(agent_id, user_input, base_context)
                     activated_agents.append(agent_id)
             
             # Wait for parallel phase completion - TRUE PARALLEL EXECUTION
@@ -321,7 +325,34 @@ class BrainInspiredCoordinator:
             # Extract retrieved memories
             memories = parallel_results.get('memory_retrieval', {}).get('memories', [])
             threat_info = parallel_results.get('stress_response', {})
-            
+
+            base_context['retrieved_memories'] = memories
+
+            personality_result = parallel_results.get('personality')
+            if (not personality_result) or personality_result.get('error'):
+                try:
+                    personality_result = await self._activate_agent(
+                        'personality',
+                        AgentMessage(
+                            sender='coordinator',
+                            receiver='personality',
+                            message_type='request',
+                            content={
+                                'action': 'generate_personality_response',
+                                'user_input': user_input,
+                                'retrieved_memories': memories
+                            }
+                        )
+                    )
+                except Exception as exc:
+                    logger.warning(f"Personality agent invocation failed: {exc}")
+                    personality_result = None
+
+            if personality_result and not personality_result.get('error'):
+                base_context['personality_context'] = personality_result.get('personality_context', {})
+                base_context['current_personality_emotion'] = personality_result.get('current_emotion')
+                base_context['persona_memories_used'] = personality_result.get('persona_memories_used')
+
             # Initialize memory tracking variables
             memory_ids = []
             memory_strengths = []
@@ -399,7 +430,7 @@ class BrainInspiredCoordinator:
                     content={
                         'action': 'generate_response',
                         'user_input': user_input,
-                        'context': context or {},
+                        'context': base_context,
                         'memories': memories[:5],  # Top 5 most relevant
                         'plasticity_memories': plasticity_memories,
                         'threat_info': threat_info,
@@ -409,6 +440,36 @@ class BrainInspiredCoordinator:
             )
             
             main_response = response_result.get('response', '抱歉，我现在无法处理您的请求。')
+
+            # Persona-aware refinement
+            personality_result = parallel_results.get('personality')
+            if personality_result and personality_result.get('error'):
+                personality_result = None
+
+            if personality_result is None:
+                try:
+                    personality_result = await self._activate_agent(
+                        'personality',
+                        AgentMessage(
+                            sender='coordinator',
+                            receiver='personality',
+                            message_type='request',
+                            content={
+                                'action': 'generate_personality_response',
+                                'user_input': user_input,
+                                'retrieved_memories': memories[:5]
+                            }
+                        )
+                    )
+                except Exception as exc:
+                    logger.warning(f"Personality agent invocation failed: {exc}")
+                    personality_result = None
+
+            if personality_result and not personality_result.get('error'):
+                base_context['personality_context'] = personality_result.get('personality_context', {})
+                base_context['persona_memories_used'] = personality_result.get('persona_memories_used', 0)
+                base_context['personality_current_emotion'] = personality_result.get('current_emotion')
+                main_response = personality_result.get('personality_response', main_response)
             
             # Phase 5.5: User Preference Processing (用户偏好处理) - Background
             preference_processed = False
@@ -435,6 +496,28 @@ class BrainInspiredCoordinator:
                         )
                         if preference_result.get('success', False):
                             logger.info(f"后台存储用户偏好完成: {user_input[:50]}")
+                            await self._activate_agent(
+                                'persona_memory',
+                                AgentMessage(
+                                    sender='coordinator',
+                                    receiver='persona_memory',
+                                    message_type='request',
+                                    content={
+                                        'action': 'store_persona_memory',
+                                        'memory': {
+                                            'content': f"用户偏好：{user_input}",
+                                            'category': 'preference',
+                                            'importance': 0.85,
+                                            'context_tags': ['persona', 'preference', 'value_alignment'],
+                                            'emotion_tags': ['positive'],
+                                            'metadata': {
+                                                'preference_type': 'user_input',
+                                                'value_alignment': base_context.get('user_values', 'neutral')
+                                            }
+                                        }
+                                    }
+                                )
+                            )
                             # Exchange buffer info between long_term_memory and consolidation
                             await agent_buffer_system.exchange_buffers(
                                 'long_term_memory',
@@ -467,7 +550,7 @@ class BrainInspiredCoordinator:
             
             # Phase 6: Memory Storage (记忆存储)
             memory_stored = False
-            if self._should_store_memory(user_input, context):
+            if self._should_store_memory(user_input, base_context):
                 # Determine memory properties
                 importance = self._calculate_importance(user_input, threat_info, memories)
                 emotion_tags = self._extract_emotions(user_input, threat_info)
@@ -603,7 +686,11 @@ class BrainInspiredCoordinator:
             
             # Background tasks run independently - don't wait for them to avoid blocking
             insights = {'status': 'background_processing', 'tasks_started': len(background_tasks)}
-            
+            if 'personality_context' in base_context:
+                insights['personality_context'] = base_context.get('personality_context', {})
+                insights['persona_memories_used'] = base_context.get('persona_memories_used', 0)
+                insights['current_personality_emotion'] = base_context.get('personality_current_emotion')
+
             # Calculate processing time
             processing_time = (datetime.now() - start_time).total_seconds()
             
@@ -613,9 +700,27 @@ class BrainInspiredCoordinator:
                 if agent.execution_log:
                     agent_logs[agent_id] = agent.execution_log[-5:]  # Last 5 entries
             
-            # Success
-            self.processing_stats['successful_requests'] += 1
-            
+            # 检查响应是否包含错误标志
+            has_error = False
+            error_message = None
+
+            # 检查是否有API异常或其他错误标志
+            if main_response.startswith('⚠️') or 'API异常' in main_response:
+                has_error = True
+                error_message = f"Response contains error: {main_response[:100]}"
+                self.processing_stats['failed_requests'] += 1
+            else:
+                # 检查并行结果中是否有错误
+                for agent_id, result_data in parallel_results.items():
+                    if isinstance(result_data, dict) and result_data.get('error'):
+                        has_error = True
+                        error_message = f"Agent {agent_id} error: {result_data['error']}"
+                        self.processing_stats['failed_requests'] += 1
+                        break
+
+                if not has_error:
+                    self.processing_stats['successful_requests'] += 1
+
             result = ProcessingResult(
                 response=main_response,
                 routing_decision=coordination_plan,
@@ -625,10 +730,14 @@ class BrainInspiredCoordinator:
                 processing_time=processing_time,
                 agent_logs=agent_logs,
                 insights=insights,
-                success=True
+                success=not has_error,
+                error=error_message
             )
             
-            logger.info(f"Successfully processed request in {processing_time:.2f}s with {len(memories)} memories")
+            if has_error:
+                logger.warning(f"Processed request with errors in {processing_time:.2f}s with {len(memories)} memories")
+            else:
+                logger.info(f"Successfully processed request in {processing_time:.2f}s with {len(memories)} memories")
             return result
             
         except Exception as e:
@@ -788,6 +897,20 @@ class BrainInspiredCoordinator:
                             'emotion_tags': ['neutral'],
                             'context_tags': ['user_input']
                         }
+                    }
+                )
+            )
+        elif agent_id == 'personality':
+            return await self._activate_agent(
+                agent_id,
+                AgentMessage(
+                    sender='coordinator',
+                    receiver=agent_id,
+                    message_type='request',
+                    content={
+                        'action': 'generate_personality_response',
+                        'user_input': user_input,
+                        'retrieved_memories': context.get('retrieved_memories', []) if context else []
                     }
                 )
             )

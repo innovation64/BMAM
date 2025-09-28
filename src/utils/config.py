@@ -146,7 +146,7 @@ class SystemSettings:
 def get_settings() -> SystemSettings:
     """Centralized application settings sourced from env with sane defaults."""
     return SystemSettings(
-        parallel_phase_timeout=float(get_env("PARALLEL_PHASE_TIMEOUT", "8.0")),
+        parallel_phase_timeout=float(get_env("PARALLEL_PHASE_TIMEOUT", "15.0")),
         buffer_exchange_timeout=float(get_env("BUFFER_EXCHANGE_TIMEOUT", "5.0")),
         buffer_retention_hours=int(get_env("BUFFER_RETENTION_HOURS", "24")),
         buffer_cleanup_frequency=int(get_env("BUFFER_CLEANUP_FREQUENCY", "20")),

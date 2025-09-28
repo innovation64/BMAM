@@ -87,8 +87,9 @@ class ContinuousConversationTester:
             result = await self.coordinator.process_user_input(user_input, context)
             processing_time = time.time() - start_time
             
-            if result['success']:
-                response = result.get('response', '')
+            # result is a ProcessingResult object, not a dictionary
+            if hasattr(result, 'response') and result.response:
+                response = result.response
                 print(f"🤖 助手: {response[:100]}...")
                 print(f"⏱️  耗时: {processing_time:.2f}s")
                 
@@ -98,7 +99,8 @@ class ContinuousConversationTester:
                 print("✅ 对话成功")
                 return True
             else:
-                print(f"❌ 对话失败: {result.get('error', '未知错误')}")
+                error_msg = result.error if hasattr(result, 'error') else '未知错误'
+                print(f"❌ 对话失败: {error_msg}")
                 return False
                 
         except Exception as e:

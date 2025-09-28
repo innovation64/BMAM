@@ -7,6 +7,8 @@ from collections import defaultdict
 from typing import Dict, Any, List, Optional
 import logging
 import asyncio
+from copy import deepcopy
+from datetime import datetime
 
 from ..base import BrainAgent, AgentMessage, BrainRegion
 from ...memory.memory_item import MemoryItem
@@ -79,33 +81,48 @@ class LongTermMemoryAgent(BrainAgent):
         # 调用统一的memory_system，确保向量库与数据库同步更新
         from ...memory.memory_system import memory_system
         
+        memory_payload = deepcopy(memory_data)
+        memory_payload['metadata'] = self._initialize_repeat_metadata(memory_payload)
+
+        duplicate_check = await self._find_duplicate_memory(memory_payload)
+        if duplicate_check and duplicate_check.get('memory_id'):
+            merged_result = await self._merge_with_existing_memory(
+                duplicate_check['memory_id'],
+                memory_payload,
+                duplicate_check.get('similarity', 0.0)
+            )
+            merged_result['stored'] = False
+            merged_result['duplicate_detected'] = True
+            return merged_result
+
         memory_id = await memory_system.store_memory(
-            content=memory_data['content'],
-            memory_type=memory_data.get('memory_type', 'semantic'), 
-            importance=memory_data.get('importance', 0.5),
-            emotion_tags=memory_data.get('emotion_tags', []),
-            context_tags=memory_data.get('context_tags', []),
-            metadata=memory_data.get('metadata', {})
+            content=memory_payload['content'],
+            memory_type=memory_payload.get('memory_type', 'semantic'), 
+            importance=memory_payload.get('importance', 0.5),
+            emotion_tags=memory_payload.get('emotion_tags', []),
+            context_tags=memory_payload.get('context_tags', []),
+            metadata=memory_payload.get('metadata', {})
         )
         
         success = memory_id is not None
         
         if success:
             self.total_memories += 1
-            logger.info(f"✅ Successfully stored memory {memory_id} via memory_system: '{memory_data['content'][:50]}...'")
+            logger.info(f"✅ Successfully stored memory {memory_id} via memory_system: '{memory_payload['content'][:50]}...'")
             
             # Build initial associations - 使用返回的memory_id
             await self._build_semantic_associations(memory_id)
         else:
-            logger.error(f"❌ Failed to store memory via memory_system: '{memory_data['content'][:50]}...'")
+            logger.error(f"❌ Failed to store memory via memory_system: '{memory_payload['content'][:50]}...'")
             memory_id = "failed"
         
         return {
             'stored': success,
             'memory_id': memory_id,
-            'memory_type': memory_data.get('memory_type', 'semantic'),
-            'consolidation_level': memory_data.get('consolidation_level', 1),
-            'total_memories': self.total_memories
+            'memory_type': memory_payload.get('memory_type', 'semantic'),
+            'consolidation_level': memory_payload.get('consolidation_level', 1),
+            'total_memories': self.total_memories,
+            'duplicate_detected': False
         }
     
     async def _build_semantic_associations(self, memory_id: str) -> Dict[str, Any]:
@@ -152,6 +169,162 @@ class LongTermMemoryAgent(BrainAgent):
             # 概念链接在后台异步计算，这里不返回数量以避免未定义变量
             'network_size': len(self.semantic_network)
         }
+
+    async def _find_duplicate_memory(self, memory_data: Dict[str, Any], similarity_threshold: float = 0.88) -> Optional[Dict[str, Any]]:
+        """Search existing memories to avoid storing near-duplicates."""
+
+        if not memory_data.get('content'):
+            return None
+
+        try:
+            from ...memory.memory_system import memory_system
+        except Exception as exc:
+            logger.warning(f"Unable to import memory_system for duplicate check: {exc}")
+            return None
+
+        try:
+            search_results = await memory_system.search_memories(
+                memory_data['content'],
+                search_type='semantic',
+                k=5,
+                threshold=0.4
+            )
+        except Exception as exc:
+            logger.warning(f"Duplicate search failed: {exc}")
+            return None
+
+        candidate = None
+        highest_similarity = 0.0
+
+        for item in search_results:
+            similarity = item.get('similarity_score', 0.0)
+            if similarity >= similarity_threshold and item.get('memory_type') == memory_data.get('memory_type', 'semantic'):
+                if similarity > highest_similarity:
+                    highest_similarity = similarity
+                    candidate = {'memory_id': item['id'], 'similarity': similarity}
+        
+        return candidate
+
+    async def _merge_with_existing_memory(self, memory_id: str, new_data: Dict[str, Any], similarity: float) -> Dict[str, Any]:
+        """Merge new memory data into an existing record when a duplicate is detected."""
+
+        if not self.db_manager:
+            logger.warning("Duplicate detected but db_manager unavailable; skipping merge")
+            return {'error': 'db_manager not available', 'memory_id': memory_id}
+
+        existing = self.db_manager.load_memory(memory_id)
+        if not existing:
+            return {'error': 'existing memory not found', 'memory_id': memory_id}
+
+        updated = False
+
+        # Merge emotion tags
+        new_emotions = set(existing.emotion_tags or []) | set(new_data.get('emotion_tags', []))
+        if new_emotions != set(existing.emotion_tags or []):
+            existing.emotion_tags = list(new_emotions)
+            updated = True
+
+        # Merge context tags
+        new_context = set(existing.context_tags or []) | set(new_data.get('context_tags', []))
+        if new_context != set(existing.context_tags or []):
+            existing.context_tags = list(new_context)
+            updated = True
+
+        # Merge metadata (shallow merge, new values take precedence)
+        metadata = deepcopy(existing.metadata or {})
+        incoming_metadata = new_data.get('metadata', {}) or {}
+
+        repeat_entry = {
+            'timestamp': datetime.now().isoformat(),
+            'content': new_data.get('content', '')
+        }
+        repeat_history = list(metadata.get('repeat_history', []))
+        repeat_history.append(repeat_entry)
+        metadata['repeat_history'] = repeat_history
+        metadata['repeat_count'] = len(repeat_history)
+        updated = True
+
+        if incoming_metadata:
+            for key, value in incoming_metadata.items():
+                if key not in metadata:
+                    metadata[key] = value
+                else:
+                    if isinstance(value, list) and isinstance(metadata[key], list):
+                        # Filter out non-hashable items for deduplication
+                        hashable_items = []
+                        non_hashable_items = []
+                        all_items = metadata[key] + value
+
+                        for item in all_items:
+                            try:
+                                hash(item)
+                                hashable_items.append(item)
+                            except TypeError:
+                                non_hashable_items.append(item)
+
+                        # Deduplicate hashable items and combine with non-hashable
+                        combined = list(dict.fromkeys(hashable_items)) + non_hashable_items
+                        metadata[key] = combined
+                    elif isinstance(value, dict) and isinstance(metadata[key], dict):
+                        metadata[key].update(value)
+                    else:
+                        metadata[f"alt_{key}"] = value
+            updated = True
+
+        existing.metadata = metadata
+
+        # Track content variants when not identical
+        new_content = new_data.get('content', '').strip()
+        if new_content and new_content != (existing.content or '').strip():
+            variants = existing.metadata.get('content_variants', []) if existing.metadata else []
+            if new_content not in variants:
+                variants = list(variants) + [new_content]
+                existing.metadata = existing.metadata or {}
+                existing.metadata['content_variants'] = variants
+                updated = True
+
+        # Boost importance when duplicate encountered frequently
+        importance_boost = max(0.02, (1 - similarity) * 0.1)
+        proposed_importance = new_data.get('importance', existing.importance)
+        new_importance = max(existing.importance, proposed_importance) + importance_boost
+        existing.importance = min(1.0, new_importance)
+
+        # Increase consolidation level mildly to reflect reinforcement
+        existing.consolidation_level = min(3, existing.consolidation_level + 1)
+        existing.access_frequency += 1
+        existing.last_accessed = datetime.now()
+        updated = True
+
+        if updated:
+            self.db_manager.save_memory(existing)
+
+        logger.info(
+            "🔁 Duplicate memory merged into %s (similarity %.3f, importance %.2f)",
+            memory_id,
+            similarity,
+            existing.importance
+        )
+
+        return {
+            'memory_id': memory_id,
+            'merged': True,
+            'updated_importance': existing.importance,
+            'consolidation_level': existing.consolidation_level,
+            'duplicate_similarity': similarity
+        }
+
+    def _initialize_repeat_metadata(self, memory_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Initialize repeat tracking metadata for new memories."""
+
+        metadata = deepcopy(memory_data.get('metadata', {}) or {})
+        history = list(metadata.get('repeat_history', []))
+        history.append({
+            'timestamp': datetime.now().isoformat(),
+            'content': memory_data.get('content', '')
+        })
+        metadata['repeat_history'] = history
+        metadata['repeat_count'] = len(history)
+        return metadata
     
     async def _strengthen_memory_trace(self, memory_id: str) -> Dict[str, Any]:
         """Strengthen memory trace through repeated activation"""

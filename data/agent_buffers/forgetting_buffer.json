@@ -2,57 +2,2820 @@
   "agent_id": "forgetting",
   "agent_name": "遗忘智能体",
   "brain_region": "inhibition",
-  "created_at": "2025-09-08T14:54:13.636903",
-  "last_updated": "2025-09-09T17:20:05.034075",
   "buffer_content": {
     "forgetting_schedule": [],
     "removed_memories": [],
     "decay_rates": {},
     "importance_threshold": 0.3,
-    "recent_exchanges": [],
     "recent_inputs": [
       {
         "message": {
-          "action": "apply_forgetting_curve"
+          "action": "passive_decay"
         },
-        "timestamp": "2025-09-09T17:20:05.034037",
+        "timestamp": "2025-09-22T23:22:45.176458",
         "sender": "coordinator"
       },
       {
         "message": {
-          "action": "apply_forgetting_curve"
+          "action": "passive_decay"
         },
-        "timestamp": "2025-09-11T09:46:00.010630",
+        "timestamp": "2025-09-22T23:24:30.514689",
         "sender": "coordinator"
       },
       {
         "message": {
-          "action": "cleanup_memories",
-          "criteria": {
-            "days_threshold": 7,
-            "min_importance": 0.1
-          }
+          "action": "passive_decay"
         },
-        "timestamp": "2025-09-11T09:47:45.712467",
+        "timestamp": "2025-09-22T23:26:18.608671",
         "sender": "coordinator"
       },
       {
         "message": {
-          "action": "apply_forgetting_curve"
+          "action": "passive_decay"
         },
-        "timestamp": "2025-09-11T09:52:08.582527",
+        "timestamp": "2025-09-22T23:28:04.255899",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-22T23:29:47.495356",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-22T23:31:32.158949",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-22T23:33:16.074395",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-22T23:35:01.094136",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-22T23:36:44.106225",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-22T23:38:28.555752",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-22T23:40:11.324149",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-22T23:41:51.669336",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-22T23:43:33.239809",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-22T23:45:20.353007",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-22T23:47:08.797986",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-22T23:48:54.576867",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-22T23:50:37.568702",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-22T23:52:19.550266",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-22T23:54:02.978083",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-22T23:55:51.081373",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-22T23:57:34.783311",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-22T23:59:23.995913",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T00:01:14.425811",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T00:03:05.266149",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T00:04:51.397748",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T00:06:39.868789",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T00:08:28.519788",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T00:10:19.207152",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T00:12:12.315514",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T00:14:03.337121",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T00:15:58.702902",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T00:17:46.082075",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T00:19:34.312302",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T00:21:30.003651",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T00:23:26.927855",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T00:25:18.772292",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T00:27:09.344026",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T00:28:56.976302",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T00:30:46.969191",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T00:32:37.397743",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T00:34:30.519482",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T00:36:15.919421",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T00:38:01.602584",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T00:39:50.018798",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T00:41:44.290100",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T00:43:38.555270",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T00:45:29.895079",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T00:47:22.401486",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T00:49:23.321087",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T00:51:17.400929",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T00:53:07.959986",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T00:54:57.554726",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T08:34:23.119586",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T08:34:39.315769",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T08:34:55.157389",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T09:02:38.544880",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T09:05:36.141397",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T09:07:21.067471",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T09:09:11.563938",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T09:11:00.439712",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T09:12:50.507398",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T09:14:56.461394",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T09:16:51.202593",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T09:18:44.202887",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T09:20:37.398834",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T09:22:32.286496",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T09:24:28.065366",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T09:26:23.624655",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T09:28:10.183172",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T09:29:59.741145",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T09:31:45.721226",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T09:33:34.664998",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T09:35:25.317174",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T09:37:10.533368",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T09:38:57.039924",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T09:41:22.054247",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T09:43:19.355460",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T09:45:13.293568",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T09:47:10.077997",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T09:47:47.109759",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T09:49:30.566114",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T09:51:43.880851",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T09:53:38.356798",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T09:56:05.622826",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T09:58:08.495277",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T10:00:09.320237",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T10:02:19.162228",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T10:04:12.728972",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T10:06:02.751214",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T10:08:07.420974",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T10:09:58.987008",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T10:11:52.516288",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T10:13:44.024539",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T10:15:36.387417",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T10:17:24.149268",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T10:19:14.200992",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T10:21:06.567630",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T10:22:53.137454",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T10:24:42.854923",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-23T10:25:50.777183",
         "sender": "coordinator"
       }
     ],
-    "recent_outputs": []
+    "recent_outputs": [
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 100,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9997025167513669,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-22T23:22:45.181685",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 101,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9996928514813958,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-22T23:24:30.519247",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 102,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9996829455299995,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-22T23:26:18.612708",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 103,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9996732756985702,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-22T23:28:04.261167",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 104,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9996638377180307,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-22T23:29:47.500343",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 105,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9996542810065531,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-22T23:31:32.163580",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 106,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9996448041645466,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-22T23:33:16.079557",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 107,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9996352378822703,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-22T23:35:01.098377",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 108,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9996258662608106,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-22T23:36:44.116072",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 109,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9996163748361527,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-22T23:38:28.561034",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 110,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9996070474730775,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-22T23:40:11.329283",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 111,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9995979508626895,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-22T23:41:51.674965",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 112,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9995887537268975,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-22T23:43:33.249076",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 113,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9995790666815786,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-22T23:45:20.357666",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 114,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9995605418999237,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-22T23:47:08.802385",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 115,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9995415520653707,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-22T23:48:54.582096",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 116,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9995230849142405,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-22T23:50:37.574670",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 117,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9995048200062464,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-22T23:52:19.555062",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 118,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9994863186557713,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-22T23:54:02.982836",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 119,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.999467007199045,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-22T23:55:51.086547",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 120,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.999448499344393,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-22T23:57:34.790122",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 121,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9994290349634062,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-22T23:59:24.001100",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 122,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9994010425934486,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T00:01:14.430640",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 123,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9993714381567332,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T00:03:05.270562",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 124,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9993431275880735,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T00:04:51.409238",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 125,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9993142284136303,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T00:06:39.875746",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 126,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9992853182523896,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T00:08:28.524334",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 127,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9992559035858606,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T00:10:19.213209",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 128,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.999225883127412,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T00:12:12.321343",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 129,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9991964564987699,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T00:14:03.342671",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 130,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9991659174970399,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T00:15:58.708576",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 131,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9991375303489722,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T00:17:46.088181",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 132,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9991089522326291,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T00:19:34.318166",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 133,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9990784443006904,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T00:21:30.008723",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 134,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9990476526488541,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T00:23:26.933673",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 135,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.999018237682841,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T00:25:18.776875",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 136,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9989891953751568,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T00:27:09.357907",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 137,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.998960960509251,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T00:28:56.981718",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 138,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9989321449532172,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T00:30:46.975417",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 139,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9988958958060933,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T00:32:37.403207",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 140,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.998856226954479,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T00:34:30.529134",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 141,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.998819314858788,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T00:36:15.924791",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 142,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9987823502186033,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T00:38:01.608121",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 143,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9987444759106302,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T00:39:50.024141",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 144,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9987046062184803,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T00:41:44.298288",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 145,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9986647934266324,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T00:43:38.560801",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 146,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9986260488001152,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T00:45:29.900768",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 147,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.998586949373112,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T00:47:22.408749",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 148,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9985449834865284,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T00:49:23.330288",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 149,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9985054443297423,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T00:51:17.406824",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 150,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.998467175901499,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T00:53:07.964589",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 151,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9984199559900611,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T00:54:57.559332",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 152,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9233043358065034,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T08:34:23.131062",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 153,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9232058886910169,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T08:34:39.320742",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 154,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9231096254808538,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T08:34:55.162451",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 155,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9130996923179875,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T09:02:38.549515",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 156,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.91204257478672,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T09:05:36.181309",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 157,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9114185690255957,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T09:07:21.072072",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 158,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9107625851758643,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T09:09:11.569762",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 159,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9101170352978112,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T09:11:00.445408",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 160,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9094652345907828,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T09:12:50.512977",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 161,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.908720395215608,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T09:14:56.467291",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 162,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9080428014628091,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T09:16:51.208467",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 163,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9073763421647771,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T09:18:44.208394",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 164,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9067096406343957,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T09:20:37.408474",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 165,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9060338250783785,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T09:22:32.292041",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 166,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9053537246084288,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T09:24:28.071313",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 167,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9046757942773291,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T09:26:23.630743",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 168,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9040514500139273,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T09:28:10.189287",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 169,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9034103518648198,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T09:29:59.746431",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 170,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9027910087384707,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T09:31:45.728812",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 171,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.902155060931586,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T09:33:34.669863",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 172,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9015099985805388,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T09:35:25.325242",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 173,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9008973841606713,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T09:37:10.538545",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 174,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.9002780218197033,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T09:38:57.045318",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 175,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.8994359679361493,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T09:41:22.059397",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 176,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.8987558649329026,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T09:43:19.365810",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 177,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.8980961460716753,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T09:45:13.298085",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 178,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.8974208154168326,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T09:47:10.083734",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 179,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.8972068769337617,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T09:47:47.116088",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 180,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.8966078459613493,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T09:49:30.573176",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 181,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.8958312630130036,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T09:51:43.885889",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 182,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.8951653702769079,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T09:53:38.362245",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 183,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.8943100534874894,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T09:56:05.629036",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 184,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.8935975047080612,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T09:58:08.501293",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 185,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.8928978353367278,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T10:00:09.326545",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 186,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.8921470324803638,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T10:02:19.168342",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 187,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.8914912620670854,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T10:04:12.734556",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 188,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.8908567744652666,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T10:06:02.757193",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 189,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.8901388165158731,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T10:08:07.426002",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 190,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.8894971980965447,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T10:09:58.992637",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 191,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.8888451233377636,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T10:11:52.521606",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 192,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.8882054873028244,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T10:13:44.039274",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 193,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.887561777230337,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T10:15:36.392532",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 194,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.8880902377462578,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T10:17:24.155526",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 195,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.8874678505569829,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T10:19:14.207337",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 196,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.8868332009049709,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T10:21:06.574755",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 197,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.8862320814200974,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T10:22:53.144109",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 198,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.8856139123734674,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T10:24:42.861575",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 199,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 100,
+            "average_retention": 0.8852316328652714,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-23T10:25:50.782598",
+        "processing_success": true
+      }
+    ],
+    "recent_exchanges": []
   },
   "metadata": {
-    "total_operations": 1,
-    "last_operation": {
-      "type": "write",
-      "key": "recent_inputs",
-      "timestamp": "2025-09-09T17:20:05.034077"
-    },
-    "last_updated": "2025-09-11T09:52:08.582668"
+    "created_at": "2025-09-18T15:48:39.206688",
+    "last_updated": "2025-09-23T10:25:50.783597",
+    "version": "1.0"
   }
 }

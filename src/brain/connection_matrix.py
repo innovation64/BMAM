@@ -103,7 +103,7 @@ class ConnectionMatrix:
         if len(self.usage_history[connection_key]) > 100:
             self.usage_history[connection_key] = self.usage_history[connection_key][-100:]
         
-        self.last_activation_time[connection_key] = datetime.now().isoformat()
+        self.last_activation_time[connection_key] = datetime.now()
         
         logger.debug(f"强化连接 {agent_a} ↔ {agent_b}: {current_strength:.3f} → {new_strength:.3f} (+{delta:.3f})")
     
@@ -244,7 +244,10 @@ class ConnectionMatrix:
                 'agents': self.agents,
                 'connections': self.connections.tolist(),
                 'usage_history': self.usage_history,
-                'last_activation_time': {k: v.isoformat() for k, v in self.last_activation_time.items()},
+                'last_activation_time': {
+                    k: v if isinstance(v, str) else v.isoformat()
+                    for k, v in self.last_activation_time.items()
+                },
                 'parameters': {
                     'learning_rate': self.learning_rate,
                     'decay_rate': self.decay_rate,

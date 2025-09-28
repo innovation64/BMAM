@@ -67,7 +67,7 @@ class SynapticPlasticity:
             context: 激活上下文
         """
         activation_event = {
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': datetime.now(),
             'strength': activation_strength,
             'context': context or {}
         }
@@ -314,7 +314,8 @@ class SynapticPlasticity:
             for memory_id, events in self.activation_history.items():
                 activation_history_serializable[memory_id] = [
                     {
-                        'timestamp': event['timestamp'].isoformat(),
+                        'timestamp': event['timestamp'] if isinstance(event['timestamp'], str)
+                        else event['timestamp'].isoformat(),
                         'strength': event['strength'],
                         'context': event['context']
                     }

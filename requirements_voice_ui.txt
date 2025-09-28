@@ -1,0 +1,30 @@
+# Voice UI Requirements for BMAM
+
+# Core UI Dependencies
+aiohttp>=3.8.0
+aiohttp-cors>=0.7.0
+numpy>=1.21.0
+
+# Voice Processing
+pyaudio>=0.2.11
+SpeechRecognition>=3.10.0
+gtts>=2.3.0
+pydub>=0.25.1
+
+# Optional - Advanced Speech Processing
+# openai-whisper>=20230918  # For better STT accuracy
+# azure-cognitiveservices-speech>=1.24.0  # For Azure Speech Services
+# google-cloud-speech>=2.16.0  # For Google Cloud Speech
+
+# WebSocket Support
+python-socketio>=5.7.0
+websockets>=10.4
+
+# Animation and Timing
+asyncio-throttle>=1.0.0
+
+# Development Tools
+pytest>=7.0.0
+pytest-asyncio>=0.20.0
+black>=22.0.0
+flake8>=5.0.0

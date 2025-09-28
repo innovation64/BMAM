@@ -160,6 +160,20 @@ class AgentBufferSystem:
                     'recent_exchanges': []
                 }
             },
+            'persona_memory': {
+                'name': '人格记忆智能体',
+                'brain_region': 'default_mode',
+                'buffer_file': 'persona_memory_buffer.json',
+                'max_items': 200,
+                'structure': {
+                    'values_history': [],
+                    'preference_snapshots': [],
+                    'alignment_notes': [],
+                    'recent_inputs': [],
+                    'recent_outputs': [],
+                    'recent_exchanges': []
+                }
+            },
             'conversation': {
                 'name': '对话智能体',
                 'brain_region': 'broca_wernicke',

@@ -6,6 +6,9 @@ Memory Retrieval Agent
 from datetime import datetime
 from typing import Dict, Any, List, Optional
 import logging
+import math
+import re
+from collections import Counter
 
 from ..base import BrainAgent, AgentMessage, BrainRegion
 from ...memory.memory_item import MemoryItem
@@ -377,11 +380,12 @@ class MemoryRetrievalAgent(BrainAgent):
         results = {
             'semantic': await self._semantic_retrieval(query, k=5),
             'contextual': await self._contextual_retrieval({'tags': query.split()}),
+            'bm25': await self._bm25_keyword_search(query)
         }
-        
+
         # Combine and deduplicate results
         combined_memories = {}
-        
+
         for strategy, result in results.items():
             if 'memories' in result:
                 for mem_data in result['memories']:
@@ -397,21 +401,119 @@ class MemoryRetrievalAgent(BrainAgent):
                         combined_memories[mem_id]['strategies'][strategy] = mem_data.get('retrieval_confidence', 0.5)
         
         # Calculate combined scores
+        strategy_weights = {
+            'semantic': 0.5,
+            'contextual': 0.2,
+            'bm25': 0.3
+        }
+
         for mem_id, data in combined_memories.items():
-            # Weighted combination of different strategies
-            scores = data['strategies'].values()
-            data['combined_score'] = sum(scores) / len(scores)
-        
+            weighted_sum = 0.0
+            weight_total = 0.0
+            for strat, score in data['strategies'].items():
+                weight = strategy_weights.get(strat, 0.2)
+                weighted_sum += score * weight
+                weight_total += weight
+            data['combined_score'] = weighted_sum / weight_total if weight_total else 0.0
+
         # Convert to list and sort
         final_memories = list(combined_memories.values())
         final_memories.sort(key=lambda x: x['combined_score'], reverse=True)
-        
+
         return {
             'memories': final_memories[:10],
             'retrieval_method': 'multi_strategy',
-            'strategies_used': list(results.keys()),
+            'strategies_used': [k for k, v in results.items() if v.get('memories')],
             'count': len(final_memories[:10])
         }
+
+    async def _bm25_keyword_search(self, query: str, k: int = 10, max_docs: int = 250) -> Dict[str, Any]:
+        """Perform lightweight BM25 scoring over stored memories as keyword complement."""
+
+        if not self.db_manager:
+            return {'memories': [], 'retrieval_method': 'bm25', 'count': 0}
+
+        tokens = self._tokenize(query)
+        if not tokens:
+            return {'memories': [], 'retrieval_method': 'bm25', 'count': 0}
+
+        try:
+            candidate_memories = self.db_manager.search_memories(limit=max_docs)
+        except Exception as exc:
+            logger.warning(f"BM25 search failed to load memories: {exc}")
+            return {'memories': [], 'retrieval_method': 'bm25', 'count': 0}
+
+        documents = []
+        doc_freq = Counter()
+
+        for memory in candidate_memories:
+            doc_tokens = self._tokenize(memory.content)
+            if not doc_tokens:
+                continue
+            documents.append((memory, doc_tokens))
+            doc_freq.update(set(doc_tokens))
+
+        if not documents:
+            return {'memories': [], 'retrieval_method': 'bm25', 'count': 0}
+
+        N = len(documents)
+        avg_dl = sum(len(doc_tokens) for _, doc_tokens in documents) / N
+        k1 = 1.5
+        b = 0.75
+
+        scored_memories = []
+
+        for memory, doc_tokens in documents:
+            term_counts = Counter(doc_tokens)
+            doc_length = len(doc_tokens)
+            score = 0.0
+
+            for token in tokens:
+                if token not in term_counts:
+                    continue
+                df = doc_freq[token]
+                idf = math.log((N - df + 0.5) / (df + 0.5) + 1)
+                tf = term_counts[token]
+                numerator = tf * (k1 + 1)
+                denominator = tf + k1 * (1 - b + b * doc_length / avg_dl)
+                score += idf * numerator / max(denominator, 1e-6)
+
+            if score > 0:
+                scored_memories.append((memory, score))
+
+        if not scored_memories:
+            return {'memories': [], 'retrieval_method': 'bm25', 'count': 0}
+
+        scored_memories.sort(key=lambda x: x[1], reverse=True)
+        top_items = scored_memories[:k]
+        max_score = top_items[0][1]
+
+        formatted = []
+        for memory, score in top_items:
+            confidence = min(1.0, score / (max_score + 1e-6))
+            formatted.append({
+                'memory': memory.to_dict(),
+                'bm25_score': score,
+                'retrieval_confidence': confidence,
+                'retrieval_method': 'bm25'
+            })
+
+        return {
+            'memories': formatted,
+            'retrieval_method': 'bm25',
+            'query': query,
+            'count': len(formatted)
+        }
+
+    def _tokenize(self, text: str) -> List[str]:
+        """Tokenize text for BM25 scoring (supports mixed CN/EN)."""
+        if not text:
+            return []
+
+        lowered = text.lower()
+        latin_tokens = re.findall(r"[a-z0-9']+", lowered)
+        chinese_tokens = [char for char in lowered if '\u4e00' <= char <= '\u9fff']
+        return latin_tokens + chinese_tokens
     
     def _calculate_retrieval_confidence(self, similarity: float, memory: MemoryItem) -> float:
         """Calculate overall retrieval confidence"""

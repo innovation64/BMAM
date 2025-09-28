@@ -1,7 +1,526 @@
 {
-  "memory_connections": {},
-  "activation_history": {},
-  "co_activation_count": {},
+  "memory_connections": {
+    "memory_0": {
+      "memory_1": 0.2117682,
+      "memory_2": 0.2117682,
+      "memory_3": 0.2117682,
+      "memory_4": 0.2117682,
+      "2b3b0dd2-3956-4034-9732-e884286dd170": 0.0375,
+      "a0d3eb2f-1cee-4a7d-8d5e-a5cfcdf377c5": 0.0375
+    },
+    "memory_1": {
+      "memory_0": 0.2117682,
+      "memory_2": 0.2117682,
+      "memory_3": 0.2117682,
+      "memory_4": 0.2117682,
+      "2b3b0dd2-3956-4034-9732-e884286dd170": 0.0375,
+      "a0d3eb2f-1cee-4a7d-8d5e-a5cfcdf377c5": 0.0375
+    },
+    "memory_2": {
+      "memory_0": 0.2117682,
+      "memory_1": 0.2117682,
+      "memory_3": 0.2117682,
+      "memory_4": 0.2117682,
+      "2b3b0dd2-3956-4034-9732-e884286dd170": 0.0375,
+      "a0d3eb2f-1cee-4a7d-8d5e-a5cfcdf377c5": 0.0375
+    },
+    "memory_3": {
+      "memory_0": 0.2117682,
+      "memory_1": 0.2117682,
+      "memory_2": 0.2117682,
+      "memory_4": 0.2117682,
+      "2b3b0dd2-3956-4034-9732-e884286dd170": 0.0375,
+      "a0d3eb2f-1cee-4a7d-8d5e-a5cfcdf377c5": 0.0375
+    },
+    "memory_4": {
+      "memory_0": 0.2117682,
+      "memory_1": 0.2117682,
+      "memory_2": 0.2117682,
+      "memory_3": 0.2117682,
+      "2b3b0dd2-3956-4034-9732-e884286dd170": 0.0375,
+      "a0d3eb2f-1cee-4a7d-8d5e-a5cfcdf377c5": 0.0375
+    },
+    "2b3b0dd2-3956-4034-9732-e884286dd170": {
+      "memory_0": 0.0375,
+      "memory_1": 0.0375,
+      "memory_2": 0.0375,
+      "memory_3": 0.0375,
+      "memory_4": 0.0375
+    },
+    "a0d3eb2f-1cee-4a7d-8d5e-a5cfcdf377c5": {
+      "memory_0": 0.0375,
+      "memory_1": 0.0375,
+      "memory_2": 0.0375,
+      "memory_3": 0.0375,
+      "memory_4": 0.0375
+    }
+  },
+  "activation_history": {
+    "memory_0": [
+      {
+        "timestamp": "2025-09-26T17:41:36.350498",
+        "strength": 0.5,
+        "context": {
+          "co_activated_with": [
+            "memory_0",
+            "memory_1",
+            "memory_2",
+            "memory_3",
+            "memory_4"
+          ]
+        }
+      },
+      {
+        "timestamp": "2025-09-26T17:41:41.573336",
+        "strength": 0.5,
+        "context": {
+          "co_activated_with": [
+            "memory_0",
+            "memory_1",
+            "memory_2",
+            "memory_3",
+            "memory_4"
+          ]
+        }
+      },
+      {
+        "timestamp": "2025-09-26T17:41:49.111058",
+        "strength": 0.5,
+        "context": {
+          "co_activated_with": [
+            "memory_0",
+            "memory_1",
+            "memory_2",
+            "memory_3",
+            "memory_4",
+            "2b3b0dd2-3956-4034-9732-e884286dd170"
+          ]
+        }
+      },
+      {
+        "timestamp": "2025-09-26T17:53:40.354891",
+        "strength": 0.5,
+        "context": {
+          "co_activated_with": [
+            "memory_0",
+            "memory_1",
+            "memory_2",
+            "memory_3",
+            "memory_4"
+          ]
+        }
+      },
+      {
+        "timestamp": "2025-09-26T17:53:44.288697",
+        "strength": 0.5,
+        "context": {
+          "co_activated_with": [
+            "memory_0",
+            "memory_1",
+            "memory_2",
+            "memory_3",
+            "memory_4"
+          ]
+        }
+      },
+      {
+        "timestamp": "2025-09-26T17:53:44.304143",
+        "strength": 0.5,
+        "context": {
+          "co_activated_with": [
+            "memory_0",
+            "memory_1",
+            "memory_2",
+            "memory_3",
+            "memory_4",
+            "a0d3eb2f-1cee-4a7d-8d5e-a5cfcdf377c5"
+          ]
+        }
+      }
+    ],
+    "memory_1": [
+      {
+        "timestamp": "2025-09-26T17:41:36.350501",
+        "strength": 0.5,
+        "context": {
+          "co_activated_with": [
+            "memory_0",
+            "memory_1",
+            "memory_2",
+            "memory_3",
+            "memory_4"
+          ]
+        }
+      },
+      {
+        "timestamp": "2025-09-26T17:41:41.573338",
+        "strength": 0.5,
+        "context": {
+          "co_activated_with": [
+            "memory_0",
+            "memory_1",
+            "memory_2",
+            "memory_3",
+            "memory_4"
+          ]
+        }
+      },
+      {
+        "timestamp": "2025-09-26T17:41:49.111060",
+        "strength": 0.5,
+        "context": {
+          "co_activated_with": [
+            "memory_0",
+            "memory_1",
+            "memory_2",
+            "memory_3",
+            "memory_4",
+            "2b3b0dd2-3956-4034-9732-e884286dd170"
+          ]
+        }
+      },
+      {
+        "timestamp": "2025-09-26T17:53:40.354893",
+        "strength": 0.5,
+        "context": {
+          "co_activated_with": [
+            "memory_0",
+            "memory_1",
+            "memory_2",
+            "memory_3",
+            "memory_4"
+          ]
+        }
+      },
+      {
+        "timestamp": "2025-09-26T17:53:44.288699",
+        "strength": 0.5,
+        "context": {
+          "co_activated_with": [
+            "memory_0",
+            "memory_1",
+            "memory_2",
+            "memory_3",
+            "memory_4"
+          ]
+        }
+      },
+      {
+        "timestamp": "2025-09-26T17:53:44.304144",
+        "strength": 0.5,
+        "context": {
+          "co_activated_with": [
+            "memory_0",
+            "memory_1",
+            "memory_2",
+            "memory_3",
+            "memory_4",
+            "a0d3eb2f-1cee-4a7d-8d5e-a5cfcdf377c5"
+          ]
+        }
+      }
+    ],
+    "memory_2": [
+      {
+        "timestamp": "2025-09-26T17:41:36.350502",
+        "strength": 0.5,
+        "context": {
+          "co_activated_with": [
+            "memory_0",
+            "memory_1",
+            "memory_2",
+            "memory_3",
+            "memory_4"
+          ]
+        }
+      },
+      {
+        "timestamp": "2025-09-26T17:41:41.573339",
+        "strength": 0.5,
+        "context": {
+          "co_activated_with": [
+            "memory_0",
+            "memory_1",
+            "memory_2",
+            "memory_3",
+            "memory_4"
+          ]
+        }
+      },
+      {
+        "timestamp": "2025-09-26T17:41:49.111061",
+        "strength": 0.5,
+        "context": {
+          "co_activated_with": [
+            "memory_0",
+            "memory_1",
+            "memory_2",
+            "memory_3",
+            "memory_4",
+            "2b3b0dd2-3956-4034-9732-e884286dd170"
+          ]
+        }
+      },
+      {
+        "timestamp": "2025-09-26T17:53:40.354894",
+        "strength": 0.5,
+        "context": {
+          "co_activated_with": [
+            "memory_0",
+            "memory_1",
+            "memory_2",
+            "memory_3",
+            "memory_4"
+          ]
+        }
+      },
+      {
+        "timestamp": "2025-09-26T17:53:44.288700",
+        "strength": 0.5,
+        "context": {
+          "co_activated_with": [
+            "memory_0",
+            "memory_1",
+            "memory_2",
+            "memory_3",
+            "memory_4"
+          ]
+        }
+      },
+      {
+        "timestamp": "2025-09-26T17:53:44.304145",
+        "strength": 0.5,
+        "context": {
+          "co_activated_with": [
+            "memory_0",
+            "memory_1",
+            "memory_2",
+            "memory_3",
+            "memory_4",
+            "a0d3eb2f-1cee-4a7d-8d5e-a5cfcdf377c5"
+          ]
+        }
+      }
+    ],
+    "memory_3": [
+      {
+        "timestamp": "2025-09-26T17:41:36.350503",
+        "strength": 0.5,
+        "context": {
+          "co_activated_with": [
+            "memory_0",
+            "memory_1",
+            "memory_2",
+            "memory_3",
+            "memory_4"
+          ]
+        }
+      },
+      {
+        "timestamp": "2025-09-26T17:41:41.573339",
+        "strength": 0.5,
+        "context": {
+          "co_activated_with": [
+            "memory_0",
+            "memory_1",
+            "memory_2",
+            "memory_3",
+            "memory_4"
+          ]
+        }
+      },
+      {
+        "timestamp": "2025-09-26T17:41:49.111062",
+        "strength": 0.5,
+        "context": {
+          "co_activated_with": [
+            "memory_0",
+            "memory_1",
+            "memory_2",
+            "memory_3",
+            "memory_4",
+            "2b3b0dd2-3956-4034-9732-e884286dd170"
+          ]
+        }
+      },
+      {
+        "timestamp": "2025-09-26T17:53:40.354895",
+        "strength": 0.5,
+        "context": {
+          "co_activated_with": [
+            "memory_0",
+            "memory_1",
+            "memory_2",
+            "memory_3",
+            "memory_4"
+          ]
+        }
+      },
+      {
+        "timestamp": "2025-09-26T17:53:44.288700",
+        "strength": 0.5,
+        "context": {
+          "co_activated_with": [
+            "memory_0",
+            "memory_1",
+            "memory_2",
+            "memory_3",
+            "memory_4"
+          ]
+        }
+      },
+      {
+        "timestamp": "2025-09-26T17:53:44.304146",
+        "strength": 0.5,
+        "context": {
+          "co_activated_with": [
+            "memory_0",
+            "memory_1",
+            "memory_2",
+            "memory_3",
+            "memory_4",
+            "a0d3eb2f-1cee-4a7d-8d5e-a5cfcdf377c5"
+          ]
+        }
+      }
+    ],
+    "memory_4": [
+      {
+        "timestamp": "2025-09-26T17:41:36.350504",
+        "strength": 0.5,
+        "context": {
+          "co_activated_with": [
+            "memory_0",
+            "memory_1",
+            "memory_2",
+            "memory_3",
+            "memory_4"
+          ]
+        }
+      },
+      {
+        "timestamp": "2025-09-26T17:41:41.573340",
+        "strength": 0.5,
+        "context": {
+          "co_activated_with": [
+            "memory_0",
+            "memory_1",
+            "memory_2",
+            "memory_3",
+            "memory_4"
+          ]
+        }
+      },
+      {
+        "timestamp": "2025-09-26T17:41:49.111063",
+        "strength": 0.5,
+        "context": {
+          "co_activated_with": [
+            "memory_0",
+            "memory_1",
+            "memory_2",
+            "memory_3",
+            "memory_4",
+            "2b3b0dd2-3956-4034-9732-e884286dd170"
+          ]
+        }
+      },
+      {
+        "timestamp": "2025-09-26T17:53:40.354896",
+        "strength": 0.5,
+        "context": {
+          "co_activated_with": [
+            "memory_0",
+            "memory_1",
+            "memory_2",
+            "memory_3",
+            "memory_4"
+          ]
+        }
+      },
+      {
+        "timestamp": "2025-09-26T17:53:44.288701",
+        "strength": 0.5,
+        "context": {
+          "co_activated_with": [
+            "memory_0",
+            "memory_1",
+            "memory_2",
+            "memory_3",
+            "memory_4"
+          ]
+        }
+      },
+      {
+        "timestamp": "2025-09-26T17:53:44.304147",
+        "strength": 0.5,
+        "context": {
+          "co_activated_with": [
+            "memory_0",
+            "memory_1",
+            "memory_2",
+            "memory_3",
+            "memory_4",
+            "a0d3eb2f-1cee-4a7d-8d5e-a5cfcdf377c5"
+          ]
+        }
+      }
+    ],
+    "2b3b0dd2-3956-4034-9732-e884286dd170": [
+      {
+        "timestamp": "2025-09-26T17:41:49.111064",
+        "strength": 0.5,
+        "context": {
+          "co_activated_with": [
+            "memory_0",
+            "memory_1",
+            "memory_2",
+            "memory_3",
+            "memory_4",
+            "2b3b0dd2-3956-4034-9732-e884286dd170"
+          ]
+        }
+      }
+    ],
+    "a0d3eb2f-1cee-4a7d-8d5e-a5cfcdf377c5": [
+      {
+        "timestamp": "2025-09-26T17:53:44.304148",
+        "strength": 0.5,
+        "context": {
+          "co_activated_with": [
+            "memory_0",
+            "memory_1",
+            "memory_2",
+            "memory_3",
+            "memory_4",
+            "a0d3eb2f-1cee-4a7d-8d5e-a5cfcdf377c5"
+          ]
+        }
+      }
+    ]
+  },
+  "co_activation_count": {
+    "memory_0-memory_1": 6,
+    "memory_0-memory_2": 6,
+    "memory_0-memory_3": 6,
+    "memory_0-memory_4": 6,
+    "memory_1-memory_2": 6,
+    "memory_1-memory_3": 6,
+    "memory_1-memory_4": 6,
+    "memory_2-memory_3": 6,
+    "memory_2-memory_4": 6,
+    "memory_3-memory_4": 6,
+    "2b3b0dd2-3956-4034-9732-e884286dd170-memory_0": 1,
+    "2b3b0dd2-3956-4034-9732-e884286dd170-memory_1": 1,
+    "2b3b0dd2-3956-4034-9732-e884286dd170-memory_2": 1,
+    "2b3b0dd2-3956-4034-9732-e884286dd170-memory_3": 1,
+    "2b3b0dd2-3956-4034-9732-e884286dd170-memory_4": 1,
+    "a0d3eb2f-1cee-4a7d-8d5e-a5cfcdf377c5-memory_0": 1,
+    "a0d3eb2f-1cee-4a7d-8d5e-a5cfcdf377c5-memory_1": 1,
+    "a0d3eb2f-1cee-4a7d-8d5e-a5cfcdf377c5-memory_2": 1,
+    "a0d3eb2f-1cee-4a7d-8d5e-a5cfcdf377c5-memory_3": 1,
+    "a0d3eb2f-1cee-4a7d-8d5e-a5cfcdf377c5-memory_4": 1
+  },
   "parameters": {
     "ltp_threshold": 0.3,
     "ltd_threshold": 0.1,
@@ -10,5 +529,5 @@
     "min_strength": 0.05,
     "max_strength": 1.0
   },
-  "saved_at": "2025-09-10T08:38:23.937466"
+  "saved_at": "2025-09-28T08:20:27.434428"
 }

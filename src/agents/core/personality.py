@@ -9,6 +9,7 @@ Personality Agent - 摇光明明
 4. 记录和学习个人偏好与习惯
 """
 
+import logging
 import random
 from datetime import datetime
 from typing import Dict, Any, List
@@ -17,6 +18,9 @@ from enum import Enum
 
 from ..base import BrainAgent, AgentMessage, BrainRegion
 from ..llm_service import LLMServiceInterface, create_llm_service
+
+logger = logging.getLogger(__name__)
+
 
 
 class EmotionalState(Enum):
@@ -106,7 +110,7 @@ class PersonalityAgent(BrainAgent):
     负责维护一致的人格表现，让对话更自然、更有人情味
     """
     
-    def __init__(self, client=None, llm_service: LLMServiceInterface = None):
+    def __init__(self, client=None, llm_service: LLMServiceInterface = None, persona_memory_agent=None):
         super().__init__(
             agent_id="personality",
             brain_region=BrainRegion.DEFAULT_MODE,
@@ -141,10 +145,10 @@ class PersonalityAgent(BrainAgent):
         else:
             # 默认使用基于当前agent的LLM服务
             self.llm_service = create_llm_service(self)
-        
+
         # 初始化人格档案
         self.profile = PersonalityProfile()
-        
+
         # 人格发展历史
         self.personality_evolution = []
         
@@ -160,6 +164,9 @@ class PersonalityAgent(BrainAgent):
         # 人格适应机制
         self.adaptation_threshold = 5  # 多少次交互后调整人格
         self.interaction_count = 0
+
+        # persona memory storage / retrieval agent
+        self.persona_memory_agent = persona_memory_agent
         
     async def process_message(self, message: AgentMessage) -> Dict[str, Any]:
         """处理人格相关请求"""
@@ -182,34 +189,45 @@ class PersonalityAgent(BrainAgent):
         """基于人格特征生成响应"""
         user_input = content.get('user_input', '')
         retrieved_memories = content.get('retrieved_memories', [])
-        
+        persona_memories = []
+
+        if self.persona_memory_agent is not None:
+            try:
+                persona_result = await self.persona_memory_agent.retrieve_persona(user_input, k=3)
+                persona_memories = persona_result.get('memories', [])
+            except Exception as exc:
+                logger.warning(
+                    "Persona memory retrieval failed during personality response: %s", exc
+                )
+
         # 分析输入的情感色彩
         emotional_context = self._detect_emotional_context(user_input)
-        
+
         # 根据情感调整当前状态
         self._adjust_emotional_state(emotional_context)
-        
+
         # 构建个性化的回应上下文
         personality_context = self._build_personality_context(
-            user_input, retrieved_memories, emotional_context
+            user_input, retrieved_memories, emotional_context, persona_memories
         )
-        
+
         # 生成符合人格的回应
         response = await self._generate_natural_response(
             user_input, personality_context, emotional_context
         )
-        
+
         # 记录这次交互
         await self._record_interaction(user_input, response, emotional_context)
-        
+
         # 检查是否需要人格适应
         await self._check_personality_adaptation()
-        
+
         return {
             'personality_response': response,
             'current_emotion': self.profile.current_emotion.value,
             'emotion_intensity': self.profile.emotion_intensity,
             'personality_context': personality_context,
+            'persona_memories_used': len(persona_memories),
             'response': f'人格智能体已生成个性化回应'
         }
     
@@ -275,29 +293,34 @@ class PersonalityAgent(BrainAgent):
         if len(self.emotion_history) > 20:
             self.emotion_history = self.emotion_history[-20:]
     
-    def _build_personality_context(self, _user_input: str, memories: List[Dict], 
-                                 _emotional_context: Dict[str, Any]) -> Dict[str, Any]:
+    def _build_personality_context(self, _user_input: str, memories: List[Dict],
+                                   _emotional_context: Dict[str, Any], persona_memories: List[Dict]) -> Dict[str, Any]:
         """构建个性化上下文"""
-        
-        # 从记忆中提取相关信息
+
         relevant_info = []
         personal_details = []
-        
+        persona_details = []
+
         for memory in memories[:3]:  # 只使用前3个最相关的记忆
             content = memory.get('content', '')
             if content:
                 relevant_info.append(content)
-                
-                # 提取个人细节（偏好、习惯等）
+
                 if any(word in content for word in ['喜欢', '不喜欢', '习惯', '总是', '经常']):
                     personal_details.append(content)
-        
-        # 根据当前情绪调整回应风格
+
+        for entry in persona_memories[:3]:
+            memory_dict = entry.get('memory', entry) if isinstance(entry, dict) else entry
+            content = memory_dict.get('content', '')
+            if content:
+                persona_details.append(content)
+
         style_adjustments = self._get_emotion_style_adjustments()
-        
+
         return {
             'relevant_memories': relevant_info,
             'personal_details': personal_details,
+            'persona_details': persona_details,
             'current_emotion': self.profile.current_emotion.value,
             'emotion_intensity': self.profile.emotion_intensity,
             'style_adjustments': style_adjustments,
@@ -378,12 +401,16 @@ class PersonalityAgent(BrainAgent):
         personal_context = ""
         if personality_context.get('personal_details'):
             personal_context = f"\\n了解到的用户信息：\\n" + "\\n".join(personality_context['personal_details'][:2])
+
+        persona_context = ""
+        if personality_context.get('persona_details'):
+            persona_context = f"\\n人格/价值观记忆：\\n" + "\\n".join(personality_context['persona_details'][:2])
         
         # 情绪风格指导
         style = personality_context['style_adjustments']
         style_guide = f"\\n回应风格：{style['tone']}，可以使用这些表达：{', '.join(style['expressions'][:2])}"
         
-        full_prompt = f"""{base_personality}{memory_context}{personal_context}{style_guide}
+        full_prompt = f"""{base_personality}{memory_context}{personal_context}{persona_context}{style_guide}
 
 用户说："{user_input}"
 
@@ -427,9 +454,13 @@ class PersonalityAgent(BrainAgent):
     def _generate_fallback_response(self, user_input: str, emotional_context: Dict[str, Any], personality_context: Dict[str, Any] = None) -> str:
         """生成回退回应（当LLM不可用时）"""
         
-        # 智能回退：如果有记忆信息，尝试基于记忆回应
-        if personality_context and personality_context.get('relevant_memories'):
-            memories = personality_context['relevant_memories']
+        memories = []
+        persona_details = []
+        if personality_context:
+            memories = personality_context.get('relevant_memories', [])
+            persona_details = personality_context.get('persona_details', [])
+
+        if memories:
             
             # 处理记忆相关查询
             if any(keyword in user_input.lower() for keyword in ['刚才', '之前', '什么时候', '喝什么', '我说']):
@@ -445,6 +476,10 @@ class PersonalityAgent(BrainAgent):
                 for memory in memories:
                     if '绿茶' in memory:
                         return f"基于你的偏好（绿茶），我建议可以尝试一些茶类相关的饮品，比如柠檬绿茶、蜂蜜绿茶等。虽然我现在回应能力有限，但记得你的偏好！"
+
+        if persona_details:
+            joined = persona_details[0][:60]
+            return f"我记得我们之前聊到：{joined}。这对我来说很重要，也会影响我接下来的回答。"
         
         fallback_responses = {
             'positive': [
@@ -600,6 +635,24 @@ class PersonalityAgent(BrainAgent):
             
             if pref_value not in self.learned_preferences[pref_type]:
                 self.learned_preferences[pref_type].append(pref_value)
+
+            if self.persona_memory_agent is not None:
+                try:
+                    await self.persona_memory_agent.store_persona({
+                        'content': f"用户{pref_type}: {pref_value}",
+                        'category': 'preference',
+                        'importance': 0.7 if user_reaction == 'positive' else 0.55,
+                        'emotion_tags': ['positive'] if user_reaction == 'positive' else ['neutral'],
+                        'metadata': {
+                            'preference_type': pref_type,
+                            'value_alignment': content.get('value_alignment', 'neutral'),
+                            'source': 'personality_agent'
+                        }
+                    })
+                except Exception as exc:
+                    logger.warning(
+                        "Failed to store persona preference memory: %s", exc
+                    )
         
         # 根据用户反应调整行为
         if user_reaction == 'positive':

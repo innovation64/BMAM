@@ -22,6 +22,7 @@ from ..agents.core.reflection import ReflectionAgent
 from ..agents.core.forgetting import ForgettingAgent
 from ..agents.core.stress_response import StressResponseAgent
 from ..agents.core.personality import PersonalityAgent
+from ..agents.core.persona_memory import PersonaMemoryAgent
 
 logger = get_logger(__name__)
 
@@ -243,6 +244,7 @@ __all__ = [
     'ShortTermMemoryAgent', 'LongTermMemoryAgent', 'MemoryRetrievalAgent',
     'ConsolidationAgent', 'MemoryDistortionAgent', 'ReflectionAgent',
     'ForgettingAgent', 'StressResponseAgent', 'PersonalityAgent',
+    'PersonaMemoryAgent',
     # 辅助智能体 - 简洁实现  
     'ConversationAgent', 'ExecutiveControlAgent',
     'PerceptionEncodingAgent', 'ActionExecutionAgent'
