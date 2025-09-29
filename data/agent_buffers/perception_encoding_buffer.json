@@ -12,366 +12,6 @@
         "message": {
           "action": "encode_input",
           "input_data": {
-            "content": "What kind of game did John have a career-high in assists in?",
-            "type": "text",
-            "context": {
-              "evaluation_dataset": "locomo",
-              "conversation_id": "4"
-            }
-          }
-        },
-        "timestamp": "2025-09-23T09:53:12.252425",
-        "sender": "coordinator"
-      },
-      {
-        "message": {
-          "action": "encode_input",
-          "input_data": {
-            "content": "What was John's way of dealing with doubts and stress when he was younger?",
-            "type": "text",
-            "context": {
-              "evaluation_dataset": "locomo",
-              "conversation_id": "4"
-            }
-          }
-        },
-        "timestamp": "2025-09-23T09:53:38.310184",
-        "sender": "coordinator"
-      },
-      {
-        "message": {
-          "action": "encode_input",
-          "input_data": {
-            "content": "How did John feel about the atmosphere during the big game against the rival team?",
-            "type": "text",
-            "context": {
-              "evaluation_dataset": "locomo",
-              "conversation_id": "4"
-            }
-          }
-        },
-        "timestamp": "2025-09-23T09:54:13.266950",
-        "sender": "coordinator"
-      },
-      {
-        "message": {
-          "action": "encode_input",
-          "input_data": {
-            "content": "How did John feel after being able to jog without pain?",
-            "type": "text",
-            "context": {
-              "evaluation_dataset": "locomo",
-              "conversation_id": "4"
-            }
-          }
-        },
-        "timestamp": "2025-09-23T09:54:40.042066",
-        "sender": "coordinator"
-      },
-      {
-        "message": {
-          "action": "encode_input",
-          "input_data": {
-            "content": "What kind of deal did John get in December?",
-            "type": "text",
-            "context": {
-              "evaluation_dataset": "locomo",
-              "conversation_id": "4"
-            }
-          }
-        },
-        "timestamp": "2025-09-23T09:55:17.698782",
-        "sender": "coordinator"
-      },
-      {
-        "message": {
-          "action": "encode_input",
-          "input_data": {
-            "content": "Where was the photoshoot done for John's gear deal?",
-            "type": "text",
-            "context": {
-              "evaluation_dataset": "locomo",
-              "conversation_id": "4"
-            }
-          }
-        },
-        "timestamp": "2025-09-23T09:55:41.011689",
-        "sender": "coordinator"
-      },
-      {
-        "message": {
-          "action": "encode_input",
-          "input_data": {
-            "content": "In which area has John's team seen the most growth during training?",
-            "type": "text",
-            "context": {
-              "evaluation_dataset": "locomo",
-              "conversation_id": "4"
-            }
-          }
-        },
-        "timestamp": "2025-09-23T09:56:05.573678",
-        "sender": "coordinator"
-      },
-      {
-        "message": {
-          "action": "encode_input",
-          "input_data": {
-            "content": "What type of seminars is John conducting?",
-            "type": "text",
-            "context": {
-              "evaluation_dataset": "locomo",
-              "conversation_id": "4"
-            }
-          }
-        },
-        "timestamp": "2025-09-23T09:56:32.835981",
-        "sender": "coordinator"
-      },
-      {
-        "message": {
-          "action": "encode_input",
-          "input_data": {
-            "content": "What activity did Tim do after reading the stories about the Himalayan trek?",
-            "type": "text",
-            "context": {
-              "evaluation_dataset": "locomo",
-              "conversation_id": "4"
-            }
-          }
-        },
-        "timestamp": "2025-09-23T09:56:57.947855",
-        "sender": "coordinator"
-      },
-      {
-        "message": {
-          "action": "encode_input",
-          "input_data": {
-            "content": "What is one cause that John supports with his influence and resources?",
-            "type": "text",
-            "context": {
-              "evaluation_dataset": "locomo",
-              "conversation_id": "4"
-            }
-          }
-        },
-        "timestamp": "2025-09-23T09:57:22.568103",
-        "sender": "coordinator"
-      },
-      {
-        "message": {
-          "action": "encode_input",
-          "input_data": {
-            "content": "What new fantasy TV series is Tim excited about?",
-            "type": "text",
-            "context": {
-              "evaluation_dataset": "locomo",
-              "conversation_id": "4"
-            }
-          }
-        },
-        "timestamp": "2025-09-23T09:57:44.768002",
-        "sender": "coordinator"
-      },
-      {
-        "message": {
-          "action": "encode_input",
-          "input_data": {
-            "content": "Which language is Tim learning?",
-            "type": "text",
-            "context": {
-              "evaluation_dataset": "locomo",
-              "conversation_id": "4"
-            }
-          }
-        },
-        "timestamp": "2025-09-23T09:58:08.447259",
-        "sender": "coordinator"
-      },
-      {
-        "message": {
-          "action": "encode_input",
-          "input_data": {
-            "content": "What language does Tim know besides German?",
-            "type": "text",
-            "context": {
-              "evaluation_dataset": "locomo",
-              "conversation_id": "4"
-            }
-          }
-        },
-        "timestamp": "2025-09-23T09:58:31.557814",
-        "sender": "coordinator"
-      },
-      {
-        "message": {
-          "action": "encode_input",
-          "input_data": {
-            "content": "What book did Tim get in Italy that inspired him to cook?",
-            "type": "text",
-            "context": {
-              "evaluation_dataset": "locomo",
-              "conversation_id": "4"
-            }
-          }
-        },
-        "timestamp": "2025-09-23T09:58:55.689363",
-        "sender": "coordinator"
-      },
-      {
-        "message": {
-          "action": "encode_input",
-          "input_data": {
-            "content": "What is John's favorite book series?",
-            "type": "text",
-            "context": {
-              "evaluation_dataset": "locomo",
-              "conversation_id": "4"
-            }
-          }
-        },
-        "timestamp": "2025-09-23T09:59:22.593295",
-        "sender": "coordinator"
-      },
-      {
-        "message": {
-          "action": "encode_input",
-          "input_data": {
-            "content": "According to John, who is his favorite character from Lord of the Rings?",
-            "type": "text",
-            "context": {
-              "evaluation_dataset": "locomo",
-              "conversation_id": "4"
-            }
-          }
-        },
-        "timestamp": "2025-09-23T09:59:47.830348",
-        "sender": "coordinator"
-      },
-      {
-        "message": {
-          "action": "encode_input",
-          "input_data": {
-            "content": "Why does John like Aragorn from Lord of the Rings?",
-            "type": "text",
-            "context": {
-              "evaluation_dataset": "locomo",
-              "conversation_id": "4"
-            }
-          }
-        },
-        "timestamp": "2025-09-23T10:00:09.320390",
-        "sender": "coordinator"
-      },
-      {
-        "message": {
-          "action": "encode_input",
-          "input_data": {
-            "content": "What kind of painting does John have in his room as a reminder?",
-            "type": "text",
-            "context": {
-              "evaluation_dataset": "locomo",
-              "conversation_id": "4"
-            }
-          }
-        },
-        "timestamp": "2025-09-23T10:00:34.505180",
-        "sender": "coordinator"
-      },
-      {
-        "message": {
-          "action": "encode_input",
-          "input_data": {
-            "content": "What is the painting of Aragorn a reminder for John to be in everything he does?",
-            "type": "text",
-            "context": {
-              "evaluation_dataset": "locomo",
-              "conversation_id": "4"
-            }
-          }
-        },
-        "timestamp": "2025-09-23T10:01:02.385544",
-        "sender": "coordinator"
-      },
-      {
-        "message": {
-          "action": "encode_input",
-          "input_data": {
-            "content": "What map does Tim show to his friend John?",
-            "type": "text",
-            "context": {
-              "evaluation_dataset": "locomo",
-              "conversation_id": "4"
-            }
-          }
-        },
-        "timestamp": "2025-09-23T10:01:27.320385",
-        "sender": "coordinator"
-      },
-      {
-        "message": {
-          "action": "encode_input",
-          "input_data": {
-            "content": "Where will Tim be going for a semester abroad?",
-            "type": "text",
-            "context": {
-              "evaluation_dataset": "locomo",
-              "conversation_id": "4"
-            }
-          }
-        },
-        "timestamp": "2025-09-23T10:01:52.756924",
-        "sender": "coordinator"
-      },
-      {
-        "message": {
-          "action": "encode_input",
-          "input_data": {
-            "content": "Which city in Ireland will Tim be staying in during his semester abroad?",
-            "type": "text",
-            "context": {
-              "evaluation_dataset": "locomo",
-              "conversation_id": "4"
-            }
-          }
-        },
-        "timestamp": "2025-09-23T10:02:19.112510",
-        "sender": "coordinator"
-      },
-      {
-        "message": {
-          "action": "encode_input",
-          "input_data": {
-            "content": "What charity event did John organize recently in 2024?",
-            "type": "text",
-            "context": {
-              "evaluation_dataset": "locomo",
-              "conversation_id": "4"
-            }
-          }
-        },
-        "timestamp": "2025-09-23T10:02:42.833163",
-        "sender": "coordinator"
-      },
-      {
-        "message": {
-          "action": "encode_input",
-          "input_data": {
-            "content": "What achievement did John share with Tim in January 2024?",
-            "type": "text",
-            "context": {
-              "evaluation_dataset": "locomo",
-              "conversation_id": "4"
-            }
-          }
-        },
-        "timestamp": "2025-09-23T10:03:06.055171",
-        "sender": "coordinator"
-      },
-      {
-        "message": {
-          "action": "encode_input",
-          "input_data": {
             "content": "What was Johns's reaction to sealing the deal with the beverage company?",
             "type": "text",
             "context": {
@@ -1521,417 +1161,753 @@
         },
         "timestamp": "2025-09-28T15:27:37.159247",
         "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "encode_input",
+          "input_data": {
+            "content": "请记住我喜欢喝绿茶，每天下午3点左右。",
+            "type": "text",
+            "context": {
+              "session_context": {
+                "last_user_preference_id": null,
+                "conversation_start": "2025-09-29 09:11:08.068796"
+              },
+              "dialogue_history": []
+            }
+          }
+        },
+        "timestamp": "2025-09-29T09:11:20.258764",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "encode_input",
+          "input_data": {
+            "content": "我刚才说我什么时候喝什么茶？",
+            "type": "text",
+            "context": {
+              "session_context": {
+                "last_user_preference_id": null,
+                "conversation_start": "2025-09-29 09:11:08.068796"
+              },
+              "dialogue_history": [
+                {
+                  "role": "user",
+                  "content": "请记住我喜欢喝绿茶，每天下午3点左右。"
+                },
+                {
+                  "role": "assistant",
+                  "content": "哈哈，太好了！我记住你喜欢喝绿茶，每天下午3点左右。绿茶真是个不错的选择，既清新又健康！你有没有特别喜欢的品牌或者泡茶的方法呢？我总觉得泡茶的过程就像是一种小仪式，能让人放松心情。希望你每次喝茶的时候都能享受到那种宁静的时刻！"
+                }
+              ]
+            }
+          }
+        },
+        "timestamp": "2025-09-29T09:11:37.626874",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "encode_input",
+          "input_data": {
+            "content": "基于我的偏好，推荐一些适合下午的饮品。",
+            "type": "text",
+            "context": {
+              "session_context": {
+                "last_user_preference_id": null,
+                "conversation_start": "2025-09-29 09:11:08.068796"
+              },
+              "dialogue_history": [
+                {
+                  "role": "user",
+                  "content": "请记住我喜欢喝绿茶，每天下午3点左右。"
+                },
+                {
+                  "role": "assistant",
+                  "content": "哈哈，太好了！我记住你喜欢喝绿茶，每天下午3点左右。绿茶真是个不错的选择，既清新又健康！你有没有特别喜欢的品牌或者泡茶的方法呢？我总觉得泡茶的过程就像是一种小仪式，能让人放松心情。希望你每次喝茶的时候都能享受到那种宁静的时刻！"
+                },
+                {
+                  "role": "user",
+                  "content": "我刚才说我什么时候喝什么茶？"
+                },
+                {
+                  "role": "assistant",
+                  "content": "哦，真有意思！你提到喝茶的事情，我还记得你之前说过你喜欢某种茶呢。你现在喝的是什么茶？是在什么样的场合下喝的呢？我对茶的种类和搭配总是充满好奇，特别是不同的茶在不同的时刻带来的感觉，真是太有趣了！"
+                }
+              ]
+            }
+          }
+        },
+        "timestamp": "2025-09-29T09:12:22.690853",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "encode_input",
+          "input_data": {
+            "content": "请记住我喜欢喝绿茶，每天下午3点左右。",
+            "type": "text",
+            "context": {
+              "session_context": {
+                "last_user_preference_id": null,
+                "conversation_start": "2025-09-29 10:53:24.642544"
+              },
+              "dialogue_history": []
+            }
+          }
+        },
+        "timestamp": "2025-09-29T10:53:32.624358",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "encode_input",
+          "input_data": {
+            "content": "我刚才说我什么时候喝什么茶？",
+            "type": "text",
+            "context": {
+              "session_context": {
+                "last_user_preference_id": null,
+                "conversation_start": "2025-09-29 10:53:24.642544"
+              },
+              "dialogue_history": [
+                {
+                  "role": "user",
+                  "content": "请记住我喜欢喝绿茶，每天下午3点左右。"
+                },
+                {
+                  "role": "assistant",
+                  "content": "哈哈，太好了！我记住你喜欢喝绿茶，每天下午3点左右。这个时间喝茶真是个不错的选择，正好可以放松一下，享受片刻的宁静。你有没有特别喜欢的绿茶品牌或者口味呢？我对茶的种类也挺好奇的！希望你每次喝茶的时候都能感受到那份温暖和愉悦哦！"
+                }
+              ]
+            }
+          }
+        },
+        "timestamp": "2025-09-29T10:54:22.698440",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "encode_input",
+          "input_data": {
+            "content": "基于我的偏好，推荐一些适合下午的饮品。",
+            "type": "text",
+            "context": {
+              "session_context": {
+                "last_user_preference_id": null,
+                "conversation_start": "2025-09-29 10:53:24.642544"
+              },
+              "dialogue_history": [
+                {
+                  "role": "user",
+                  "content": "请记住我喜欢喝绿茶，每天下午3点左右。"
+                },
+                {
+                  "role": "assistant",
+                  "content": "哈哈，太好了！我记住你喜欢喝绿茶，每天下午3点左右。这个时间喝茶真是个不错的选择，正好可以放松一下，享受片刻的宁静。你有没有特别喜欢的绿茶品牌或者口味呢？我对茶的种类也挺好奇的！希望你每次喝茶的时候都能感受到那份温暖和愉悦哦！"
+                },
+                {
+                  "role": "user",
+                  "content": "我刚才说我什么时候喝什么茶？"
+                },
+                {
+                  "role": "assistant",
+                  "content": "哦，真有意思！你提到喝茶的事情，我还记得你之前说过你喜欢某种茶呢。你现在喝的是什么茶？或者你有什么特别的喝茶习惯吗？我对这些都很感兴趣，想听听你的故事！"
+                }
+              ]
+            }
+          }
+        },
+        "timestamp": "2025-09-29T10:54:45.576725",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "encode_input",
+          "input_data": {
+            "content": "请记住我喜欢喝绿茶，每天下午3点。",
+            "type": "text",
+            "context": {}
+          }
+        },
+        "timestamp": "2025-09-29T10:58:28.276566",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "encode_input",
+          "input_data": {
+            "content": "我喜欢什么茶？",
+            "type": "text",
+            "context": {}
+          }
+        },
+        "timestamp": "2025-09-29T10:58:56.167620",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "encode_input",
+          "input_data": {
+            "content": "我喜欢什么茶？",
+            "type": "text",
+            "context": {}
+          }
+        },
+        "timestamp": "2025-09-29T11:01:36.671785",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "encode_input",
+          "input_data": {
+            "content": "请记住我喜欢喝咖啡，每天早上8点。",
+            "type": "text",
+            "context": {}
+          }
+        },
+        "timestamp": "2025-09-29T11:02:37.098932",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "encode_input",
+          "input_data": {
+            "content": "我什么时候喝咖啡？",
+            "type": "text",
+            "context": {}
+          }
+        },
+        "timestamp": "2025-09-29T11:03:06.609884",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "encode_input",
+          "input_data": {
+            "content": "我喜欢什么茶？",
+            "type": "text",
+            "context": {}
+          }
+        },
+        "timestamp": "2025-09-29T11:03:20.697592",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "encode_input",
+          "input_data": {
+            "content": "请记住我喜欢喝绿茶，每天下午3点左右。",
+            "type": "text",
+            "context": {
+              "session_context": {
+                "last_user_preference_id": null,
+                "conversation_start": "2025-09-29 11:53:56.658918"
+              },
+              "dialogue_history": []
+            }
+          }
+        },
+        "timestamp": "2025-09-29T11:54:03.892130",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "encode_input",
+          "input_data": {
+            "content": "请记住我喜欢喝绿茶，每天下午3点左右。",
+            "type": "text",
+            "context": {
+              "session_context": {
+                "last_user_preference_id": null,
+                "conversation_start": "2025-09-29 13:06:38.511702"
+              },
+              "dialogue_history": []
+            }
+          }
+        },
+        "timestamp": "2025-09-29T13:06:47.691851",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "encode_input",
+          "input_data": {
+            "content": "我刚才说我什么时候喝什么茶？",
+            "type": "text",
+            "context": {
+              "session_context": {
+                "last_user_preference_id": null,
+                "conversation_start": "2025-09-29 13:06:38.511702"
+              },
+              "dialogue_history": [
+                {
+                  "role": "user",
+                  "content": "请记住我喜欢喝绿茶，每天下午3点左右。"
+                },
+                {
+                  "role": "assistant",
+                  "content": "好的，我会记住你喜欢喝绿茶，并且每天下午3点左右喝。绿茶确实是个不错的选择，既清新又健康！如果你有特别喜欢的品牌或者口味，也可以告诉我哦！希望你每次喝茶的时候都能享受到那份宁静和愉悦！"
+                }
+              ]
+            }
+          }
+        },
+        "timestamp": "2025-09-29T13:07:13.314889",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "encode_input",
+          "input_data": {
+            "content": "基于我的偏好，推荐一些适合下午的饮品。",
+            "type": "text",
+            "context": {
+              "session_context": {
+                "last_user_preference_id": null,
+                "conversation_start": "2025-09-29 13:06:38.511702"
+              },
+              "dialogue_history": [
+                {
+                  "role": "user",
+                  "content": "请记住我喜欢喝绿茶，每天下午3点左右。"
+                },
+                {
+                  "role": "assistant",
+                  "content": "好的，我会记住你喜欢喝绿茶，并且每天下午3点左右喝。绿茶确实是个不错的选择，既清新又健康！如果你有特别喜欢的品牌或者口味，也可以告诉我哦！希望你每次喝茶的时候都能享受到那份宁静和愉悦！"
+                },
+                {
+                  "role": "user",
+                  "content": "我刚才说我什么时候喝什么茶？"
+                },
+                {
+                  "role": "assistant",
+                  "content": "当然可以！你刚才提到你喜欢喝绿茶，每天大约在下午三点左右享用。绿茶确实是一个很好的选择，既清新又健康！如果你有其他喜欢的茶或者想尝试的新口味，随时告诉我哦！"
+                }
+              ]
+            }
+          }
+        },
+        "timestamp": "2025-09-29T13:07:29.503538",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "encode_input",
+          "input_data": {
+            "content": "我喜欢绿茶为啥给我推荐奶昔和柠檬水?",
+            "type": "text",
+            "context": {
+              "session_context": {
+                "last_user_preference_id": null,
+                "conversation_start": "2025-09-29 13:06:38.511702"
+              },
+              "dialogue_history": [
+                {
+                  "role": "user",
+                  "content": "请记住我喜欢喝绿茶，每天下午3点左右。"
+                },
+                {
+                  "role": "assistant",
+                  "content": "好的，我会记住你喜欢喝绿茶，并且每天下午3点左右喝。绿茶确实是个不错的选择，既清新又健康！如果你有特别喜欢的品牌或者口味，也可以告诉我哦！希望你每次喝茶的时候都能享受到那份宁静和愉悦！"
+                },
+                {
+                  "role": "user",
+                  "content": "我刚才说我什么时候喝什么茶？"
+                },
+                {
+                  "role": "assistant",
+                  "content": "当然可以！你刚才提到你喜欢喝绿茶，每天大约在下午三点左右享用。绿茶确实是一个很好的选择，既清新又健康！如果你有其他喜欢的茶或者想尝试的新口味，随时告诉我哦！"
+                },
+                {
+                  "role": "user",
+                  "content": "基于我的偏好，推荐一些适合下午的饮品。"
+                },
+                {
+                  "role": "assistant",
+                  "content": "哈哈，太好了！根据你的偏好，我推荐一些适合下午的饮品，绝对能让你期待哦！\n\n1. **柠檬水**：清新又提神，特别适合在阳光明媚的下午，喝上一口，瞬间感觉精神焕发！\n\n2. **冰镇绿茶**：既清爽又健康，绿茶的清香和冰镇的口感，能让你在忙碌的下午感到一丝宁静。\n\n3. **水果茶**：可以选择一些你喜欢的水果，比如苹果、橙子，搭配茶水，既好喝又能补充维生素，真是个不错的选择！\n\n4. **奶昔**：如果你想要点甜的，可以试试奶昔，搭配一些新鲜水果，口感丰富，能让你心情愉悦。\n\n希望这些推荐能让你的"
+                }
+              ]
+            }
+          }
+        },
+        "timestamp": "2025-09-29T13:08:42.707338",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "encode_input",
+          "input_data": {
+            "content": "今天感觉有点焦虑，工作压力很大。",
+            "type": "text",
+            "context": {
+              "session_context": {
+                "last_user_preference_id": null,
+                "conversation_start": "2025-09-29 13:06:38.511702"
+              },
+              "dialogue_history": [
+                {
+                  "role": "user",
+                  "content": "请记住我喜欢喝绿茶，每天下午3点左右。"
+                },
+                {
+                  "role": "assistant",
+                  "content": "好的，我会记住你喜欢喝绿茶，并且每天下午3点左右喝。绿茶确实是个不错的选择，既清新又健康！如果你有特别喜欢的品牌或者口味，也可以告诉我哦！希望你每次喝茶的时候都能享受到那份宁静和愉悦！"
+                },
+                {
+                  "role": "user",
+                  "content": "我刚才说我什么时候喝什么茶？"
+                },
+                {
+                  "role": "assistant",
+                  "content": "当然可以！你刚才提到你喜欢喝绿茶，每天大约在下午三点左右享用。绿茶确实是一个很好的选择，既清新又健康！如果你有其他喜欢的茶或者想尝试的新口味，随时告诉我哦！"
+                },
+                {
+                  "role": "user",
+                  "content": "基于我的偏好，推荐一些适合下午的饮品。"
+                },
+                {
+                  "role": "assistant",
+                  "content": "哈哈，太好了！根据你的偏好，我推荐一些适合下午的饮品，绝对能让你期待哦！\n\n1. **柠檬水**：清新又提神，特别适合在阳光明媚的下午，喝上一口，瞬间感觉精神焕发！\n\n2. **冰镇绿茶**：既清爽又健康，绿茶的清香和冰镇的口感，能让你在忙碌的下午感到一丝宁静。\n\n3. **水果茶**：可以选择一些你喜欢的水果，比如苹果、橙子，搭配茶水，既好喝又能补充维生素，真是个不错的选择！\n\n4. **奶昔**：如果你想要点甜的，可以试试奶昔，搭配一些新鲜水果，口感丰富，能让你心情愉悦。\n\n希望这些推荐能让你的"
+                },
+                {
+                  "role": "user",
+                  "content": "我喜欢绿茶为啥给我推荐奶昔和柠檬水?"
+                },
+                {
+                  "role": "assistant",
+                  "content": "哈哈，太好啦！我记得你喜欢绿茶，所以我推荐了一些适合下午的饮品，像奶昔和柠檬水，可能是因为它们也能带来清新的感觉哦！奶昔可以让你在忙碌的下午补充能量，而柠檬水则能帮助你保持清爽，提神醒脑。不过，绿茶当然是个绝佳的选择，既清新又健康！如果你有其他喜欢的饮品或者想尝试的新口味，随时告诉我哦！希望你每次喝茶都能感受到放松和愉悦！"
+                }
+              ]
+            }
+          }
+        },
+        "timestamp": "2025-09-29T13:09:37.124300",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "encode_input",
+          "input_data": {
+            "content": "介绍一下神经可塑性系统是如何工作的？",
+            "type": "text",
+            "context": {
+              "session_context": {
+                "last_user_preference_id": null,
+                "conversation_start": "2025-09-29 13:06:38.511702"
+              },
+              "dialogue_history": [
+                {
+                  "role": "user",
+                  "content": "请记住我喜欢喝绿茶，每天下午3点左右。"
+                },
+                {
+                  "role": "assistant",
+                  "content": "好的，我会记住你喜欢喝绿茶，并且每天下午3点左右喝。绿茶确实是个不错的选择，既清新又健康！如果你有特别喜欢的品牌或者口味，也可以告诉我哦！希望你每次喝茶的时候都能享受到那份宁静和愉悦！"
+                },
+                {
+                  "role": "user",
+                  "content": "我刚才说我什么时候喝什么茶？"
+                },
+                {
+                  "role": "assistant",
+                  "content": "当然可以！你刚才提到你喜欢喝绿茶，每天大约在下午三点左右享用。绿茶确实是一个很好的选择，既清新又健康！如果你有其他喜欢的茶或者想尝试的新口味，随时告诉我哦！"
+                },
+                {
+                  "role": "user",
+                  "content": "基于我的偏好，推荐一些适合下午的饮品。"
+                },
+                {
+                  "role": "assistant",
+                  "content": "哈哈，太好了！根据你的偏好，我推荐一些适合下午的饮品，绝对能让你期待哦！\n\n1. **柠檬水**：清新又提神，特别适合在阳光明媚的下午，喝上一口，瞬间感觉精神焕发！\n\n2. **冰镇绿茶**：既清爽又健康，绿茶的清香和冰镇的口感，能让你在忙碌的下午感到一丝宁静。\n\n3. **水果茶**：可以选择一些你喜欢的水果，比如苹果、橙子，搭配茶水，既好喝又能补充维生素，真是个不错的选择！\n\n4. **奶昔**：如果你想要点甜的，可以试试奶昔，搭配一些新鲜水果，口感丰富，能让你心情愉悦。\n\n希望这些推荐能让你的"
+                },
+                {
+                  "role": "user",
+                  "content": "我喜欢绿茶为啥给我推荐奶昔和柠檬水?"
+                },
+                {
+                  "role": "assistant",
+                  "content": "哈哈，太好啦！我记得你喜欢绿茶，所以我推荐了一些适合下午的饮品，像奶昔和柠檬水，可能是因为它们也能带来清新的感觉哦！奶昔可以让你在忙碌的下午补充能量，而柠檬水则能帮助你保持清爽，提神醒脑。不过，绿茶当然是个绝佳的选择，既清新又健康！如果你有其他喜欢的饮品或者想尝试的新口味，随时告诉我哦！希望你每次喝茶都能感受到放松和愉悦！"
+                },
+                {
+                  "role": "user",
+                  "content": "今天感觉有点焦虑，工作压力很大。"
+                },
+                {
+                  "role": "assistant",
+                  "content": "我能理解你的感受，工作压力确实会让人感到焦虑。今天的你一定很不容易吧？或许你可以试着做一些深呼吸，放松一下自己，或者短暂地休息一下，给自己一点时间调整心态。记得，适当的休息和放松是提高工作效率的重要部分哦。\n\n如果你愿意，也可以分享一下具体的压力来源，我们可以一起探讨解决的方法。希望你能尽快找到平衡，感觉好一些！我在这里支持你，随时可以聊聊。"
+                }
+              ]
+            }
+          }
+        },
+        "timestamp": "2025-09-29T13:10:22.383919",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "encode_input",
+          "input_data": {
+            "content": "重复激活记忆检索和对话智能体，测试连接强化。",
+            "type": "text",
+            "context": {
+              "session_context": {
+                "last_user_preference_id": null,
+                "conversation_start": "2025-09-29 13:06:38.511702"
+              },
+              "dialogue_history": [
+                {
+                  "role": "user",
+                  "content": "请记住我喜欢喝绿茶，每天下午3点左右。"
+                },
+                {
+                  "role": "assistant",
+                  "content": "好的，我会记住你喜欢喝绿茶，并且每天下午3点左右喝。绿茶确实是个不错的选择，既清新又健康！如果你有特别喜欢的品牌或者口味，也可以告诉我哦！希望你每次喝茶的时候都能享受到那份宁静和愉悦！"
+                },
+                {
+                  "role": "user",
+                  "content": "我刚才说我什么时候喝什么茶？"
+                },
+                {
+                  "role": "assistant",
+                  "content": "当然可以！你刚才提到你喜欢喝绿茶，每天大约在下午三点左右享用。绿茶确实是一个很好的选择，既清新又健康！如果你有其他喜欢的茶或者想尝试的新口味，随时告诉我哦！"
+                },
+                {
+                  "role": "user",
+                  "content": "基于我的偏好，推荐一些适合下午的饮品。"
+                },
+                {
+                  "role": "assistant",
+                  "content": "哈哈，太好了！根据你的偏好，我推荐一些适合下午的饮品，绝对能让你期待哦！\n\n1. **柠檬水**：清新又提神，特别适合在阳光明媚的下午，喝上一口，瞬间感觉精神焕发！\n\n2. **冰镇绿茶**：既清爽又健康，绿茶的清香和冰镇的口感，能让你在忙碌的下午感到一丝宁静。\n\n3. **水果茶**：可以选择一些你喜欢的水果，比如苹果、橙子，搭配茶水，既好喝又能补充维生素，真是个不错的选择！\n\n4. **奶昔**：如果你想要点甜的，可以试试奶昔，搭配一些新鲜水果，口感丰富，能让你心情愉悦。\n\n希望这些推荐能让你的"
+                },
+                {
+                  "role": "user",
+                  "content": "我喜欢绿茶为啥给我推荐奶昔和柠檬水?"
+                },
+                {
+                  "role": "assistant",
+                  "content": "哈哈，太好啦！我记得你喜欢绿茶，所以我推荐了一些适合下午的饮品，像奶昔和柠檬水，可能是因为它们也能带来清新的感觉哦！奶昔可以让你在忙碌的下午补充能量，而柠檬水则能帮助你保持清爽，提神醒脑。不过，绿茶当然是个绝佳的选择，既清新又健康！如果你有其他喜欢的饮品或者想尝试的新口味，随时告诉我哦！希望你每次喝茶都能感受到放松和愉悦！"
+                },
+                {
+                  "role": "user",
+                  "content": "今天感觉有点焦虑，工作压力很大。"
+                },
+                {
+                  "role": "assistant",
+                  "content": "我能理解你的感受，工作压力确实会让人感到焦虑。今天的你一定很不容易吧？或许你可以试着做一些深呼吸，放松一下自己，或者短暂地休息一下，给自己一点时间调整心态。记得，适当的休息和放松是提高工作效率的重要部分哦。\n\n如果你愿意，也可以分享一下具体的压力来源，我们可以一起探讨解决的方法。希望你能尽快找到平衡，感觉好一些！我在这里支持你，随时可以聊聊。"
+                },
+                {
+                  "role": "user",
+                  "content": "介绍一下神经可塑性系统是如何工作的？"
+                },
+                {
+                  "role": "assistant",
+                  "content": "哇，神经可塑性真是个有趣的话题！它就像大脑的“变形金刚”，能够根据我们的学习和经历不断调整自己。简单来说，神经可塑性系统是指大脑和神经系统在经历学习、经验或伤害后，能够改变其结构和功能的能力。\n我还记得：神经可塑性系统是指大脑和神经系统在经历学习、经验或伤害后，能够改变其结构和功能的能力。这种现象是神经科学中的一个重要概念，涉及到神经元之间的连接、突触的强度以及大脑区域的重组。\n\n具体来说，神经可塑性可以分为两种类型：功能性可塑性和结构性可塑性。功能性可塑性是指神经元在功能上的调整，比如在某个特定任务中，某些神经元的活动会增强，而其他神经元的活动可能会减弱。结构性可塑性则涉及到神经元之间的连接变化，比如新的突触形成或现有突触的消失。\n\n这种可塑性使得大脑能够适应新的信息、技能和环境变化。例如，当你学习一项新技能时，相关的神经"
+                }
+              ]
+            }
+          }
+        },
+        "timestamp": "2025-09-29T13:10:57.691135",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "encode_input",
+          "input_data": {
+            "content": "系统会如何根据历史模式优化智能体路由？",
+            "type": "text",
+            "context": {
+              "session_context": {
+                "last_user_preference_id": null,
+                "conversation_start": "2025-09-29 13:06:38.511702"
+              },
+              "dialogue_history": [
+                {
+                  "role": "user",
+                  "content": "请记住我喜欢喝绿茶，每天下午3点左右。"
+                },
+                {
+                  "role": "assistant",
+                  "content": "好的，我会记住你喜欢喝绿茶，并且每天下午3点左右喝。绿茶确实是个不错的选择，既清新又健康！如果你有特别喜欢的品牌或者口味，也可以告诉我哦！希望你每次喝茶的时候都能享受到那份宁静和愉悦！"
+                },
+                {
+                  "role": "user",
+                  "content": "我刚才说我什么时候喝什么茶？"
+                },
+                {
+                  "role": "assistant",
+                  "content": "当然可以！你刚才提到你喜欢喝绿茶，每天大约在下午三点左右享用。绿茶确实是一个很好的选择，既清新又健康！如果你有其他喜欢的茶或者想尝试的新口味，随时告诉我哦！"
+                },
+                {
+                  "role": "user",
+                  "content": "基于我的偏好，推荐一些适合下午的饮品。"
+                },
+                {
+                  "role": "assistant",
+                  "content": "哈哈，太好了！根据你的偏好，我推荐一些适合下午的饮品，绝对能让你期待哦！\n\n1. **柠檬水**：清新又提神，特别适合在阳光明媚的下午，喝上一口，瞬间感觉精神焕发！\n\n2. **冰镇绿茶**：既清爽又健康，绿茶的清香和冰镇的口感，能让你在忙碌的下午感到一丝宁静。\n\n3. **水果茶**：可以选择一些你喜欢的水果，比如苹果、橙子，搭配茶水，既好喝又能补充维生素，真是个不错的选择！\n\n4. **奶昔**：如果你想要点甜的，可以试试奶昔，搭配一些新鲜水果，口感丰富，能让你心情愉悦。\n\n希望这些推荐能让你的"
+                },
+                {
+                  "role": "user",
+                  "content": "我喜欢绿茶为啥给我推荐奶昔和柠檬水?"
+                },
+                {
+                  "role": "assistant",
+                  "content": "哈哈，太好啦！我记得你喜欢绿茶，所以我推荐了一些适合下午的饮品，像奶昔和柠檬水，可能是因为它们也能带来清新的感觉哦！奶昔可以让你在忙碌的下午补充能量，而柠檬水则能帮助你保持清爽，提神醒脑。不过，绿茶当然是个绝佳的选择，既清新又健康！如果你有其他喜欢的饮品或者想尝试的新口味，随时告诉我哦！希望你每次喝茶都能感受到放松和愉悦！"
+                },
+                {
+                  "role": "user",
+                  "content": "今天感觉有点焦虑，工作压力很大。"
+                },
+                {
+                  "role": "assistant",
+                  "content": "我能理解你的感受，工作压力确实会让人感到焦虑。今天的你一定很不容易吧？或许你可以试着做一些深呼吸，放松一下自己，或者短暂地休息一下，给自己一点时间调整心态。记得，适当的休息和放松是提高工作效率的重要部分哦。\n\n如果你愿意，也可以分享一下具体的压力来源，我们可以一起探讨解决的方法。希望你能尽快找到平衡，感觉好一些！我在这里支持你，随时可以聊聊。"
+                },
+                {
+                  "role": "user",
+                  "content": "介绍一下神经可塑性系统是如何工作的？"
+                },
+                {
+                  "role": "assistant",
+                  "content": "哇，神经可塑性真是个有趣的话题！它就像大脑的“变形金刚”，能够根据我们的学习和经历不断调整自己。简单来说，神经可塑性系统是指大脑和神经系统在经历学习、经验或伤害后，能够改变其结构和功能的能力。\n我还记得：神经可塑性系统是指大脑和神经系统在经历学习、经验或伤害后，能够改变其结构和功能的能力。这种现象是神经科学中的一个重要概念，涉及到神经元之间的连接、突触的强度以及大脑区域的重组。\n\n具体来说，神经可塑性可以分为两种类型：功能性可塑性和结构性可塑性。功能性可塑性是指神经元在功能上的调整，比如在某个特定任务中，某些神经元的活动会增强，而其他神经元的活动可能会减弱。结构性可塑性则涉及到神经元之间的连接变化，比如新的突触形成或现有突触的消失。\n\n这种可塑性使得大脑能够适应新的信息、技能和环境变化。例如，当你学习一项新技能时，相关的神经"
+                },
+                {
+                  "role": "user",
+                  "content": "重复激活记忆检索和对话智能体，测试连接强化。"
+                },
+                {
+                  "role": "assistant",
+                  "content": "听起来你在进行一些有趣的测试！重复激活记忆检索和对话智能体确实是一个很好的方法，可以帮助我们更好地理解和优化连接。通过这种方式，我们可以不断强化对话的流畅性和准确性。如果你有任何具体的想法或问题，欢迎随时分享，我会尽力帮助你！希望你的测试顺利进行！"
+                }
+              ]
+            }
+          }
+        },
+        "timestamp": "2025-09-29T13:11:20.411508",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "encode_input",
+          "input_data": {
+            "content": "展示相关记忆之间的动态关联是如何建立的。",
+            "type": "text",
+            "context": {
+              "session_context": {
+                "last_user_preference_id": null,
+                "conversation_start": "2025-09-29 13:06:38.511702"
+              },
+              "dialogue_history": [
+                {
+                  "role": "user",
+                  "content": "请记住我喜欢喝绿茶，每天下午3点左右。"
+                },
+                {
+                  "role": "assistant",
+                  "content": "好的，我会记住你喜欢喝绿茶，并且每天下午3点左右喝。绿茶确实是个不错的选择，既清新又健康！如果你有特别喜欢的品牌或者口味，也可以告诉我哦！希望你每次喝茶的时候都能享受到那份宁静和愉悦！"
+                },
+                {
+                  "role": "user",
+                  "content": "我刚才说我什么时候喝什么茶？"
+                },
+                {
+                  "role": "assistant",
+                  "content": "当然可以！你刚才提到你喜欢喝绿茶，每天大约在下午三点左右享用。绿茶确实是一个很好的选择，既清新又健康！如果你有其他喜欢的茶或者想尝试的新口味，随时告诉我哦！"
+                },
+                {
+                  "role": "user",
+                  "content": "基于我的偏好，推荐一些适合下午的饮品。"
+                },
+                {
+                  "role": "assistant",
+                  "content": "哈哈，太好了！根据你的偏好，我推荐一些适合下午的饮品，绝对能让你期待哦！\n\n1. **柠檬水**：清新又提神，特别适合在阳光明媚的下午，喝上一口，瞬间感觉精神焕发！\n\n2. **冰镇绿茶**：既清爽又健康，绿茶的清香和冰镇的口感，能让你在忙碌的下午感到一丝宁静。\n\n3. **水果茶**：可以选择一些你喜欢的水果，比如苹果、橙子，搭配茶水，既好喝又能补充维生素，真是个不错的选择！\n\n4. **奶昔**：如果你想要点甜的，可以试试奶昔，搭配一些新鲜水果，口感丰富，能让你心情愉悦。\n\n希望这些推荐能让你的"
+                },
+                {
+                  "role": "user",
+                  "content": "我喜欢绿茶为啥给我推荐奶昔和柠檬水?"
+                },
+                {
+                  "role": "assistant",
+                  "content": "哈哈，太好啦！我记得你喜欢绿茶，所以我推荐了一些适合下午的饮品，像奶昔和柠檬水，可能是因为它们也能带来清新的感觉哦！奶昔可以让你在忙碌的下午补充能量，而柠檬水则能帮助你保持清爽，提神醒脑。不过，绿茶当然是个绝佳的选择，既清新又健康！如果你有其他喜欢的饮品或者想尝试的新口味，随时告诉我哦！希望你每次喝茶都能感受到放松和愉悦！"
+                },
+                {
+                  "role": "user",
+                  "content": "今天感觉有点焦虑，工作压力很大。"
+                },
+                {
+                  "role": "assistant",
+                  "content": "我能理解你的感受，工作压力确实会让人感到焦虑。今天的你一定很不容易吧？或许你可以试着做一些深呼吸，放松一下自己，或者短暂地休息一下，给自己一点时间调整心态。记得，适当的休息和放松是提高工作效率的重要部分哦。\n\n如果你愿意，也可以分享一下具体的压力来源，我们可以一起探讨解决的方法。希望你能尽快找到平衡，感觉好一些！我在这里支持你，随时可以聊聊。"
+                },
+                {
+                  "role": "user",
+                  "content": "介绍一下神经可塑性系统是如何工作的？"
+                },
+                {
+                  "role": "assistant",
+                  "content": "哇，神经可塑性真是个有趣的话题！它就像大脑的“变形金刚”，能够根据我们的学习和经历不断调整自己。简单来说，神经可塑性系统是指大脑和神经系统在经历学习、经验或伤害后，能够改变其结构和功能的能力。\n我还记得：神经可塑性系统是指大脑和神经系统在经历学习、经验或伤害后，能够改变其结构和功能的能力。这种现象是神经科学中的一个重要概念，涉及到神经元之间的连接、突触的强度以及大脑区域的重组。\n\n具体来说，神经可塑性可以分为两种类型：功能性可塑性和结构性可塑性。功能性可塑性是指神经元在功能上的调整，比如在某个特定任务中，某些神经元的活动会增强，而其他神经元的活动可能会减弱。结构性可塑性则涉及到神经元之间的连接变化，比如新的突触形成或现有突触的消失。\n\n这种可塑性使得大脑能够适应新的信息、技能和环境变化。例如，当你学习一项新技能时，相关的神经"
+                },
+                {
+                  "role": "user",
+                  "content": "重复激活记忆检索和对话智能体，测试连接强化。"
+                },
+                {
+                  "role": "assistant",
+                  "content": "听起来你在进行一些有趣的测试！重复激活记忆检索和对话智能体确实是一个很好的方法，可以帮助我们更好地理解和优化连接。通过这种方式，我们可以不断强化对话的流畅性和准确性。如果你有任何具体的想法或问题，欢迎随时分享，我会尽力帮助你！希望你的测试顺利进行！"
+                },
+                {
+                  "role": "user",
+                  "content": "系统会如何根据历史模式优化智能体路由？"
+                },
+                {
+                  "role": "assistant",
+                  "content": "系统会根据历史模式优化智能体路由的方式主要有以下几个方面：\n\n1. **数据分析**：系统会分析历史数据，识别出用户的行为模式和偏好。这包括用户在不同情况下的选择、反应时间以及交互频率等。\n\n2. **动态调整**：基于实时反馈，系统能够动态调整路由策略。例如，如果某条路径在过去的交互中表现不佳，系统会减少对该路径的使用，转而选择更有效的路径。\n\n3. **机器学习**：通过机器学习算法，系统可以不断学习和改进。它会根据用户的反馈和行为，优化路由决策，使其更加符合用户的需求。\n\n4. **个性化推荐**：系统会根据用户的历史交互记录，提供个性化的建议和选项，从而提高用户体验。\n\n通过这些方式，系统能够更好地理解用户的需求"
+                }
+              ]
+            }
+          }
+        },
+        "timestamp": "2025-09-29T13:11:51.797099",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "encode_input",
+          "input_data": {
+            "content": "展示相关记忆之间的动态关联是如何建立的。",
+            "type": "text",
+            "context": {
+              "session_context": {
+                "last_user_preference_id": null,
+                "conversation_start": "2025-09-29 13:20:11.653197"
+              },
+              "dialogue_history": []
+            }
+          }
+        },
+        "timestamp": "2025-09-29T13:20:19.744920",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "encode_input",
+          "input_data": {
+            "content": "展示相关记忆之间的动态关联是如何建立的。",
+            "type": "text",
+            "context": {
+              "session_context": {
+                "last_user_preference_id": null,
+                "conversation_start": "2025-09-29 13:26:21.361499"
+              },
+              "dialogue_history": []
+            }
+          }
+        },
+        "timestamp": "2025-09-29T13:26:35.885976",
+        "sender": "coordinator"
       }
     ],
     "recent_outputs": [
-      {
-        "result": {
-          "encoded_input": {
-            "content": "What kind of game did John have a career-high in assists in?",
-            "features": {
-              "length": 60,
-              "word_count": 12,
-              "input_type": "text",
-              "complexity": "medium"
-            },
-            "encoding_timestamp": "2025-09-23T09:53:12.252420"
-          },
-          "encoding_success": true
-        },
-        "timestamp": "2025-09-23T09:53:12.256112",
-        "processing_success": true
-      },
-      {
-        "result": {
-          "encoded_input": {
-            "content": "What was John's way of dealing with doubts and stress when he was younger?",
-            "features": {
-              "length": 74,
-              "word_count": 14,
-              "input_type": "text",
-              "complexity": "medium"
-            },
-            "encoding_timestamp": "2025-09-23T09:53:38.310180"
-          },
-          "encoding_success": true
-        },
-        "timestamp": "2025-09-23T09:53:38.361679",
-        "processing_success": true
-      },
-      {
-        "result": {
-          "encoded_input": {
-            "content": "How did John feel about the atmosphere during the big game against the rival team?",
-            "features": {
-              "length": 82,
-              "word_count": 15,
-              "input_type": "text",
-              "complexity": "medium"
-            },
-            "encoding_timestamp": "2025-09-23T09:54:13.266945"
-          },
-          "encoding_success": true
-        },
-        "timestamp": "2025-09-23T09:54:13.269709",
-        "processing_success": true
-      },
-      {
-        "result": {
-          "encoded_input": {
-            "content": "How did John feel after being able to jog without pain?",
-            "features": {
-              "length": 55,
-              "word_count": 11,
-              "input_type": "text",
-              "complexity": "medium"
-            },
-            "encoding_timestamp": "2025-09-23T09:54:40.042061"
-          },
-          "encoding_success": true
-        },
-        "timestamp": "2025-09-23T09:54:40.045565",
-        "processing_success": true
-      },
-      {
-        "result": {
-          "encoded_input": {
-            "content": "What kind of deal did John get in December?",
-            "features": {
-              "length": 43,
-              "word_count": 9,
-              "input_type": "text",
-              "complexity": "low"
-            },
-            "encoding_timestamp": "2025-09-23T09:55:17.698776"
-          },
-          "encoding_success": true
-        },
-        "timestamp": "2025-09-23T09:55:17.701632",
-        "processing_success": true
-      },
-      {
-        "result": {
-          "encoded_input": {
-            "content": "Where was the photoshoot done for John's gear deal?",
-            "features": {
-              "length": 51,
-              "word_count": 9,
-              "input_type": "text",
-              "complexity": "medium"
-            },
-            "encoding_timestamp": "2025-09-23T09:55:41.011685"
-          },
-          "encoding_success": true
-        },
-        "timestamp": "2025-09-23T09:55:41.015043",
-        "processing_success": true
-      },
-      {
-        "result": {
-          "encoded_input": {
-            "content": "In which area has John's team seen the most growth during training?",
-            "features": {
-              "length": 67,
-              "word_count": 12,
-              "input_type": "text",
-              "complexity": "medium"
-            },
-            "encoding_timestamp": "2025-09-23T09:56:05.573674"
-          },
-          "encoding_success": true
-        },
-        "timestamp": "2025-09-23T09:56:05.628934",
-        "processing_success": true
-      },
-      {
-        "result": {
-          "encoded_input": {
-            "content": "What type of seminars is John conducting?",
-            "features": {
-              "length": 41,
-              "word_count": 7,
-              "input_type": "text",
-              "complexity": "low"
-            },
-            "encoding_timestamp": "2025-09-23T09:56:32.835972"
-          },
-          "encoding_success": true
-        },
-        "timestamp": "2025-09-23T09:56:32.841231",
-        "processing_success": true
-      },
-      {
-        "result": {
-          "encoded_input": {
-            "content": "What activity did Tim do after reading the stories about the Himalayan trek?",
-            "features": {
-              "length": 76,
-              "word_count": 13,
-              "input_type": "text",
-              "complexity": "medium"
-            },
-            "encoding_timestamp": "2025-09-23T09:56:57.947850"
-          },
-          "encoding_success": true
-        },
-        "timestamp": "2025-09-23T09:56:57.950575",
-        "processing_success": true
-      },
-      {
-        "result": {
-          "encoded_input": {
-            "content": "What is one cause that John supports with his influence and resources?",
-            "features": {
-              "length": 70,
-              "word_count": 12,
-              "input_type": "text",
-              "complexity": "medium"
-            },
-            "encoding_timestamp": "2025-09-23T09:57:22.568098"
-          },
-          "encoding_success": true
-        },
-        "timestamp": "2025-09-23T09:57:22.570736",
-        "processing_success": true
-      },
-      {
-        "result": {
-          "encoded_input": {
-            "content": "What new fantasy TV series is Tim excited about?",
-            "features": {
-              "length": 48,
-              "word_count": 9,
-              "input_type": "text",
-              "complexity": "low"
-            },
-            "encoding_timestamp": "2025-09-23T09:57:44.767997"
-          },
-          "encoding_success": true
-        },
-        "timestamp": "2025-09-23T09:57:44.770335",
-        "processing_success": true
-      },
-      {
-        "result": {
-          "encoded_input": {
-            "content": "Which language is Tim learning?",
-            "features": {
-              "length": 31,
-              "word_count": 5,
-              "input_type": "text",
-              "complexity": "low"
-            },
-            "encoding_timestamp": "2025-09-23T09:58:08.447249"
-          },
-          "encoding_success": true
-        },
-        "timestamp": "2025-09-23T09:58:08.501152",
-        "processing_success": true
-      },
-      {
-        "result": {
-          "encoded_input": {
-            "content": "What language does Tim know besides German?",
-            "features": {
-              "length": 43,
-              "word_count": 7,
-              "input_type": "text",
-              "complexity": "low"
-            },
-            "encoding_timestamp": "2025-09-23T09:58:31.557809"
-          },
-          "encoding_success": true
-        },
-        "timestamp": "2025-09-23T09:58:31.561783",
-        "processing_success": true
-      },
-      {
-        "result": {
-          "encoded_input": {
-            "content": "What book did Tim get in Italy that inspired him to cook?",
-            "features": {
-              "length": 57,
-              "word_count": 12,
-              "input_type": "text",
-              "complexity": "medium"
-            },
-            "encoding_timestamp": "2025-09-23T09:58:55.689357"
-          },
-          "encoding_success": true
-        },
-        "timestamp": "2025-09-23T09:58:55.692113",
-        "processing_success": true
-      },
-      {
-        "result": {
-          "encoded_input": {
-            "content": "What is John's favorite book series?",
-            "features": {
-              "length": 36,
-              "word_count": 6,
-              "input_type": "text",
-              "complexity": "low"
-            },
-            "encoding_timestamp": "2025-09-23T09:59:22.593289"
-          },
-          "encoding_success": true
-        },
-        "timestamp": "2025-09-23T09:59:22.597600",
-        "processing_success": true
-      },
-      {
-        "result": {
-          "encoded_input": {
-            "content": "According to John, who is his favorite character from Lord of the Rings?",
-            "features": {
-              "length": 72,
-              "word_count": 13,
-              "input_type": "text",
-              "complexity": "medium"
-            },
-            "encoding_timestamp": "2025-09-23T09:59:47.830343"
-          },
-          "encoding_success": true
-        },
-        "timestamp": "2025-09-23T09:59:47.833896",
-        "processing_success": true
-      },
-      {
-        "result": {
-          "encoded_input": {
-            "content": "Why does John like Aragorn from Lord of the Rings?",
-            "features": {
-              "length": 50,
-              "word_count": 10,
-              "input_type": "text",
-              "complexity": "low"
-            },
-            "encoding_timestamp": "2025-09-23T10:00:09.320385"
-          },
-          "encoding_success": true
-        },
-        "timestamp": "2025-09-23T10:00:09.325982",
-        "processing_success": true
-      },
-      {
-        "result": {
-          "encoded_input": {
-            "content": "What kind of painting does John have in his room as a reminder?",
-            "features": {
-              "length": 63,
-              "word_count": 13,
-              "input_type": "text",
-              "complexity": "medium"
-            },
-            "encoding_timestamp": "2025-09-23T10:00:34.505175"
-          },
-          "encoding_success": true
-        },
-        "timestamp": "2025-09-23T10:00:34.508095",
-        "processing_success": true
-      },
-      {
-        "result": {
-          "encoded_input": {
-            "content": "What is the painting of Aragorn a reminder for John to be in everything he does?",
-            "features": {
-              "length": 80,
-              "word_count": 16,
-              "input_type": "text",
-              "complexity": "medium"
-            },
-            "encoding_timestamp": "2025-09-23T10:01:02.385539"
-          },
-          "encoding_success": true
-        },
-        "timestamp": "2025-09-23T10:01:02.388376",
-        "processing_success": true
-      },
-      {
-        "result": {
-          "encoded_input": {
-            "content": "What map does Tim show to his friend John?",
-            "features": {
-              "length": 42,
-              "word_count": 9,
-              "input_type": "text",
-              "complexity": "low"
-            },
-            "encoding_timestamp": "2025-09-23T10:01:27.320379"
-          },
-          "encoding_success": true
-        },
-        "timestamp": "2025-09-23T10:01:27.323900",
-        "processing_success": true
-      },
-      {
-        "result": {
-          "encoded_input": {
-            "content": "Where will Tim be going for a semester abroad?",
-            "features": {
-              "length": 46,
-              "word_count": 9,
-              "input_type": "text",
-              "complexity": "low"
-            },
-            "encoding_timestamp": "2025-09-23T10:01:52.756915"
-          },
-          "encoding_success": true
-        },
-        "timestamp": "2025-09-23T10:01:52.762656",
-        "processing_success": true
-      },
-      {
-        "result": {
-          "encoded_input": {
-            "content": "Which city in Ireland will Tim be staying in during his semester abroad?",
-            "features": {
-              "length": 72,
-              "word_count": 13,
-              "input_type": "text",
-              "complexity": "medium"
-            },
-            "encoding_timestamp": "2025-09-23T10:02:19.112505"
-          },
-          "encoding_success": true
-        },
-        "timestamp": "2025-09-23T10:02:19.168247",
-        "processing_success": true
-      },
-      {
-        "result": {
-          "encoded_input": {
-            "content": "What charity event did John organize recently in 2024?",
-            "features": {
-              "length": 54,
-              "word_count": 9,
-              "input_type": "text",
-              "complexity": "medium"
-            },
-            "encoding_timestamp": "2025-09-23T10:02:42.833153"
-          },
-          "encoding_success": true
-        },
-        "timestamp": "2025-09-23T10:02:42.836643",
-        "processing_success": true
-      },
-      {
-        "result": {
-          "encoded_input": {
-            "content": "What achievement did John share with Tim in January 2024?",
-            "features": {
-              "length": 57,
-              "word_count": 10,
-              "input_type": "text",
-              "complexity": "medium"
-            },
-            "encoding_timestamp": "2025-09-23T10:03:06.055166"
-          },
-          "encoding_success": true
-        },
-        "timestamp": "2025-09-23T10:03:06.058507",
-        "processing_success": true
-      },
       {
         "result": {
           "encoded_input": {
@@ -3223,13 +3199,610 @@
         },
         "timestamp": "2025-09-28T15:27:37.168127",
         "processing_success": true
+      },
+      {
+        "result": {
+          "encoded_input": {
+            "content": "请记住我喜欢喝绿茶，每天下午3点左右。",
+            "features": {
+              "length": 19,
+              "word_count": 1,
+              "input_type": "text",
+              "complexity": "low"
+            },
+            "encoding_timestamp": "2025-09-29T09:11:20.258733"
+          },
+          "encoding_success": true
+        },
+        "timestamp": "2025-09-29T09:11:20.266394",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "encoded_input": {
+            "content": "我刚才说我什么时候喝什么茶？",
+            "features": {
+              "length": 14,
+              "word_count": 1,
+              "input_type": "text",
+              "complexity": "low"
+            },
+            "encoding_timestamp": "2025-09-29T09:11:37.626863"
+          },
+          "encoding_success": true
+        },
+        "timestamp": "2025-09-29T09:11:37.629126",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "encoded_input": {
+            "content": "基于我的偏好，推荐一些适合下午的饮品。",
+            "features": {
+              "length": 19,
+              "word_count": 1,
+              "input_type": "text",
+              "complexity": "low"
+            },
+            "encoding_timestamp": "2025-09-29T09:12:22.690816"
+          },
+          "encoding_success": true
+        },
+        "timestamp": "2025-09-29T09:12:22.701000",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "encoded_input": {
+            "content": "请记住我喜欢喝绿茶，每天下午3点左右。",
+            "features": {
+              "length": 19,
+              "line_count": 1,
+              "word_count": 1,
+              "sentence_count": 1,
+              "avg_word_length": 19.0,
+              "has_code": false,
+              "has_urls": false,
+              "has_numbers": true,
+              "language": "chinese",
+              "complexity": "moderate"
+            },
+            "processing_mode": "standard",
+            "total_tokens": 25,
+            "encoding_timestamp": "2025-09-29T10:53:32.624282"
+          },
+          "encoding_success": true,
+          "requires_chunked_storage": false
+        },
+        "timestamp": "2025-09-29T10:53:32.629724",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "encoded_input": {
+            "content": "我刚才说我什么时候喝什么茶？",
+            "features": {
+              "length": 14,
+              "line_count": 1,
+              "word_count": 1,
+              "sentence_count": 1,
+              "avg_word_length": 14.0,
+              "has_code": false,
+              "has_urls": false,
+              "has_numbers": false,
+              "language": "chinese",
+              "complexity": "moderate"
+            },
+            "processing_mode": "standard",
+            "total_tokens": 21,
+            "encoding_timestamp": "2025-09-29T10:54:22.698371"
+          },
+          "encoding_success": true,
+          "requires_chunked_storage": false
+        },
+        "timestamp": "2025-09-29T10:54:22.708681",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "encoded_input": {
+            "content": "基于我的偏好，推荐一些适合下午的饮品。",
+            "features": {
+              "length": 19,
+              "line_count": 1,
+              "word_count": 1,
+              "sentence_count": 1,
+              "avg_word_length": 19.0,
+              "has_code": false,
+              "has_urls": false,
+              "has_numbers": false,
+              "language": "chinese",
+              "complexity": "moderate"
+            },
+            "processing_mode": "standard",
+            "total_tokens": 23,
+            "encoding_timestamp": "2025-09-29T10:54:45.576700"
+          },
+          "encoding_success": true,
+          "requires_chunked_storage": false
+        },
+        "timestamp": "2025-09-29T10:54:45.582576",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "encoded_input": {
+            "content": "请记住我喜欢喝绿茶，每天下午3点。",
+            "features": {
+              "length": 17,
+              "line_count": 1,
+              "word_count": 1,
+              "sentence_count": 1,
+              "avg_word_length": 17.0,
+              "has_code": false,
+              "has_urls": false,
+              "has_numbers": true,
+              "language": "chinese",
+              "complexity": "moderate"
+            },
+            "processing_mode": "standard",
+            "total_tokens": 23,
+            "encoding_timestamp": "2025-09-29T10:58:28.276561"
+          },
+          "encoding_success": true,
+          "requires_chunked_storage": false
+        },
+        "timestamp": "2025-09-29T10:58:28.279111",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "encoded_input": {
+            "content": "我喜欢什么茶？",
+            "features": {
+              "length": 7,
+              "line_count": 1,
+              "word_count": 1,
+              "sentence_count": 1,
+              "avg_word_length": 7.0,
+              "has_code": false,
+              "has_urls": false,
+              "has_numbers": false,
+              "language": "chinese",
+              "complexity": "moderate"
+            },
+            "processing_mode": "standard",
+            "total_tokens": 11,
+            "encoding_timestamp": "2025-09-29T10:58:56.167615"
+          },
+          "encoding_success": true,
+          "requires_chunked_storage": false
+        },
+        "timestamp": "2025-09-29T10:58:56.177542",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "encoded_input": {
+            "content": "我喜欢什么茶？",
+            "features": {
+              "length": 7,
+              "line_count": 1,
+              "word_count": 1,
+              "sentence_count": 1,
+              "avg_word_length": 7.0,
+              "has_code": false,
+              "has_urls": false,
+              "has_numbers": false,
+              "language": "chinese",
+              "complexity": "moderate"
+            },
+            "processing_mode": "standard",
+            "total_tokens": 11,
+            "encoding_timestamp": "2025-09-29T11:01:36.671775"
+          },
+          "encoding_success": true,
+          "requires_chunked_storage": false
+        },
+        "timestamp": "2025-09-29T11:01:36.675422",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "encoded_input": {
+            "content": "请记住我喜欢喝咖啡，每天早上8点。",
+            "features": {
+              "length": 17,
+              "line_count": 1,
+              "word_count": 1,
+              "sentence_count": 1,
+              "avg_word_length": 17.0,
+              "has_code": false,
+              "has_urls": false,
+              "has_numbers": true,
+              "language": "chinese",
+              "complexity": "moderate"
+            },
+            "processing_mode": "standard",
+            "total_tokens": 25,
+            "encoding_timestamp": "2025-09-29T11:02:37.098925"
+          },
+          "encoding_success": true,
+          "requires_chunked_storage": false
+        },
+        "timestamp": "2025-09-29T11:02:37.101439",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "encoded_input": {
+            "content": "我什么时候喝咖啡？",
+            "features": {
+              "length": 9,
+              "line_count": 1,
+              "word_count": 1,
+              "sentence_count": 1,
+              "avg_word_length": 9.0,
+              "has_code": false,
+              "has_urls": false,
+              "has_numbers": false,
+              "language": "chinese",
+              "complexity": "moderate"
+            },
+            "processing_mode": "standard",
+            "total_tokens": 15,
+            "encoding_timestamp": "2025-09-29T11:03:06.609868"
+          },
+          "encoding_success": true,
+          "requires_chunked_storage": false
+        },
+        "timestamp": "2025-09-29T11:03:06.615225",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "encoded_input": {
+            "content": "我喜欢什么茶？",
+            "features": {
+              "length": 7,
+              "line_count": 1,
+              "word_count": 1,
+              "sentence_count": 1,
+              "avg_word_length": 7.0,
+              "has_code": false,
+              "has_urls": false,
+              "has_numbers": false,
+              "language": "chinese",
+              "complexity": "moderate"
+            },
+            "processing_mode": "standard",
+            "total_tokens": 11,
+            "encoding_timestamp": "2025-09-29T11:03:20.697588"
+          },
+          "encoding_success": true,
+          "requires_chunked_storage": false
+        },
+        "timestamp": "2025-09-29T11:03:20.710667",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "encoded_input": {
+            "content": "请记住我喜欢喝绿茶，每天下午3点左右。",
+            "features": {
+              "length": 19,
+              "line_count": 1,
+              "word_count": 1,
+              "sentence_count": 1,
+              "avg_word_length": 19.0,
+              "has_code": false,
+              "has_urls": false,
+              "has_numbers": true,
+              "language": "chinese",
+              "complexity": "moderate"
+            },
+            "processing_mode": "standard",
+            "total_tokens": 25,
+            "encoding_timestamp": "2025-09-29T11:54:03.892056"
+          },
+          "encoding_success": true,
+          "requires_chunked_storage": false
+        },
+        "timestamp": "2025-09-29T11:54:03.905500",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "encoded_input": {
+            "content": "请记住我喜欢喝绿茶，每天下午3点左右。",
+            "features": {
+              "length": 19,
+              "line_count": 1,
+              "word_count": 1,
+              "sentence_count": 1,
+              "avg_word_length": 19.0,
+              "has_code": false,
+              "has_urls": false,
+              "has_numbers": true,
+              "language": "chinese",
+              "complexity": "moderate"
+            },
+            "processing_mode": "standard",
+            "total_tokens": 25,
+            "encoding_timestamp": "2025-09-29T13:06:47.691813"
+          },
+          "encoding_success": true,
+          "requires_chunked_storage": false
+        },
+        "timestamp": "2025-09-29T13:06:47.699114",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "encoded_input": {
+            "content": "我刚才说我什么时候喝什么茶？",
+            "features": {
+              "length": 14,
+              "line_count": 1,
+              "word_count": 1,
+              "sentence_count": 1,
+              "avg_word_length": 14.0,
+              "has_code": false,
+              "has_urls": false,
+              "has_numbers": false,
+              "language": "chinese",
+              "complexity": "moderate"
+            },
+            "processing_mode": "standard",
+            "total_tokens": 21,
+            "encoding_timestamp": "2025-09-29T13:07:13.314858"
+          },
+          "encoding_success": true,
+          "requires_chunked_storage": false
+        },
+        "timestamp": "2025-09-29T13:07:13.324829",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "encoded_input": {
+            "content": "基于我的偏好，推荐一些适合下午的饮品。",
+            "features": {
+              "length": 19,
+              "line_count": 1,
+              "word_count": 1,
+              "sentence_count": 1,
+              "avg_word_length": 19.0,
+              "has_code": false,
+              "has_urls": false,
+              "has_numbers": false,
+              "language": "chinese",
+              "complexity": "moderate"
+            },
+            "processing_mode": "standard",
+            "total_tokens": 23,
+            "encoding_timestamp": "2025-09-29T13:07:29.503526"
+          },
+          "encoding_success": true,
+          "requires_chunked_storage": false
+        },
+        "timestamp": "2025-09-29T13:07:29.506393",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "encoded_input": {
+            "content": "我喜欢绿茶为啥给我推荐奶昔和柠檬水?",
+            "features": {
+              "length": 18,
+              "line_count": 1,
+              "word_count": 1,
+              "sentence_count": 1,
+              "avg_word_length": 18.0,
+              "has_code": false,
+              "has_urls": false,
+              "has_numbers": false,
+              "language": "chinese",
+              "complexity": "moderate"
+            },
+            "processing_mode": "standard",
+            "total_tokens": 29,
+            "encoding_timestamp": "2025-09-29T13:08:42.707298"
+          },
+          "encoding_success": true,
+          "requires_chunked_storage": false
+        },
+        "timestamp": "2025-09-29T13:08:42.721923",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "encoded_input": {
+            "content": "今天感觉有点焦虑，工作压力很大。",
+            "features": {
+              "length": 16,
+              "line_count": 1,
+              "word_count": 1,
+              "sentence_count": 1,
+              "avg_word_length": 16.0,
+              "has_code": false,
+              "has_urls": false,
+              "has_numbers": false,
+              "language": "chinese",
+              "complexity": "moderate"
+            },
+            "processing_mode": "standard",
+            "total_tokens": 21,
+            "encoding_timestamp": "2025-09-29T13:09:37.124245"
+          },
+          "encoding_success": true,
+          "requires_chunked_storage": false
+        },
+        "timestamp": "2025-09-29T13:09:37.133124",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "encoded_input": {
+            "content": "介绍一下神经可塑性系统是如何工作的？",
+            "features": {
+              "length": 18,
+              "line_count": 1,
+              "word_count": 1,
+              "sentence_count": 1,
+              "avg_word_length": 18.0,
+              "has_code": false,
+              "has_urls": false,
+              "has_numbers": false,
+              "language": "chinese",
+              "complexity": "moderate"
+            },
+            "processing_mode": "standard",
+            "total_tokens": 20,
+            "encoding_timestamp": "2025-09-29T13:10:22.383862"
+          },
+          "encoding_success": true,
+          "requires_chunked_storage": false
+        },
+        "timestamp": "2025-09-29T13:10:22.394714",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "encoded_input": {
+            "content": "重复激活记忆检索和对话智能体，测试连接强化。",
+            "features": {
+              "length": 22,
+              "line_count": 1,
+              "word_count": 1,
+              "sentence_count": 1,
+              "avg_word_length": 22.0,
+              "has_code": false,
+              "has_urls": false,
+              "has_numbers": false,
+              "language": "chinese",
+              "complexity": "moderate"
+            },
+            "processing_mode": "standard",
+            "total_tokens": 25,
+            "encoding_timestamp": "2025-09-29T13:10:57.691073"
+          },
+          "encoding_success": true,
+          "requires_chunked_storage": false
+        },
+        "timestamp": "2025-09-29T13:10:57.701558",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "encoded_input": {
+            "content": "系统会如何根据历史模式优化智能体路由？",
+            "features": {
+              "length": 19,
+              "line_count": 1,
+              "word_count": 1,
+              "sentence_count": 1,
+              "avg_word_length": 19.0,
+              "has_code": false,
+              "has_urls": false,
+              "has_numbers": false,
+              "language": "chinese",
+              "complexity": "moderate"
+            },
+            "processing_mode": "standard",
+            "total_tokens": 21,
+            "encoding_timestamp": "2025-09-29T13:11:20.411494"
+          },
+          "encoding_success": true,
+          "requires_chunked_storage": false
+        },
+        "timestamp": "2025-09-29T13:11:20.414814",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "encoded_input": {
+            "content": "展示相关记忆之间的动态关联是如何建立的。",
+            "features": {
+              "length": 20,
+              "line_count": 1,
+              "word_count": 1,
+              "sentence_count": 1,
+              "avg_word_length": 20.0,
+              "has_code": false,
+              "has_urls": false,
+              "has_numbers": false,
+              "language": "chinese",
+              "complexity": "moderate"
+            },
+            "processing_mode": "standard",
+            "total_tokens": 20,
+            "encoding_timestamp": "2025-09-29T13:11:51.797083"
+          },
+          "encoding_success": true,
+          "requires_chunked_storage": false
+        },
+        "timestamp": "2025-09-29T13:11:51.799999",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "encoded_input": {
+            "content": "展示相关记忆之间的动态关联是如何建立的。",
+            "features": {
+              "length": 20,
+              "line_count": 1,
+              "word_count": 1,
+              "sentence_count": 1,
+              "avg_word_length": 20.0,
+              "has_code": false,
+              "has_urls": false,
+              "has_numbers": false,
+              "language": "chinese",
+              "complexity": "moderate"
+            },
+            "processing_mode": "standard",
+            "total_tokens": 20,
+            "encoding_timestamp": "2025-09-29T13:20:19.744863"
+          },
+          "encoding_success": true,
+          "requires_chunked_storage": false
+        },
+        "timestamp": "2025-09-29T13:20:19.752123",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "encoded_input": {
+            "content": "展示相关记忆之间的动态关联是如何建立的。",
+            "features": {
+              "length": 20,
+              "line_count": 1,
+              "word_count": 1,
+              "sentence_count": 1,
+              "avg_word_length": 20.0,
+              "has_code": false,
+              "has_urls": false,
+              "has_numbers": false,
+              "language": "chinese",
+              "complexity": "moderate"
+            },
+            "processing_mode": "standard",
+            "total_tokens": 20,
+            "encoding_timestamp": "2025-09-29T13:26:35.885891"
+          },
+          "encoding_success": true,
+          "requires_chunked_storage": false
+        },
+        "timestamp": "2025-09-29T13:26:35.892027",
+        "processing_success": true
       }
     ],
     "recent_exchanges": []
   },
   "metadata": {
     "created_at": "2025-09-18T15:48:39.207091",
-    "last_updated": "2025-09-28T15:27:37.169864",
+    "last_updated": "2025-09-29T13:26:35.893693",
     "version": "1.0"
   }
 }

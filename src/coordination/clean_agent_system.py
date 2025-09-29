@@ -92,7 +92,7 @@ class ConversationAgent(BrainAgent):
             memory_context = "\n相关记忆：\n"
             for i, memory in enumerate(memories[:3], 1):
                 memory_context += f"{i}. {memory.get('content', '')[:100]}...\n"
-        
+
         prompt = f"""基于记忆生成自然回复：
 
 用户输入：{user_input}
@@ -100,13 +100,48 @@ class ConversationAgent(BrainAgent):
 
 请生成一个自然、有帮助的中文回复，体现对用户的了解。"""
         
-        response = await self.call_llm(prompt, context, max_tokens=200, quick_fail=True)
-        
+        llm_failed = False
+        response = await self.call_llm(
+            prompt,
+            context,
+            max_tokens=600,
+            quick_fail=False  # allow full timeout window for primary response
+        )
+
+        if self._looks_like_llm_error(response):
+            llm_failed = True
+            response = self._build_memory_fallback(user_input, memories, context)
+
         return {
             'response': response,
             'memories_used': len(memories),
-            'context_applied': bool(context)
+            'context_applied': bool(context),
+            'llm_failed': llm_failed
         }
+
+    def _looks_like_llm_error(self, response: str) -> bool:
+        if not response:
+            return True
+        error_markers = ['⚠️', 'API异常', 'API连接问题', '⏱️']
+        return any(marker in response for marker in error_markers)
+
+    def _build_memory_fallback(self, user_input: str, memories: List[Dict], context: Dict) -> str:
+        if memories:
+            important = memories[0].get('content', '')
+            preference = ""
+            for mem in memories:
+                content = mem.get('content', '')
+                if any(keyword in content for keyword in ['喜欢', '偏好', '记住', '咖啡', '茶']):
+                    preference = content
+                    break
+            fallback_parts = [
+                "抱歉，刚才思考得有点慢，不过我记得我们聊过：",
+                preference or important[:120],
+            ]
+            return "".join(fallback_parts)
+
+        # 没有记忆时仍给出友好回应
+        return "我刚刚反应慢了一点，不过我会继续记得你告诉我的事情。可以再说说你的想法吗？"
 
 
 class ExecutiveControlAgent(BrainAgent):
@@ -163,43 +198,10 @@ class ExecutiveControlAgent(BrainAgent):
         }
 
 
-class PerceptionEncodingAgent(BrainAgent):
-    """感知编码智能体"""
-    
-    def __init__(self):
-        super().__init__(
-            "perception_encoding",
-            BrainRegion.SENSORY_CORTEX.value,
-            "你是信息感知和编码系统，负责处理输入信息。"
-        )
-    
-    async def process_message(self, message: AgentMessage) -> Dict[str, Any]:
-        action = message.content.get('action')
-        
-        if action == 'encode_input':
-            return await self._encode_input(message.content['input_data'])
-        
-        return {'error': 'Unknown action', 'action': action}
-    
-    async def _encode_input(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
-        """编码输入数据"""
-        content = input_data.get('content', '')
-        
-        features = {
-            'length': len(content),
-            'word_count': len(content.split()),
-            'input_type': input_data.get('type', 'text'),
-            'complexity': 'high' if len(content) > 100 else 'medium' if len(content) > 50 else 'low'
-        }
-        
-        return {
-            'encoded_input': {
-                'content': content,
-                'features': features,
-                'encoding_timestamp': datetime.now().isoformat()
-            },
-            'encoding_success': True
-        }
+# Import the enhanced perception encoding agent (resides under agents.core)
+from ..agents.core.perception_encoding import (
+    EnhancedPerceptionEncodingAgent as PerceptionEncodingAgent,
+)
 
 
 class ActionExecutionAgent(BrainAgent):

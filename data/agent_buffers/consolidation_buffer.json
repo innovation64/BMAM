@@ -16,14 +16,288 @@
         },
         "timestamp": "2025-09-28T15:26:30.890475",
         "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "consolidate_preference",
+          "memory_id": null,
+          "importance_boost": 0.2
+        },
+        "timestamp": "2025-09-29T09:11:29.595823",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "consolidate_preference",
+          "memory_id": null,
+          "importance_boost": 0.2
+        },
+        "timestamp": "2025-09-29T10:53:38.443809",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "consolidate_preference",
+          "memory_id": null,
+          "importance_boost": 0.2
+        },
+        "timestamp": "2025-09-29T10:58:42.415315",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "consolidate_preference",
+          "memory_id": null,
+          "importance_boost": 0.2
+        },
+        "timestamp": "2025-09-29T10:59:09.453581",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "consolidate_preference",
+          "memory_id": null,
+          "importance_boost": 0.2
+        },
+        "timestamp": "2025-09-29T11:01:42.680760",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "consolidate_preference",
+          "memory_id": null,
+          "importance_boost": 0.2
+        },
+        "timestamp": "2025-09-29T11:02:52.339200",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "consolidate_preference",
+          "memory_id": null,
+          "importance_boost": 0.2
+        },
+        "timestamp": "2025-09-29T11:03:30.682202",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "consolidate_preference",
+          "memory_id": null,
+          "importance_boost": 0.2
+        },
+        "timestamp": "2025-09-29T11:54:17.613400",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "consolidate_preference",
+          "memory_id": null,
+          "importance_boost": 0.2
+        },
+        "timestamp": "2025-09-29T13:06:57.585686",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "consolidate_preference",
+          "memory_id": null,
+          "importance_boost": 0.2
+        },
+        "timestamp": "2025-09-29T13:08:59.834401",
+        "sender": "coordinator"
       }
     ],
-    "recent_outputs": [],
-    "recent_exchanges": []
+    "recent_outputs": [
+      {
+        "result": {
+          "preference_consolidation_triggered": true,
+          "importance_boost_applied": 0.2,
+          "timestamp": "2025-09-29T10:53:38.443804"
+        },
+        "timestamp": "2025-09-29T10:53:38.444291",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "preference_consolidation_triggered": true,
+          "importance_boost_applied": 0.2,
+          "timestamp": "2025-09-29T10:58:42.415309"
+        },
+        "timestamp": "2025-09-29T10:58:42.416474",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "preference_consolidation_triggered": true,
+          "importance_boost_applied": 0.2,
+          "timestamp": "2025-09-29T10:59:09.453574"
+        },
+        "timestamp": "2025-09-29T10:59:09.455005",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "preference_consolidation_triggered": true,
+          "importance_boost_applied": 0.2,
+          "timestamp": "2025-09-29T11:01:42.680753"
+        },
+        "timestamp": "2025-09-29T11:01:42.720482",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "preference_consolidation_triggered": true,
+          "importance_boost_applied": 0.2,
+          "timestamp": "2025-09-29T11:02:52.339194"
+        },
+        "timestamp": "2025-09-29T11:02:52.341020",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "preference_consolidation_triggered": true,
+          "importance_boost_applied": 0.2,
+          "timestamp": "2025-09-29T11:03:30.682196"
+        },
+        "timestamp": "2025-09-29T11:03:30.687798",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "preference_consolidation_triggered": true,
+          "importance_boost_applied": 0.2,
+          "timestamp": "2025-09-29T11:54:17.613390"
+        },
+        "timestamp": "2025-09-29T11:54:17.620421",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "preference_consolidation_triggered": true,
+          "importance_boost_applied": 0.2,
+          "timestamp": "2025-09-29T13:06:57.585681"
+        },
+        "timestamp": "2025-09-29T13:06:57.586778",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "preference_consolidation_triggered": true,
+          "importance_boost_applied": 0.2,
+          "timestamp": "2025-09-29T13:08:59.834396"
+        },
+        "timestamp": "2025-09-29T13:08:59.836122",
+        "processing_success": true
+      }
+    ],
+    "recent_exchanges": [],
+    "pending_candidates": [
+      {
+        "user_input": "我刚才说我什么时候喝什么茶？",
+        "assistant_response": "哦，真有意思！你提到喝茶的事情，我还记得你之前说过你喜欢某种茶呢。你现在喝的是什么茶？或者你有什么特别的喝茶习惯吗？我对这些都很感兴趣，想听听你的故事！",
+        "importance": 0.5,
+        "emotion_tags": [
+          "neutral"
+        ],
+        "threat_score": 0.0,
+        "queued_at": "2025-09-29T10:54:28.896063"
+      },
+      {
+        "user_input": "基于我的偏好，推荐一些适合下午的饮品。",
+        "assistant_response": "哈哈，太好了！下午的饮品选择真是让人期待呢！根据你的偏好，我想推荐几种适合的饮品：\n\n1. **柠檬水**：清新又提神，特别适合在阳光明媚的下午，喝上一口，感觉整个人都被唤醒了！\n   \n2. **冰咖啡**：如果你喜欢咖啡的话，冰咖啡是个不错的选择，既能提神又能享受那种浓郁的香气。\n\n3. **水果茶**：可以选择一些水果味的茶，像是桃子或菠萝，既好喝又能补充水分，特别适合夏天哦！\n\n4. **奶昔**：如果你想要点甜的，奶昔绝对是个好选择，浓郁的口感让人心情愉悦。",
+        "importance": 0.5,
+        "emotion_tags": [
+          "neutral"
+        ],
+        "threat_score": 0.0,
+        "queued_at": "2025-09-29T10:54:56.205500"
+      },
+      {
+        "user_input": "我什么时候喝咖啡？",
+        "assistant_response": "你之前提到过你喜欢每天早上8点喝咖啡，这样可以让你的一天充满活力！如果你有其他喜欢的时间或者特别的咖啡习惯，也可以告诉我哦！",
+        "importance": 0.5,
+        "emotion_tags": [
+          "neutral"
+        ],
+        "threat_score": 0.0,
+        "queued_at": "2025-09-29T11:03:20.691565"
+      },
+      {
+        "user_input": "我刚才说我什么时候喝什么茶？",
+        "assistant_response": "当然可以！你刚才提到你喜欢喝绿茶，每天大约在下午三点左右享用。绿茶确实是一个很好的选择，既清新又健康！如果你有其他喜欢的茶或者想尝试的新口味，随时告诉我哦！",
+        "importance": 0.5,
+        "emotion_tags": [
+          "neutral"
+        ],
+        "threat_score": 0.0,
+        "queued_at": "2025-09-29T13:07:21.706846"
+      },
+      {
+        "user_input": "基于我的偏好，推荐一些适合下午的饮品。",
+        "assistant_response": "哈哈，太好了！根据你的偏好，我推荐一些适合下午的饮品，绝对能让你期待哦！\n\n1. **柠檬水**：清新又提神，特别适合在阳光明媚的下午，喝上一口，瞬间感觉精神焕发！\n\n2. **冰镇绿茶**：既清爽又健康，绿茶的清香和冰镇的口感，能让你在忙碌的下午感到一丝宁静。\n\n3. **水果茶**：可以选择一些你喜欢的水果，比如苹果、橙子，搭配茶水，既好喝又能补充维生素，真是个不错的选择！\n\n4. **奶昔**：如果你想要点甜的，可以试试奶昔，搭配一些新鲜水果，口感丰富，能让你心情愉悦。\n\n希望这些推荐能让你的",
+        "importance": 0.5,
+        "emotion_tags": [
+          "neutral"
+        ],
+        "threat_score": 0.0,
+        "queued_at": "2025-09-29T13:07:47.100077"
+      },
+      {
+        "user_input": "重复激活记忆检索和对话智能体，测试连接强化。",
+        "assistant_response": "听起来你在进行一些有趣的测试！重复激活记忆检索和对话智能体确实是一个很好的方法，可以帮助我们更好地理解和优化连接。通过这种方式，我们可以不断强化对话的流畅性和准确性。如果你有任何具体的想法或问题，欢迎随时分享，我会尽力帮助你！希望你的测试顺利进行！",
+        "importance": 0.5,
+        "emotion_tags": [
+          "neutral"
+        ],
+        "threat_score": 0.0,
+        "queued_at": "2025-09-29T13:11:13.342667"
+      },
+      {
+        "user_input": "系统会如何根据历史模式优化智能体路由？",
+        "assistant_response": "系统会根据历史模式优化智能体路由的方式主要有以下几个方面：\n\n1. **数据分析**：系统会分析历史数据，识别出用户的行为模式和偏好。这包括用户在不同情况下的选择、反应时间以及交互频率等。\n\n2. **动态调整**：基于实时反馈，系统能够动态调整路由策略。例如，如果某条路径在过去的交互中表现不佳，系统会减少对该路径的使用，转而选择更有效的路径。\n\n3. **机器学习**：通过机器学习算法，系统可以不断学习和改进。它会根据用户的反馈和行为，优化路由决策，使其更加符合用户的需求。\n\n4. **个性化推荐**：系统会根据用户的历史交互记录，提供个性化的建议和选项，从而提高用户体验。\n\n通过这些方式，系统能够更好地理解用户的需求",
+        "importance": 0.5,
+        "emotion_tags": [
+          "neutral"
+        ],
+        "threat_score": 0.0,
+        "queued_at": "2025-09-29T13:11:44.784630"
+      },
+      {
+        "user_input": "展示相关记忆之间的动态关联是如何建立的。",
+        "assistant_response": "展示相关记忆之间的动态关联是一个有趣且复杂的过程。通常，这种关联是通过以下几个步骤建立的：\n\n1. **数据收集**：首先，系统会收集用户的输入和行为数据。这些数据可以包括用户的对话内容、偏好、情感状态等。\n\n2. **模式识别**：接下来，系统会分析这些数据，识别出用户的行为模式和兴趣点。例如，如果用户经常提到某个话题或情感，系统会将这些信息记录下来。\n\n3. **关联建立**：通过机器学习算法，系统会将不同的记忆进行关联。例如，如果用户在某次对话中提到工作压力，而在另一条记忆中提到喜欢喝茶来放松，系统可能会将这两者关联起来，形成一个动态的记忆网络。\n\n4. **实时更新**：随着用户的进一步互动，系统",
+        "importance": 0.5,
+        "emotion_tags": [
+          "neutral"
+        ],
+        "threat_score": 0.0,
+        "queued_at": "2025-09-29T13:12:15.479705"
+      },
+      {
+        "user_input": "展示相关记忆之间的动态关联是如何建立的。",
+        "assistant_response": "展示相关记忆之间的动态关联是一个有趣且复杂的过程。通常，这种关联的建立可以通过以下几个步骤实现：\n\n1. **数据收集**：首先，系统会收集用户的输入和行为数据。这些数据包括用户的对话内容、偏好、情感状态等，形成一个丰富的用户画像。\n\n2. **模式识别**：接下来，系统会分析这些数据，识别出用户的行为模式和兴趣点。例如，如果用户经常提到某个话题或情感，系统会将这些信息记录下来，以便后续使用。\n\n3. **关联建立**：通过机器学习算法，系统会将不同的记忆进行关联。例如，如果用户在一次对话中提到工作压力，而在另一条记忆中提到喜欢喝茶来放松，系统可能会将这两者关联起来，形成一个动态的记忆网络。\n\n4. **",
+        "importance": 0.5,
+        "emotion_tags": [
+          "neutral"
+        ],
+        "threat_score": 0.0,
+        "queued_at": "2025-09-29T13:20:41.919648"
+      },
+      {
+        "user_input": "展示相关记忆之间的动态关联是如何建立的。",
+        "assistant_response": "展示相关记忆之间的动态关联是一个有趣且复杂的过程。通常，这种关联的建立可以通过以下几个步骤实现：\n\n1. **数据收集**：首先，系统会收集用户的输入和行为数据。这些数据包括用户的对话内容、偏好、情感状态等，形成一个丰富的用户画像。\n\n2. **模式识别**：接下来，系统会分析这些数据，识别出用户的行为模式和兴趣点。例如，如果用户经常提到某个话题或情感，系统会记录这些信息，以便后续使用。\n\n3. **关联建立**：通过机器学习算法，系统会将不同的记忆进行关联。例如，如果用户在一次对话中提到工作压力，而在另一条记忆中提到喜欢喝茶来放松，系统可能会将这两者关联起来，形成一个动态的记忆网络。\n\n4. **实时更新**：随着用户的进一步互动，系统会不断更新这些关联。例如，如果用户在后续对话中提到新的兴趣或情感，系统会调整之前的记忆关联，以保持信息的准确性和相关性。\n\n通过这种方式，系统能够更好地理解用户的需求，提供更加个性化和贴心的服务。如果你有任何具体的例子或想法，欢迎分享，我会很乐意帮助你进一步探讨！",
+        "importance": 0.5,
+        "emotion_tags": [
+          "neutral"
+        ],
+        "threat_score": 0.0,
+        "queued_at": "2025-09-29T13:27:01.938670"
+      }
+    ]
   },
   "metadata": {
     "created_at": "2025-09-18T15:48:39.206510",
-    "last_updated": "2025-09-28T15:26:30.890603",
+    "last_updated": "2025-09-29T13:27:01.939632",
     "version": "1.0"
   }
 }

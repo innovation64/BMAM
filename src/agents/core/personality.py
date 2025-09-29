@@ -160,6 +160,14 @@ class PersonalityAgent(BrainAgent):
         
         # 学习到的用户偏好
         self.learned_preferences = {}
+
+        # 用户对对话风格的偏好（可学习）
+        self.style_preferences = {
+            'formality': 0.4,   # 0=非常随意, 1=非常正式
+            'emoji': False,
+            'brevity': 'balanced',
+            'tone_hint': None
+        }
         
         # 人格适应机制
         self.adaptation_threshold = 5  # 多少次交互后调整人格
@@ -189,6 +197,7 @@ class PersonalityAgent(BrainAgent):
         """基于人格特征生成响应"""
         user_input = content.get('user_input', '')
         retrieved_memories = content.get('retrieved_memories', [])
+        base_response = content.get('base_response', '')
         persona_memories = []
 
         if self.persona_memory_agent is not None:
@@ -208,12 +217,12 @@ class PersonalityAgent(BrainAgent):
 
         # 构建个性化的回应上下文
         personality_context = self._build_personality_context(
-            user_input, retrieved_memories, emotional_context, persona_memories
+            user_input, retrieved_memories, emotional_context, persona_memories, base_response
         )
 
         # 生成符合人格的回应
         response = await self._generate_natural_response(
-            user_input, personality_context, emotional_context
+            user_input, personality_context, emotional_context, base_response
         )
 
         # 记录这次交互
@@ -294,7 +303,8 @@ class PersonalityAgent(BrainAgent):
             self.emotion_history = self.emotion_history[-20:]
     
     def _build_personality_context(self, _user_input: str, memories: List[Dict],
-                                   _emotional_context: Dict[str, Any], persona_memories: List[Dict]) -> Dict[str, Any]:
+                                   _emotional_context: Dict[str, Any], persona_memories: List[Dict],
+                                   base_response: str = "") -> Dict[str, Any]:
         """构建个性化上下文"""
 
         relevant_info = []
@@ -315,6 +325,9 @@ class PersonalityAgent(BrainAgent):
             if content:
                 persona_details.append(content)
 
+        # 更新风格偏好（结合persona记忆与已学习偏好）
+        self._update_style_preferences(persona_memories, memories)
+
         style_adjustments = self._get_emotion_style_adjustments()
 
         return {
@@ -326,7 +339,8 @@ class PersonalityAgent(BrainAgent):
             'style_adjustments': style_adjustments,
             'personality_traits': self.profile.traits,
             'interests': self.profile.interests,
-            'learned_preferences': self.learned_preferences
+            'learned_preferences': self.learned_preferences,
+            'base_response': base_response
         }
     
     def _get_emotion_style_adjustments(self) -> Dict[str, str]:
@@ -353,16 +367,70 @@ class PersonalityAgent(BrainAgent):
                 'punctuation': '标准标点'
             }
         }
-        
-        return emotion_styles.get(self.profile.current_emotion, emotion_styles[EmotionalState.CALM])
+
+        style = emotion_styles.get(self.profile.current_emotion, emotion_styles[EmotionalState.CALM]).copy()
+
+        # 融合用户偏好
+        tone_hint = self.style_preferences.get('tone_hint')
+        if tone_hint:
+            style['tone'] = f"{style['tone']}，并保持{tone_hint}"
+
+        formality = self.style_preferences.get('formality', 0.4)
+        style['formality_level'] = formality
+
+        if self.style_preferences.get('emoji'):
+            style.setdefault('expressions', []).extend(['😊', '😉'])
+
+        style['brevity'] = self.style_preferences.get('brevity', 'balanced')
+
+        return style
+
+    def _update_style_preferences(self, persona_memories: List[Dict], retrieved_memories: List[Dict]):
+        """根据用户偏好动态调整对话风格"""
+
+        def _contains_keywords(text: str, keywords: List[str]) -> bool:
+            return any(kw in text for kw in keywords)
+
+        memory_sources = []
+        for entry in persona_memories:
+            memory = entry.get('memory', entry) if isinstance(entry, dict) else entry
+            content = memory.get('content', '') if isinstance(memory, dict) else str(memory)
+            if content:
+                memory_sources.append(content)
+
+        for memory in retrieved_memories:
+            content = memory.get('content', '')
+            if content:
+                memory_sources.append(content)
+
+        combined = "\n".join(memory_sources)
+        if not combined:
+            return
+
+        if _contains_keywords(combined, ['正式', '严肃', '专业']) and self.style_preferences['formality'] < 0.7:
+            self.style_preferences['formality'] = 0.7
+            self.style_preferences['tone_hint'] = '更正式'
+
+        if _contains_keywords(combined, ['轻松', '随意', '放松']) and self.style_preferences['formality'] > 0.3:
+            self.style_preferences['formality'] = 0.3
+            self.style_preferences['tone_hint'] = '轻松自然'
+
+        if _contains_keywords(combined, ['表情', 'emoji', '可爱']) and not self.style_preferences['emoji']:
+            self.style_preferences['emoji'] = True
+
+        if _contains_keywords(combined, ['简洁', '直截了当', '短句']) and self.style_preferences['brevity'] != 'concise':
+            self.style_preferences['brevity'] = 'concise'
+
+        if _contains_keywords(combined, ['详细', '展开说', '多讲']) and self.style_preferences['brevity'] != 'elaborate':
+            self.style_preferences['brevity'] = 'elaborate'
     
     async def _generate_natural_response(self, user_input: str, personality_context: Dict[str, Any], 
-                                       emotional_context: Dict[str, Any]) -> str:
+                                       emotional_context: Dict[str, Any], base_response: str = "") -> str:
         """生成自然的个性化回应"""
         
         # 构建人格化的prompt
         personality_prompt = self._build_personality_prompt(
-            user_input, personality_context, emotional_context
+            user_input, personality_context, emotional_context, base_response
         )
         
         # 使用LLM服务生成回应 - 解耦的调用
@@ -370,16 +438,16 @@ class PersonalityAgent(BrainAgent):
             response = await self.llm_service.call_llm(personality_prompt)
             
             # 后处理：确保回应符合人格特征
-            processed_response = self._post_process_response(response, personality_context)
+            processed_response = self._post_process_response(response, personality_context, base_response)
             
             return processed_response
             
         except Exception as e:
             # 如果LLM调用失败，提供回退回应
-            return self._generate_fallback_response(user_input, emotional_context, personality_context)
+            return self._generate_fallback_response(user_input, emotional_context, personality_context, base_response)
     
     def _build_personality_prompt(self, user_input: str, personality_context: Dict[str, Any], 
-                                _emotional_context: Dict[str, Any]) -> str:
+                                _emotional_context: Dict[str, Any], base_response: str = "") -> str:
         """构建人格化的prompt"""
         
         # 基础人格描述
@@ -409,23 +477,33 @@ class PersonalityAgent(BrainAgent):
         # 情绪风格指导
         style = personality_context['style_adjustments']
         style_guide = f"\\n回应风格：{style['tone']}，可以使用这些表达：{', '.join(style['expressions'][:2])}"
-        
+        style_guide += f"\\n形式要求：正式程度{style.get('formality_level', 0.4):.2f}，篇幅倾向为{style.get('brevity', 'balanced')}"
+
+        if self.style_preferences.get('emoji'):
+            style_guide += "（可以适度使用表情符号表达情绪）"
+
+        retained_response = base_response.strip()
+        base_fact_section = ""
+        if retained_response:
+            base_fact_section = f"\\n需要保留的事实性回应：{retained_response}"
+
         full_prompt = f"""{base_personality}{memory_context}{personal_context}{persona_context}{style_guide}
+{base_fact_section}
 
 用户说："{user_input}"
 
 请以摇光明明的身份回应，要求：
 1. 体现你当前的情绪状态和人格特征
-2. 如果有相关记忆，自然地体现连续性
+2. 若提供了“需要保留的事实性回应”，必须完整保留其中的信息，可在此基础上润色语气
 3. 语言自然亲切，不要说"作为AI"这样的表达
 4. 根据情绪使用合适的语气和表达方式
-5. 保持好奇心和关怀，适当提问或分享想法
+5. 在尊重事实的前提下，结合人格特质添加关怀或好奇的元素，可适度补充细节
 
 回应："""
         
         return full_prompt
     
-    def _post_process_response(self, response: str, _personality_context: Dict[str, Any]) -> str:
+    def _post_process_response(self, response: str, personality_context: Dict[str, Any], base_response: str = "") -> str:
         """后处理回应，确保符合人格特征"""
         
         # 移除可能的AI自我指称
@@ -449,9 +527,21 @@ class PersonalityAgent(BrainAgent):
             if len(sentences) > 2:
                 response = '。'.join(sentences[:2]) + '。'
         
-        return response.strip()
+        response = response.strip()
+
+        # 确保保留基础事实
+        base_response = (base_response or "").strip()
+        if base_response:
+            key_phrases = [phrase for phrase in base_response.replace('，', ' ').replace('。', ' ').split(' ') if phrase]
+            missing = [phrase for phrase in key_phrases if phrase and phrase not in response]
+            if missing:
+                # 将事实性内容附加在结尾，防止遗漏
+                response = f"{response}\n我还记得：{base_response}"
+
+        return response
     
-    def _generate_fallback_response(self, user_input: str, emotional_context: Dict[str, Any], personality_context: Dict[str, Any] = None) -> str:
+    def _generate_fallback_response(self, user_input: str, emotional_context: Dict[str, Any], personality_context: Dict[str, Any] = None,
+                                   base_response: str = "") -> str:
         """生成回退回应（当LLM不可用时）"""
         
         memories = []
@@ -506,7 +596,11 @@ class PersonalityAgent(BrainAgent):
         
         main_emotion = emotional_context.get('main_emotion', 'friendly')
         responses = fallback_responses.get(main_emotion, fallback_responses['friendly'])
-        
+        base_response = (base_response or '').strip()
+
+        if base_response:
+            return f"{base_response} {random.choice(responses)}"
+
         return random.choice(responses)
     
     async def _record_interaction(self, user_input: str, response: str, emotional_context: Dict[str, Any]):

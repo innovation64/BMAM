@@ -12,13 +12,6 @@
         "message": {
           "action": "passive_decay"
         },
-        "timestamp": "2025-09-22T23:22:45.176458",
-        "sender": "coordinator"
-      },
-      {
-        "message": {
-          "action": "passive_decay"
-        },
         "timestamp": "2025-09-22T23:24:30.514689",
         "sender": "coordinator"
       },
@@ -707,30 +700,16 @@
         },
         "timestamp": "2025-09-23T10:25:50.777183",
         "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "passive_decay"
+        },
+        "timestamp": "2025-09-29T13:09:54.677768",
+        "sender": "coordinator"
       }
     ],
     "recent_outputs": [
-      {
-        "result": {
-          "passive_decay_complete": true,
-          "decay_cycle": 100,
-          "results": {
-            "total_processed": 100,
-            "significant_decay": 0,
-            "marked_for_forgetting": 100,
-            "memories_deactivated": 100,
-            "average_retention": 0.9997025167513669,
-            "forgetting_rate": 1.0
-          },
-          "ebbinghaus_params": {
-            "initial_strength": 1.0,
-            "decay_constant": 0.1,
-            "time_constant": 24.0
-          }
-        },
-        "timestamp": "2025-09-22T23:22:45.181685",
-        "processing_success": true
-      },
       {
         "result": {
           "passive_decay_complete": true,
@@ -2809,13 +2788,34 @@
         },
         "timestamp": "2025-09-23T10:25:50.782598",
         "processing_success": true
+      },
+      {
+        "result": {
+          "passive_decay_complete": true,
+          "decay_cycle": 1,
+          "results": {
+            "total_processed": 100,
+            "significant_decay": 0,
+            "marked_for_forgetting": 100,
+            "memories_deactivated": 96,
+            "average_retention": 0.37046313052609636,
+            "forgetting_rate": 1.0
+          },
+          "ebbinghaus_params": {
+            "initial_strength": 1.0,
+            "decay_constant": 0.1,
+            "time_constant": 24.0
+          }
+        },
+        "timestamp": "2025-09-29T13:09:54.681160",
+        "processing_success": true
       }
     ],
     "recent_exchanges": []
   },
   "metadata": {
     "created_at": "2025-09-18T15:48:39.206688",
-    "last_updated": "2025-09-23T10:25:50.783597",
+    "last_updated": "2025-09-29T13:09:54.681592",
     "version": "1.0"
   }
 }

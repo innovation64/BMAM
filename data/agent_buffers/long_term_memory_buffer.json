@@ -27,6 +27,166 @@
         },
         "timestamp": "2025-09-28T15:26:44.109933",
         "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "store_long_term",
+          "memory": {
+            "content": "用户偏好：请记住我喜欢喝绿茶，每天下午3点左右。",
+            "importance": 0.9,
+            "context_tags": [
+              "用户偏好",
+              "preference",
+              "personal_info"
+            ],
+            "emotion_tags": [
+              "positive",
+              "preference"
+            ]
+          }
+        },
+        "timestamp": "2025-09-29T09:11:29.595791",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "store_long_term",
+          "memory": {
+            "content": "用户偏好：请记住我喜欢喝绿茶，每天下午3点左右。",
+            "importance": 0.9,
+            "context_tags": [
+              "用户偏好",
+              "preference",
+              "personal_info"
+            ],
+            "emotion_tags": [
+              "positive",
+              "preference"
+            ]
+          }
+        },
+        "timestamp": "2025-09-29T10:53:38.443732",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "store_long_term",
+          "memory": {
+            "content": "用户偏好：请记住我喜欢喝绿茶，每天下午3点。",
+            "importance": 0.9,
+            "context_tags": [
+              "用户偏好",
+              "preference",
+              "personal_info"
+            ],
+            "emotion_tags": [
+              "positive",
+              "preference"
+            ]
+          }
+        },
+        "timestamp": "2025-09-29T10:58:56.161436",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "store_long_term",
+          "memory": {
+            "content": "用户偏好：请记住我喜欢喝咖啡，每天早上8点。",
+            "importance": 0.9,
+            "context_tags": [
+              "用户偏好",
+              "preference",
+              "personal_info"
+            ],
+            "emotion_tags": [
+              "positive",
+              "preference"
+            ]
+          }
+        },
+        "timestamp": "2025-09-29T11:02:59.450482",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "store_long_term",
+          "memory": {
+            "content": "用户偏好：我喜欢什么茶？",
+            "importance": 0.9,
+            "context_tags": [
+              "用户偏好",
+              "preference",
+              "personal_info"
+            ],
+            "emotion_tags": [
+              "positive",
+              "preference"
+            ]
+          }
+        },
+        "timestamp": "2025-09-29T11:03:30.686913",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "store_long_term",
+          "memory": {
+            "content": "用户偏好：请记住我喜欢喝绿茶，每天下午3点左右。",
+            "importance": 0.9,
+            "context_tags": [
+              "用户偏好",
+              "preference",
+              "personal_info"
+            ],
+            "emotion_tags": [
+              "positive",
+              "preference"
+            ]
+          }
+        },
+        "timestamp": "2025-09-29T11:54:17.619599",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "store_long_term",
+          "memory": {
+            "content": "用户偏好：请记住我喜欢喝绿茶，每天下午3点左右。",
+            "importance": 0.9,
+            "context_tags": [
+              "用户偏好",
+              "preference",
+              "personal_info"
+            ],
+            "emotion_tags": [
+              "positive",
+              "preference"
+            ]
+          }
+        },
+        "timestamp": "2025-09-29T13:06:57.585595",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "store_long_term",
+          "memory": {
+            "content": "用户偏好：我喜欢绿茶为啥给我推荐奶昔和柠檬水?",
+            "importance": 0.9,
+            "context_tags": [
+              "用户偏好",
+              "preference",
+              "personal_info"
+            ],
+            "emotion_tags": [
+              "positive",
+              "preference"
+            ]
+          }
+        },
+        "timestamp": "2025-09-29T13:09:13.225255",
+        "sender": "coordinator"
       }
     ],
     "recent_outputs": [
@@ -41,13 +201,115 @@
         },
         "timestamp": "2025-09-28T15:26:44.158114",
         "processing_success": true
+      },
+      {
+        "result": {
+          "memory_id": "75e4ce7f-c397-47eb-9083-3704b6da237e",
+          "merged": true,
+          "updated_importance": 0.92,
+          "consolidation_level": 1,
+          "duplicate_similarity": 1.000000238418579,
+          "stored": false,
+          "duplicate_detected": true
+        },
+        "timestamp": "2025-09-29T09:11:29.709416",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "memory_id": "75e4ce7f-c397-47eb-9083-3704b6da237e",
+          "merged": true,
+          "updated_importance": 0.9400000000000001,
+          "consolidation_level": 2,
+          "duplicate_similarity": 1.000000238418579,
+          "stored": false,
+          "duplicate_detected": true
+        },
+        "timestamp": "2025-09-29T10:53:38.444346",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "memory_id": "75e4ce7f-c397-47eb-9083-3704b6da237e",
+          "merged": true,
+          "updated_importance": 0.9600000000000001,
+          "consolidation_level": 3,
+          "duplicate_similarity": 0.9946097731590271,
+          "stored": false,
+          "duplicate_detected": true
+        },
+        "timestamp": "2025-09-29T10:58:56.167640",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "stored": true,
+          "memory_id": "e334b088-dcfe-4222-a1e4-019d79096368",
+          "memory_type": "semantic",
+          "consolidation_level": 1,
+          "total_memories": 1,
+          "duplicate_detected": false
+        },
+        "timestamp": "2025-09-29T11:03:05.606691",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "memory_id": "9f977a62-e5c7-4cbf-acde-78f9b046c64c",
+          "merged": true,
+          "updated_importance": 0.92,
+          "consolidation_level": 1,
+          "duplicate_similarity": 1.0,
+          "stored": false,
+          "duplicate_detected": true
+        },
+        "timestamp": "2025-09-29T11:03:30.687966",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "memory_id": "75e4ce7f-c397-47eb-9083-3704b6da237e",
+          "merged": true,
+          "updated_importance": 0.9800000000000001,
+          "consolidation_level": 3,
+          "duplicate_similarity": 1.000000238418579,
+          "stored": false,
+          "duplicate_detected": true
+        },
+        "timestamp": "2025-09-29T11:54:17.620453",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "memory_id": "75e4ce7f-c397-47eb-9083-3704b6da237e",
+          "merged": true,
+          "updated_importance": 1.0,
+          "consolidation_level": 3,
+          "duplicate_similarity": 1.000000238418579,
+          "stored": false,
+          "duplicate_detected": true
+        },
+        "timestamp": "2025-09-29T13:06:57.586744",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "stored": true,
+          "memory_id": "5e7ca466-7efb-42c6-a6fd-8cc99204fcfd",
+          "memory_type": "semantic",
+          "consolidation_level": 1,
+          "total_memories": 1,
+          "duplicate_detected": false
+        },
+        "timestamp": "2025-09-29T13:09:13.247265",
+        "processing_success": true
       }
     ],
     "recent_exchanges": []
   },
   "metadata": {
     "created_at": "2025-09-18T15:48:39.206286",
-    "last_updated": "2025-09-28T15:26:44.158360",
+    "last_updated": "2025-09-29T13:09:13.248275",
     "version": "1.0"
   }
 }

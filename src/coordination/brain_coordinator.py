@@ -30,6 +30,35 @@ from ..brain.neural_plasticity import NeuralPlasticityEngine
 logger = get_logger(__name__)
 
 
+class _LegacyMemoryManagerAdapter:
+    """Compatibility layer exposing legacy memory_manager interface."""
+
+    def __init__(self, coordinator: "BrainInspiredCoordinator", memory_system_ref):
+        self._coordinator = coordinator
+        self._memory_system = memory_system_ref
+
+    async def retrieve_memories(self, query: str, k: int = 5, **kwargs):
+        return await self._memory_system.search_memories(query, k=k, **kwargs)
+
+    async def store_memory(self, content: str, metadata: Optional[Dict[str, Any]] = None, **kwargs):
+        return await self._memory_system.store_memory(
+            content,
+            metadata=metadata or {},
+            **kwargs
+        )
+
+    async def consolidate_memories(self):
+        return await self._coordinator._activate_agent(
+            'consolidation',
+            AgentMessage(
+                sender='evaluation_adapter',
+                receiver='consolidation',
+                message_type='request',
+                content={'action': 'system_consolidation'}
+            )
+        )
+
+
 @dataclass
 class ProcessingResult:
     """Result from brain-inspired processing"""
@@ -70,6 +99,10 @@ class BrainInspiredCoordinator:
         }
 
         self.settings = get_settings()
+
+        # Core memory system reference for legacy integrations
+        self.memory_system = memory_system
+        self.memory_manager = _LegacyMemoryManagerAdapter(self, memory_system)
 
         # Initialize all 12 agents
         self._initialize_agents()
@@ -205,7 +238,8 @@ class BrainInspiredCoordinator:
             )
             
             encoded_input = perception_result.get('encoded_input', {})
-            
+            requires_chunked_storage = perception_result.get('requires_chunked_storage', False)
+
             # Phase 2: Executive Control - Task Routing with Plasticity (执行控制 - 任务路由)
             task_type = self._classify_task_type(user_input)
             
@@ -236,11 +270,11 @@ class BrainInspiredCoordinator:
             primary_agents = coordination_plan.get('primary_agents', optimal_agents[:2])
             secondary_agents = coordination_plan.get('secondary_agents', optimal_agents[2:4])
             
-            # Phase 3: Parallel Agent Activation (并行智能体激活)
+            # Phase 3: Selective Agent Activation (选择性智能体激活)
             parallel_tasks = {}
-            activated_agents = ['memory_retrieval', 'stress_response']
-            
-            # Always retrieve memories first
+            activated_agents = []
+
+            # Always retrieve memories - this is essential for context
             parallel_tasks['memory_retrieval'] = self._activate_agent(
                 'memory_retrieval',
                 AgentMessage(
@@ -254,20 +288,23 @@ class BrainInspiredCoordinator:
                     }
                 )
             )
-            
-            # Stress/Threat Detection
-            parallel_tasks['stress_response'] = self._activate_agent(
-                'stress_response',
-                AgentMessage(
-                    sender='coordinator',
-                    receiver='stress_response',
-                    message_type='request',
-                    content={
-                        'action': 'threat_detection',
-                        'stimulus': {'content': user_input}
-                    }
+            activated_agents.append('memory_retrieval')
+
+            # Selective Stress/Threat Detection - only for potentially concerning content
+            if self._requires_stress_analysis(user_input):
+                parallel_tasks['stress_response'] = self._activate_agent(
+                    'stress_response',
+                    AgentMessage(
+                        sender='coordinator',
+                        receiver='stress_response',
+                        message_type='request',
+                        content={
+                            'action': 'threat_detection',
+                            'stimulus': {'content': user_input}
+                        }
+                    )
                 )
-            )
+                activated_agents.append('stress_response')
             
             # Activate primary agents based on routing
             for agent_name in primary_agents:
@@ -324,7 +361,8 @@ class BrainInspiredCoordinator:
             
             # Extract retrieved memories
             memories = parallel_results.get('memory_retrieval', {}).get('memories', [])
-            threat_info = parallel_results.get('stress_response', {})
+            # Only get threat info if stress_response was actually activated
+            threat_info = parallel_results.get('stress_response', {}) if 'stress_response' in parallel_results else {'threat_score': 0.0, 'threat_level': 'none'}
 
             base_context['retrieved_memories'] = memories
 
@@ -457,7 +495,8 @@ class BrainInspiredCoordinator:
                             content={
                                 'action': 'generate_personality_response',
                                 'user_input': user_input,
-                                'retrieved_memories': memories[:5]
+                                'retrieved_memories': memories[:5],
+                                'base_response': main_response
                             }
                         )
                     )
@@ -469,7 +508,14 @@ class BrainInspiredCoordinator:
                 base_context['personality_context'] = personality_result.get('personality_context', {})
                 base_context['persona_memories_used'] = personality_result.get('persona_memories_used', 0)
                 base_context['personality_current_emotion'] = personality_result.get('current_emotion')
-                main_response = personality_result.get('personality_response', main_response)
+
+                # Only use personality response if no relevant memories were found
+                # When memories are available, preserve the memory-based conversation response
+                if len(memories) == 0 or not response_result.get('memories_used', 0):
+                    main_response = personality_result.get('personality_response', main_response)
+                else:
+                    # Keep memory-based response, but add personality context for logging
+                    logger.info(f"Preserving memory-based response from conversation agent ({len(memories)} memories used)")
             
             # Phase 5.5: User Preference Processing (用户偏好处理) - Background
             preference_processed = False
@@ -548,13 +594,33 @@ class BrainInspiredCoordinator:
                     )
                 )
             
-            # Phase 6: Memory Storage (记忆存储)
+            # Phase 6: Memory Strategy (短期存储 + 长期候选)
             memory_stored = False
-            if self._should_store_memory(user_input, base_context):
+            memory_storage_error = None
+            memory_strategy = 'skipped'
+
+            # Handle chunked text if needed
+            if requires_chunked_storage and encoded_input.get('segments'):
+                await self._handle_chunked_text_storage(
+                    encoded_input=encoded_input,
+                    user_input=user_input,
+                    assistant_response=main_response,
+                    context=base_context
+                )
+                memory_strategy = 'chunked_storage'
+
+            # Always keep a short-term snapshot for immediate context reuse
+            await self._store_short_term_memory_snapshot(
+                user_input=user_input,
+                assistant_response=main_response,
+                context=base_context
+            )
+
+            if self._should_consider_long_term(user_input, base_context):
                 # Determine memory properties
                 importance = self._calculate_importance(user_input, threat_info, memories)
                 emotion_tags = self._extract_emotions(user_input, threat_info)
-                
+
                 # Apply emotional encoding if needed
                 if threat_info.get('threat_score', 0) > 0.3:
                     emotional_encoding = await self._activate_agent(
@@ -575,54 +641,48 @@ class BrainInspiredCoordinator:
                         )
                     )
                     importance += emotional_encoding.get('importance_boost', 0.0)
-                
-                # Store complete conversation memory (not just user input)
+
                 conversation_content = f"用户说：{user_input}\n助手回复：{main_response}"
-                
-                # Store memory asynchronously in background to avoid blocking main response
-                async def store_memory_background():
-                    try:
-                        memory_id = await memory_system.store_memory(
-                            content=conversation_content,
-                            importance=min(1.0, importance),
-                            emotion_tags=emotion_tags,
-                            context_tags=[self._classify_task_type(user_input), "完整对话"],
-                            metadata={
-                                'source': 'conversation',
-                                'user_input': user_input,
-                                'assistant_response': main_response,
-                                'memories_used': len(memories),
-                                'threat_level': threat_info.get('threat_level', 'unknown'),
-                                'threat_score': threat_info.get('threat_score', 0.0),
-                                'processing_timestamp': datetime.now().isoformat()
+
+                explicit_memory_intent = self._has_explicit_memory_request(user_input) or preference_processed
+
+                async def store_conversation_memory():
+                    memory_id = await memory_system.store_memory(
+                        content=conversation_content,
+                        importance=min(1.0, importance),
+                        emotion_tags=emotion_tags,
+                        context_tags=[self._classify_task_type(user_input), "完整对话"],
+                        metadata={
+                            'source': 'conversation',
+                            'user_input': user_input,
+                            'assistant_response': main_response,
+                            'memories_used': len(memories),
+                            'threat_level': threat_info.get('threat_level', 'unknown'),
+                            'threat_score': threat_info.get('threat_score', 0.0),
+                            'processing_timestamp': datetime.now().isoformat()
+                        }
+                    )
+                    return memory_id
+
+                async def handle_success(memory_id: str):
+                    self.processing_stats['memory_operations'] += 1
+                    logger.info(f"Long-term memory stored: {memory_id}")
+
+                    if memory_ids:
+                        all_memory_ids = memory_ids + [memory_id]
+                        all_strengths = memory_strengths + [importance]
+
+                        self.plasticity_engine.record_memory_co_activation(
+                            all_memory_ids,
+                            all_strengths,
+                            context={
+                                'event': 'new_memory_storage',
+                                'conversation_context': True,
+                                'timestamp': datetime.now().isoformat()
                             }
                         )
-                        if memory_id:
-                            self.processing_stats['memory_operations'] += 1
-                            logger.info(f"后台存储记忆完成: {memory_id}")
-                            
-                            # Record new memory activation with retrieved memories
-                            if memory_ids:
-                                all_memory_ids = memory_ids + [memory_id]
-                                all_strengths = memory_strengths + [importance]
-                                
-                                self.plasticity_engine.record_memory_co_activation(
-                                    all_memory_ids,
-                                    all_strengths,
-                                    context={
-                                        'event': 'new_memory_storage',
-                                        'conversation_context': True,
-                                        'timestamp': datetime.now().isoformat()
-                                    }
-                                )
-                    except Exception as e:
-                        logger.error(f"后台存储记忆失败: {e}")
-                
-                # Create background task for memory storage
-                self._create_background_task("store_conversation_memory", store_memory_background())
-                memory_stored = True  # Always true since we're storing in background
-                
-                # Record existing memory activation (new memory will be recorded in background)
+
+                # Record existing memory activation immediately
                 if memory_ids:
                     self.plasticity_engine.record_memory_co_activation(
                         memory_ids,
@@ -633,6 +693,51 @@ class BrainInspiredCoordinator:
                             'timestamp': datetime.now().isoformat()
                         }
                     )
+
+                if explicit_memory_intent:
+                    memory_strategy = 'stored_immediately'
+                    try:
+                        memory_id = await asyncio.wait_for(
+                            store_conversation_memory(),
+                            timeout=self.settings.memory_storage_timeout
+                        )
+
+                        if memory_id:
+                            memory_stored = True
+                            await handle_success(memory_id)
+                        else:
+                            memory_storage_error = "Memory storage returned None - possible embedding failure"
+                            logger.warning(memory_storage_error)
+                    except asyncio.TimeoutError:
+                        memory_storage_error = f"Memory storage timeout after {self.settings.memory_storage_timeout}s"
+                        logger.warning(memory_storage_error)
+                    except Exception as e:
+                        memory_storage_error = f"Memory storage failed: {str(e)}"
+                        logger.error(memory_storage_error)
+                else:
+                    memory_strategy = 'queued_for_consolidation'
+
+                    async def background_store():
+                        try:
+                            memory_id = await store_conversation_memory()
+                            if memory_id:
+                                await handle_success(memory_id)
+                            else:
+                                logger.warning("Background memory storage returned None - possible embedding failure")
+                        except Exception as exc:
+                            logger.error(f"Background memory storage failed: {exc}")
+
+                    await self._queue_memory_candidate(
+                        user_input=user_input,
+                        assistant_response=main_response,
+                        importance=importance,
+                        emotion_tags=emotion_tags,
+                        threat_info=threat_info
+                    )
+                    self._create_background_task("store_conversation_memory", background_store())
+
+            else:
+                memory_strategy = 'short_term_only'
             
             # Phase 7: Background Processing (后台处理)
             background_tasks = []
@@ -652,6 +757,15 @@ class BrainInspiredCoordinator:
                     self._create_background_task(
                         "background_consolidation",
                         self._trigger_background_consolidation()
+                    )
+                )
+
+            # Process chunked text queue periodically
+            if self.processing_stats['total_requests'] % 10 == 0:
+                background_tasks.append(
+                    self._create_background_task(
+                        "process_chunked_queue",
+                        self._trigger_chunked_queue_processing()
                     )
                 )
             
@@ -685,7 +799,11 @@ class BrainInspiredCoordinator:
                 )
             
             # Background tasks run independently - don't wait for them to avoid blocking
-            insights = {'status': 'background_processing', 'tasks_started': len(background_tasks)}
+            insights = {
+                'status': 'background_processing',
+                'tasks_started': len(background_tasks),
+                'memory_strategy': memory_strategy
+            }
             if 'personality_context' in base_context:
                 insights['personality_context'] = base_context.get('personality_context', {})
                 insights['persona_memories_used'] = base_context.get('persona_memories_used', 0)
@@ -721,6 +839,12 @@ class BrainInspiredCoordinator:
                 if not has_error:
                     self.processing_stats['successful_requests'] += 1
 
+            # Include memory storage error in final error reporting
+            final_error_message = error_message
+            if memory_storage_error and not final_error_message:
+                final_error_message = memory_storage_error
+                has_error = True
+
             result = ProcessingResult(
                 response=main_response,
                 routing_decision=coordination_plan,
@@ -731,7 +855,7 @@ class BrainInspiredCoordinator:
                 agent_logs=agent_logs,
                 insights=insights,
                 success=not has_error,
-                error=error_message
+                error=final_error_message
             )
             
             if has_error:
@@ -764,6 +888,13 @@ class BrainInspiredCoordinator:
                 success=False,
                 error=str(e)
             )
+
+    async def process_input(self, user_input: str, context: Optional[Dict[str, Any]] = None) -> str:
+        """Legacy compatibility wrapper returning plain response text."""
+        result = await self.process_user_input(user_input, context)
+        if isinstance(result, ProcessingResult):
+            return result.response
+        return result
     
     async def _activate_agent(self, agent_id: str, message: AgentMessage) -> Dict[str, Any]:
         """Activate specific agent with message and use buffer system"""
@@ -877,8 +1008,29 @@ class BrainInspiredCoordinator:
             '我的兴趣', '我的爱好', '我习惯', '我经常', '我通常',
             '我最爱', '我最喜欢', '我很喜欢', '我特别喜欢'
         ]
-        
+
         return any(indicator in user_input for indicator in preference_indicators)
+
+    def _requires_stress_analysis(self, user_input: str) -> bool:
+        """判断是否需要进行压力/威胁分析"""
+        # Skip stress analysis for simple greetings and preferences
+        simple_patterns = ['你好', 'hello', 'hi', '谢谢', 'thank', '再见', 'bye']
+        if any(pattern in user_input.lower() for pattern in simple_patterns):
+            return False
+
+        # Skip for preference expressions (they're usually positive)
+        if self._contains_user_preference(user_input):
+            return False
+
+        # Require stress analysis for potentially emotional content
+        stress_indicators = [
+            '担心', '害怕', '愤怒', '沮丧', '焦虑', '紧张', '压力', '困难', '问题',
+            'worry', 'afraid', 'angry', 'frustrated', 'anxious', 'stress', 'problem'
+        ]
+
+        # Also analyze longer inputs (might contain complex emotions)
+        return (any(indicator in user_input.lower() for indicator in stress_indicators) or
+                len(user_input) > 50)
     
     async def _create_primary_agent_task(self, agent_id: str, user_input: str, context: Dict) -> Dict[str, Any]:
         """Create appropriate task for primary agent"""
@@ -939,23 +1091,380 @@ class BrainInspiredCoordinator:
         # Default: return empty result
         return {'default_activation': True}
     
-    def _should_store_memory(self, user_input: str, context: Dict) -> bool:
-        """Determine if input should be stored as memory"""
-        # Don't store very short inputs
-        if len(user_input.strip()) < 5:
+    def _should_consider_long_term(self, user_input: str, context: Dict) -> bool:
+        """Decide whether the conversation should be evaluated for long-term storage."""
+        cleaned = user_input.strip()
+        if len(cleaned) < 5:
             return False
-        
-        # 放宽过滤条件：只过滤纯粹的单词问候语
+
         simple_greetings = ['hi', 'hello', 'bye', '谢谢', '再见']
-        if user_input.lower().strip() in simple_greetings:
+        if cleaned.lower() in simple_greetings:
             return False
-        
-        # 包含"记住"、"记录"等关键词的一定要存储
-        memory_keywords = ['记住', '记录', '保存', '记下', 'remember', 'save', 'store']
-        if any(keyword in user_input.lower() for keyword in memory_keywords):
+
+        # Explicit memory intents always qualify
+        if self._has_explicit_memory_request(cleaned):
             return True
-        
-        return True
+
+        # Prefer storing if the input carries descriptive content beyond trivial chat
+        descriptive_tokens = len([w for w in cleaned.split() if len(w) > 2])
+        if descriptive_tokens >= 4:
+            return True
+
+        # Fall back to context or routing decisions (e.g. preference flag) if provided
+        if context.get('retrieved_memories') or context.get('persona_memories_used'):
+            return True
+
+        return False
+
+    def _has_explicit_memory_request(self, user_input: str) -> bool:
+        """Detect whether user explicitly asks the system to remember information."""
+        memory_keywords = ['记住', '记录', '保存', '记下', '牢记', 'remember', 'save', 'store']
+        lowered = user_input.lower()
+        return any(keyword in lowered for keyword in memory_keywords)
+
+    async def _store_short_term_memory_snapshot(self, user_input: str, assistant_response: str, context: Dict) -> None:
+        """Persist the latest exchange in short-term structures without blocking."""
+        snapshot = {
+            'user_input': user_input,
+            'assistant_response': assistant_response,
+            'timestamp': datetime.now().isoformat()
+        }
+
+        try:
+            await self._activate_agent(
+                'short_term_memory',
+                AgentMessage(
+                    sender='coordinator',
+                    receiver='short_term_memory',
+                    message_type='request',
+                    content={
+                        'action': 'store_short_term',
+                        'item': {
+                            'content': f"用户: {user_input}\n助手: {assistant_response}",
+                            'modality': 'verbal'
+                        }
+                    }
+                )
+            )
+        except Exception as exc:
+            logger.warning(f"Unable to update short-term memory agent: {exc}")
+
+        try:
+            # Apply buffer size limits
+            buffer_content = await agent_buffer_system.read_buffer('short_term_memory')
+            recent_conversations = buffer_content.get('recent_conversations', [])
+
+            # Limit buffer size according to settings
+            max_items = self.settings.max_short_term_buffer_size // 500  # ~500 chars per conversation
+            if len(recent_conversations) >= max_items:
+                # Keep only the most recent items
+                recent_conversations = recent_conversations[-(max_items-1):]
+
+            # Add new conversation
+            recent_conversations.append({
+                'snapshot': snapshot,
+                'context_tags': context.get('context_tags', []),
+                'timestamp': snapshot['timestamp']
+            })
+
+            await agent_buffer_system.write_buffer(
+                'short_term_memory',
+                'recent_conversations',
+                recent_conversations
+            )
+
+        except Exception as exc:
+            logger.debug(f"Failed to persist short-term snapshot buffer: {exc}")
+
+    async def _handle_chunked_text_storage(
+        self,
+        encoded_input: Dict[str, Any],
+        user_input: str,
+        assistant_response: str,
+        context: Dict[str, Any]
+    ) -> None:
+        """Handle storage of chunked long text"""
+        segments = encoded_input.get('segments', [])
+        overview = encoded_input.get('overview', {})
+
+        logger.info(f"Handling chunked text storage: {len(segments)} segments")
+
+        # Store overview in short-term memory
+        try:
+            await self._activate_agent(
+                'short_term_memory',
+                AgentMessage(
+                    sender='coordinator',
+                    receiver='short_term_memory',
+                    message_type='request',
+                    content={
+                        'action': 'store_short_term',
+                        'item': {
+                            'content': f"Long text overview: {overview.get('theme', 'N/A')}",
+                            'type': 'text_overview',
+                            'metadata': overview
+                        }
+                    }
+                )
+            )
+        except Exception as e:
+            logger.warning(f"Failed to store text overview: {e}")
+
+        # Check for explicit memory request
+        if self._has_explicit_memory_request(user_input):
+            # Store ALL segments immediately for explicit requests, using batched approach
+            storage_priority = overview.get('storage_priority', 'medium')
+
+            if storage_priority in ['high', 'medium']:
+                # Store segments in batches to avoid overwhelming the system
+                await self._store_all_segments_batched(segments, overview, immediate=True)
+        else:
+            # Queue ALL segments for background consolidation
+            await self._queue_all_segments_for_consolidation(segments, overview)
+
+    async def _store_all_segments_batched(
+        self,
+        segments: List[Dict],
+        overview: Dict,
+        immediate: bool = False
+    ) -> None:
+        """Store all segments using batched approach with overflow handling"""
+        max_segments = self.settings.max_segments_immediate if immediate else self.settings.max_segments_background
+
+        if len(segments) > max_segments:
+            logger.warning(f"Large text with {len(segments)} segments exceeds limit of {max_segments}")
+
+            # Handle overflow
+            if self.settings.enable_segment_serialization:
+                await self._handle_segment_overflow(segments[max_segments:], overview)
+            else:
+                logger.warning(f"Truncating to {max_segments} segments - {len(segments) - max_segments} segments will be lost")
+
+            # Process only up to the limit
+            segments = segments[:max_segments]
+
+        batch_size = 3  # Process 3 segments at a time
+        total_stored = 0
+
+        logger.info(f"Storing {len(segments)} segments in batches of {batch_size}")
+
+        for i in range(0, len(segments), batch_size):
+            batch = segments[i:i + batch_size]
+
+            for seg in batch:
+                try:
+                    importance = 0.7 if immediate else 0.5
+                    # Reduce importance for later segments to maintain priority
+                    if seg['index'] > 10:
+                        importance *= 0.8
+
+                    await memory_system.store_memory(
+                        content=seg['summary'],
+                        memory_type='episodic',
+                        importance=importance,
+                        context_tags=['chunked_text', 'segment', 'complete_set'],
+                        metadata={
+                            'segment_index': seg['index'],
+                            'total_segments': len(segments),
+                            'batch_number': i // batch_size + 1,
+                            'keywords': seg.get('keywords', []),
+                            'parent_overview': overview.get('theme', ''),
+                            'processing_method': seg.get('processing_method', 'local'),
+                            'stored_at': datetime.now().isoformat()
+                        }
+                    )
+                    total_stored += 1
+
+                except Exception as e:
+                    logger.error(f"Failed to store segment {seg['index']}: {e}")
+                    # Don't break the loop - continue with other segments
+
+            # Small delay between batches to avoid overwhelming the system
+            if i + batch_size < len(segments):
+                await asyncio.sleep(0.1)
+
+        logger.info(f"Batch storage completed: {total_stored}/{len(segments)} segments stored")
+
+    async def _handle_segment_overflow(self, overflow_segments: List[Dict], overview: Dict) -> None:
+        """Handle segments that exceed the storage limit by serializing to disk"""
+        try:
+            import json
+            from pathlib import Path
+
+            # Create overflow directory
+            overflow_dir = Path("data/segment_overflow")
+            overflow_dir.mkdir(parents=True, exist_ok=True)
+
+            # Generate unique filename
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            theme_key = overview.get('theme', 'unknown')[:20].replace(' ', '_')
+            filename = f"overflow_{theme_key}_{timestamp}.json"
+            filepath = overflow_dir / filename
+
+            # Serialize overflow segments
+            overflow_data = {
+                'overview': overview,
+                'total_overflow_segments': len(overflow_segments),
+                'segments': [
+                    {
+                        'index': seg['index'],
+                        'summary': seg['summary'],
+                        'keywords': seg.get('keywords', []),
+                        'token_count': seg['token_count'],
+                        'processing_method': seg.get('processing_method', 'local')
+                    }
+                    for seg in overflow_segments
+                ],
+                'serialized_at': datetime.now().isoformat(),
+                'note': 'These segments exceeded immediate storage limits and were serialized for later processing'
+            }
+
+            with open(filepath, 'w', encoding='utf-8') as f:
+                json.dump(overflow_data, f, ensure_ascii=False, indent=2)
+
+            logger.info(f"Serialized {len(overflow_segments)} overflow segments to {filepath}")
+
+            # Create a reference memory to the serialized file
+            await memory_system.store_memory(
+                content=f"Large text overflow: {len(overflow_segments)} additional segments saved to disk",
+                memory_type='procedural',
+                importance=0.4,
+                context_tags=['overflow', 'serialized', 'reference'],
+                metadata={
+                    'overflow_file': str(filepath),
+                    'overflow_count': len(overflow_segments),
+                    'parent_theme': overview.get('theme', ''),
+                    'serialization_method': 'disk_storage',
+                    'can_be_loaded': True
+                }
+            )
+
+        except Exception as e:
+            logger.error(f"Failed to serialize overflow segments: {e}")
+            # At least log the overflow for manual recovery
+            logger.warning(f"LOST SEGMENTS: {len(overflow_segments)} segments from '{overview.get('theme', 'unknown')}' could not be stored or serialized")
+
+    async def _queue_all_segments_for_consolidation(
+        self,
+        segments: List[Dict],
+        overview: Dict
+    ) -> None:
+        """Queue ALL segments for background consolidation with intelligent batching"""
+        # Instead of limiting segments, create multiple queue entries for large texts
+        batch_size = 5
+        batch_count = 0
+
+        for i in range(0, len(segments), batch_size):
+            batch = segments[i:i + batch_size]
+            batch_count += 1
+
+            consolidation_data = {
+                'type': 'chunked_text_batch',
+                'overview': overview,
+                'total_segments': len(segments),
+                'batch_number': batch_count,
+                'batch_start_index': i,
+                'segments': [
+                    {
+                        'index': seg['index'],
+                        'summary': seg['summary'],
+                        'keywords': seg.get('keywords', []),
+                        'token_count': seg['token_count'],
+                        'processing_method': seg.get('processing_method', 'local')
+                    }
+                    for seg in batch
+                ],
+                'queued_at': datetime.now().isoformat()
+            }
+
+            try:
+                await agent_buffer_system.write_buffer(
+                    'consolidation',
+                    'chunked_text_queue',
+                    consolidation_data,
+                    append=True
+                )
+
+            except Exception as e:
+                logger.warning(f"Failed to queue batch {batch_count}: {e}")
+
+        logger.info(f"Queued {len(segments)} segments in {batch_count} batches")
+
+        # Apply intelligent queue management
+        await self._manage_consolidation_queue_size()
+
+    async def _manage_consolidation_queue_size(self) -> None:
+        """Intelligently manage queue size with prioritized eviction"""
+        try:
+            buffer_content = await agent_buffer_system.read_buffer('consolidation')
+            queue = buffer_content.get('chunked_text_queue', [])
+
+            max_queue_size = 20  # Allow more items but still cap it
+
+            if len(queue) > max_queue_size:
+                # Sort by priority: recent items and high-priority overviews first
+                def get_priority(item):
+                    overview = item.get('overview', {})
+                    priority = overview.get('storage_priority', 'low')
+                    queued_time = item.get('queued_at', '')
+
+                    priority_score = {'high': 3, 'medium': 2, 'low': 1}.get(priority, 1)
+                    # Recent items get slight boost
+                    time_score = 1 if queued_time else 0
+
+                    return priority_score + time_score
+
+                # Keep highest priority items
+                sorted_queue = sorted(queue, key=get_priority, reverse=True)
+                kept_queue = sorted_queue[:max_queue_size]
+
+                await agent_buffer_system.write_buffer(
+                    'consolidation',
+                    'chunked_text_queue',
+                    kept_queue
+                )
+
+                evicted_count = len(queue) - len(kept_queue)
+                logger.info(f"Queue management: kept {len(kept_queue)}, evicted {evicted_count} low-priority items")
+
+        except Exception as e:
+            logger.warning(f"Queue management failed: {e}")
+
+    async def _queue_chunked_segments_for_consolidation(
+        self,
+        segments: List[Dict],
+        overview: Dict
+    ) -> None:
+        """Legacy method - redirect to new implementation"""
+        await self._queue_all_segments_for_consolidation(segments, overview)
+
+    async def _queue_memory_candidate(
+        self,
+        user_input: str,
+        assistant_response: str,
+        importance: float,
+        emotion_tags: List[str],
+        threat_info: Dict
+    ) -> None:
+        """Queue conversation as long-term candidate for consolidation agents."""
+        candidate = {
+            'user_input': user_input,
+            'assistant_response': assistant_response,
+            'importance': importance,
+            'emotion_tags': emotion_tags,
+            'threat_score': threat_info.get('threat_score'),
+            'queued_at': datetime.now().isoformat()
+        }
+
+        try:
+            await agent_buffer_system.write_buffer(
+                'consolidation',
+                'pending_candidates',
+                candidate,
+                append=True
+            )
+        except Exception as exc:
+            logger.debug(f"Failed to queue memory candidate: {exc}")
     
     def _calculate_importance(self, user_input: str, threat_info: Dict, memories: List) -> float:
         """Calculate memory importance score"""
@@ -1038,7 +1547,7 @@ class BrainInspiredCoordinator:
         try:
             # 轮流执行不同的遗忘任务
             request_count = self.processing_stats['total_requests']
-            
+
             if request_count % 10 == 0:
                 # 每10次请求执行一次选择性遗忘
                 action = 'selective_forgetting'
@@ -1059,7 +1568,7 @@ class BrainInspiredCoordinator:
                 # 其他时候应用被动遗忘曲线
                 action = 'passive_decay'
                 content = {'action': action}
-            
+
             await self._activate_agent(
                 'forgetting',
                 AgentMessage(
@@ -1071,6 +1580,21 @@ class BrainInspiredCoordinator:
             )
         except Exception as e:
             logger.error(f"Background forgetting error: {e}")
+
+    async def _trigger_chunked_queue_processing(self):
+        """Trigger processing of queued chunked text segments"""
+        try:
+            await self._activate_agent(
+                'consolidation',
+                AgentMessage(
+                    sender='coordinator',
+                    receiver='consolidation',
+                    message_type='request',
+                    content={'action': 'process_chunked_queue'}
+                )
+            )
+        except Exception as e:
+            logger.error(f"Chunked queue processing error: {e}")
     
     async def _process_message_bus(self):
         """Process inter-agent messages"""

@@ -140,6 +140,15 @@ class SystemSettings:
     max_faiss_vectors: int
     faiss_compaction_frequency: int
     fallback_cache_size: int
+    memory_storage_timeout: float
+    llm_call_timeout: float
+    max_chunk_tokens: int
+    max_input_tokens: int
+    chunk_overlap_tokens: int
+    max_short_term_buffer_size: int
+    max_segments_immediate: int
+    max_segments_background: int
+    enable_segment_serialization: bool
 
 
 @lru_cache(maxsize=1)
@@ -153,4 +162,13 @@ def get_settings() -> SystemSettings:
         max_faiss_vectors=int(get_env("MAX_FAISS_VECTORS", "5000")),
         faiss_compaction_frequency=int(get_env("FAISS_COMPACTION_FREQUENCY", "50")),
         fallback_cache_size=int(get_env("FALLBACK_CACHE_SIZE", "50")),
+        memory_storage_timeout=float(get_env("MEMORY_STORAGE_TIMEOUT", "8.0")),
+        llm_call_timeout=float(get_env("LLM_CALL_TIMEOUT", "20.0")),
+        max_chunk_tokens=int(get_env("MAX_CHUNK_TOKENS", "2000")),
+        max_input_tokens=int(get_env("MAX_INPUT_TOKENS", "8000")),
+        chunk_overlap_tokens=int(get_env("CHUNK_OVERLAP_TOKENS", "100")),
+        max_short_term_buffer_size=int(get_env("MAX_SHORT_TERM_BUFFER_SIZE", "10000")),
+        max_segments_immediate=int(get_env("MAX_SEGMENTS_IMMEDIATE", "50")),
+        max_segments_background=int(get_env("MAX_SEGMENTS_BACKGROUND", "100")),
+        enable_segment_serialization=get_env("ENABLE_SEGMENT_SERIALIZATION", "true").lower() == "true",
     )

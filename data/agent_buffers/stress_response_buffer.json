@@ -12,46 +12,6 @@
         "message": {
           "action": "threat_detection",
           "stimulus": {
-            "content": "What kind of game did John have a career-high in assists in?"
-          }
-        },
-        "timestamp": "2025-09-23T09:53:19.548892",
-        "sender": "coordinator"
-      },
-      {
-        "message": {
-          "action": "threat_detection",
-          "stimulus": {
-            "content": "What was John's way of dealing with doubts and stress when he was younger?"
-          }
-        },
-        "timestamp": "2025-09-23T09:53:43.378108",
-        "sender": "coordinator"
-      },
-      {
-        "message": {
-          "action": "threat_detection",
-          "stimulus": {
-            "content": "How did John feel about the atmosphere during the big game against the rival team?"
-          }
-        },
-        "timestamp": "2025-09-23T09:54:15.267009",
-        "sender": "coordinator"
-      },
-      {
-        "message": {
-          "action": "threat_detection",
-          "stimulus": {
-            "content": "How did John feel after being able to jog without pain?"
-          }
-        },
-        "timestamp": "2025-09-23T09:54:47.806470",
-        "sender": "coordinator"
-      },
-      {
-        "message": {
-          "action": "threat_detection",
-          "stimulus": {
             "content": "What kind of deal did John get in December?"
           }
         },
@@ -1007,173 +967,49 @@
         },
         "timestamp": "2025-09-28T15:27:44.791061",
         "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "threat_detection",
+          "stimulus": {
+            "content": "请记住我喜欢喝绿茶，每天下午3点左右。"
+          }
+        },
+        "timestamp": "2025-09-29T09:11:23.049495",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "threat_detection",
+          "stimulus": {
+            "content": "我刚才说我什么时候喝什么茶？"
+          }
+        },
+        "timestamp": "2025-09-29T09:11:40.419746",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "threat_detection",
+          "stimulus": {
+            "content": "基于我的偏好，推荐一些适合下午的饮品。"
+          }
+        },
+        "timestamp": "2025-09-29T09:12:25.601432",
+        "sender": "coordinator"
+      },
+      {
+        "message": {
+          "action": "threat_detection",
+          "stimulus": {
+            "content": "今天感觉有点焦虑，工作压力很大。"
+          }
+        },
+        "timestamp": "2025-09-29T13:09:44.357656",
+        "sender": "coordinator"
       }
     ],
     "recent_outputs": [
-      {
-        "result": {
-          "threat_detected": false,
-          "threat_score": 0.075,
-          "threat_level": "minimal",
-          "response_type": "normal_processing",
-          "threat_analysis": {
-            "keyword_threats": {
-              "detected_keywords": {},
-              "max_threat_score": 0.0,
-              "total_keywords": 0
-            },
-            "contextual_threats": {
-              "contextual_indicators": {},
-              "contextual_threat_score": 0.0
-            },
-            "pattern_threats": {
-              "pattern_analysis": "⚠️ API异常: TimeoutError: ",
-              "pattern_threat_score": 0.3
-            },
-            "emotional_threats": {
-              "emotional_indicators": {},
-              "emotional_threat_score": 0.0
-            },
-            "temporal_threats": {
-              "temporal_indicators": {},
-              "temporal_threat_score": 0.0
-            }
-          },
-          "stress_level_before": 0.1,
-          "stress_level_after": 0.1,
-          "emotional_state": {
-            "valence": 0.0,
-            "arousal": 0.3,
-            "dominance": 0.5
-          },
-          "recommended_action": "Normal processing - no special action needed"
-        },
-        "timestamp": "2025-09-23T09:53:19.556741",
-        "processing_success": true
-      },
-      {
-        "result": {
-          "threat_detected": false,
-          "threat_score": 0.075,
-          "threat_level": "minimal",
-          "response_type": "normal_processing",
-          "threat_analysis": {
-            "keyword_threats": {
-              "detected_keywords": {},
-              "max_threat_score": 0.0,
-              "total_keywords": 0
-            },
-            "contextual_threats": {
-              "contextual_indicators": {},
-              "contextual_threat_score": 0.0
-            },
-            "pattern_threats": {
-              "pattern_analysis": "⚠️ API异常: TimeoutError: ",
-              "pattern_threat_score": 0.3
-            },
-            "emotional_threats": {
-              "emotional_indicators": {},
-              "emotional_threat_score": 0.0
-            },
-            "temporal_threats": {
-              "temporal_indicators": {},
-              "temporal_threat_score": 0.0
-            }
-          },
-          "stress_level_before": 0.1,
-          "stress_level_after": 0.1,
-          "emotional_state": {
-            "valence": 0.0,
-            "arousal": 0.3,
-            "dominance": 0.5
-          },
-          "recommended_action": "Normal processing - no special action needed"
-        },
-        "timestamp": "2025-09-23T09:53:43.382646",
-        "processing_success": true
-      },
-      {
-        "result": {
-          "threat_detected": false,
-          "threat_score": 0.0,
-          "threat_level": "minimal",
-          "response_type": "normal_processing",
-          "threat_analysis": {
-            "keyword_threats": {
-              "detected_keywords": {},
-              "max_threat_score": 0.0,
-              "total_keywords": 0
-            },
-            "contextual_threats": {
-              "contextual_indicators": {},
-              "contextual_threat_score": 0.0
-            },
-            "pattern_threats": {
-              "pattern_analysis": "Based on the content provided, there are no explicit threats, dangers, or concerning patterns present. The inquiry focuses on an individual's feelings about an atmosphere during a sporting event, which is generally a neutral or positive context. \n\nRating: 0.0",
-              "pattern_threat_score": 0.0
-            },
-            "emotional_threats": {
-              "emotional_indicators": {},
-              "emotional_threat_score": 0.0
-            },
-            "temporal_threats": {
-              "temporal_indicators": {},
-              "temporal_threat_score": 0.0
-            }
-          },
-          "stress_level_before": 0.1,
-          "stress_level_after": 0.1,
-          "emotional_state": {
-            "valence": 0.0,
-            "arousal": 0.3,
-            "dominance": 0.5
-          },
-          "recommended_action": "Normal processing - no special action needed"
-        },
-        "timestamp": "2025-09-23T09:54:15.272187",
-        "processing_success": true
-      },
-      {
-        "result": {
-          "threat_detected": false,
-          "threat_score": 0.075,
-          "threat_level": "minimal",
-          "response_type": "normal_processing",
-          "threat_analysis": {
-            "keyword_threats": {
-              "detected_keywords": {},
-              "max_threat_score": 0.0,
-              "total_keywords": 0
-            },
-            "contextual_threats": {
-              "contextual_indicators": {},
-              "contextual_threat_score": 0.0
-            },
-            "pattern_threats": {
-              "pattern_analysis": "⚠️ API异常: TimeoutError: ",
-              "pattern_threat_score": 0.3
-            },
-            "emotional_threats": {
-              "emotional_indicators": {},
-              "emotional_threat_score": 0.0
-            },
-            "temporal_threats": {
-              "temporal_indicators": {},
-              "temporal_threat_score": 0.0
-            }
-          },
-          "stress_level_before": 0.1,
-          "stress_level_after": 0.1,
-          "emotional_state": {
-            "valence": 0.0,
-            "arousal": 0.3,
-            "dominance": 0.5
-          },
-          "recommended_action": "Normal processing - no special action needed"
-        },
-        "timestamp": "2025-09-23T09:54:47.819774",
-        "processing_success": true
-      },
       {
         "result": {
           "threat_detected": false,
@@ -5109,13 +4945,177 @@
         },
         "timestamp": "2025-09-28T15:27:44.804430",
         "processing_success": true
+      },
+      {
+        "result": {
+          "threat_detected": false,
+          "threat_score": 0.0,
+          "threat_level": "minimal",
+          "response_type": "normal_processing",
+          "threat_analysis": {
+            "keyword_threats": {
+              "detected_keywords": {},
+              "max_threat_score": 0.0,
+              "total_keywords": 0
+            },
+            "contextual_threats": {
+              "contextual_indicators": {},
+              "contextual_threat_score": 0.0
+            },
+            "pattern_threats": {
+              "pattern_analysis": "The content provided does not contain any explicit threats, dangers, or concerning patterns. It simply expresses a personal preference for drinking green tea at a specific time. Therefore, I would rate this content as 0.",
+              "pattern_threat_score": 0.0
+            },
+            "emotional_threats": {
+              "emotional_indicators": {},
+              "emotional_threat_score": 0.0
+            },
+            "temporal_threats": {
+              "temporal_indicators": {},
+              "temporal_threat_score": 0.0
+            }
+          },
+          "stress_level_before": 0.3,
+          "stress_level_after": 0.294,
+          "emotional_state": {
+            "valence": 0.0,
+            "arousal": 0.3,
+            "dominance": 0.5
+          },
+          "recommended_action": "Normal processing - no special action needed"
+        },
+        "timestamp": "2025-09-29T09:11:23.060881",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "threat_detected": false,
+          "threat_score": 0.0,
+          "threat_level": "minimal",
+          "response_type": "normal_processing",
+          "threat_analysis": {
+            "keyword_threats": {
+              "detected_keywords": {},
+              "max_threat_score": 0.0,
+              "total_keywords": 0
+            },
+            "contextual_threats": {
+              "contextual_indicators": {},
+              "contextual_threat_score": 0.0
+            },
+            "pattern_threats": {
+              "pattern_analysis": "The content provided is a simple question in Chinese asking about when the speaker drinks tea. There are no apparent threats, dangers, or concerning patterns in this statement. \n\nRating: 0.0",
+              "pattern_threat_score": 0.0
+            },
+            "emotional_threats": {
+              "emotional_indicators": {},
+              "emotional_threat_score": 0.0
+            },
+            "temporal_threats": {
+              "temporal_indicators": {},
+              "temporal_threat_score": 0.0
+            }
+          },
+          "stress_level_before": 0.294,
+          "stress_level_after": 0.28812,
+          "emotional_state": {
+            "valence": 0.0,
+            "arousal": 0.3,
+            "dominance": 0.5
+          },
+          "recommended_action": "Normal processing - no special action needed"
+        },
+        "timestamp": "2025-09-29T09:11:40.432672",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "threat_detected": false,
+          "threat_score": 0.0,
+          "threat_level": "minimal",
+          "response_type": "normal_processing",
+          "threat_analysis": {
+            "keyword_threats": {
+              "detected_keywords": {},
+              "max_threat_score": 0.0,
+              "total_keywords": 0
+            },
+            "contextual_threats": {
+              "contextual_indicators": {},
+              "contextual_threat_score": 0.0
+            },
+            "pattern_threats": {
+              "pattern_analysis": "The content provided is a request for drink recommendations based on personal preferences for the afternoon. There are no identifiable threats, dangers, or concerning patterns in this input. \n\nRating: 0",
+              "pattern_threat_score": 0.0
+            },
+            "emotional_threats": {
+              "emotional_indicators": {},
+              "emotional_threat_score": 0.0
+            },
+            "temporal_threats": {
+              "temporal_indicators": {},
+              "temporal_threat_score": 0.0
+            }
+          },
+          "stress_level_before": 0.28812,
+          "stress_level_after": 0.2823576,
+          "emotional_state": {
+            "valence": 0.0,
+            "arousal": 0.3,
+            "dominance": 0.5
+          },
+          "recommended_action": "Normal processing - no special action needed"
+        },
+        "timestamp": "2025-09-29T09:12:25.615647",
+        "processing_success": true
+      },
+      {
+        "result": {
+          "threat_detected": false,
+          "threat_score": 0.075,
+          "threat_level": "minimal",
+          "response_type": "normal_processing",
+          "threat_analysis": {
+            "keyword_threats": {
+              "detected_keywords": {},
+              "max_threat_score": 0.0,
+              "total_keywords": 0
+            },
+            "contextual_threats": {
+              "contextual_indicators": {},
+              "contextual_threat_score": 0.0
+            },
+            "pattern_threats": {
+              "pattern_analysis": "⚠️ API异常: TimeoutError: ",
+              "pattern_threat_score": 0.3
+            },
+            "emotional_threats": {
+              "emotional_indicators": {},
+              "emotional_threat_score": 0.0
+            },
+            "temporal_threats": {
+              "temporal_indicators": {},
+              "temporal_threat_score": 0.0
+            }
+          },
+          "stress_level_before": 0.3,
+          "stress_level_after": 0.294,
+          "emotional_state": {
+            "valence": 0.0,
+            "arousal": 0.3,
+            "dominance": 0.5
+          },
+          "recommended_action": "Normal processing - no special action needed"
+        },
+        "timestamp": "2025-09-29T13:09:44.376961",
+        "processing_success": true
       }
     ],
     "recent_exchanges": []
   },
   "metadata": {
     "created_at": "2025-09-18T15:48:39.206758",
-    "last_updated": "2025-09-28T15:27:44.814310",
+    "last_updated": "2025-09-29T13:09:44.391104",
     "version": "1.0"
   }
 }

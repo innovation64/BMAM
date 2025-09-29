@@ -133,18 +133,21 @@ class BrainAgent(ABC):
                     actual_max_tokens = max_tokens if max_tokens is not None else int(get_env("MAX_TOKENS", "1500"))
                     actual_temperature = temperature if temperature is not None else float(get_env("TEMPERATURE", "0.7"))
                     
-                    # Apply timeout override for quick_fail mode
+                    # Apply timeout for all LLM calls with configurable limits
                     llm_call = client.chat.completions.create(
                         model=self.model,
                         messages=messages,
                         max_tokens=actual_max_tokens,
                         temperature=actual_temperature
                     )
-                    
+
+                    # Use specific timeout for quick_fail or global timeout for normal calls
                     if timeout_override:
                         response = await asyncio.wait_for(llm_call, timeout=timeout_override)
                     else:
-                        response = await llm_call
+                        from ..utils.config import get_settings
+                        settings = get_settings()
+                        response = await asyncio.wait_for(llm_call, timeout=settings.llm_call_timeout)
                     
                     result = response.choices[0].message.content.strip()
                     self.log_execution("LLM call success", {
