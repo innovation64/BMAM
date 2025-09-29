@@ -66,3 +66,15 @@ temp/
 *.pth
 *.h5
 checkpoints/
+
+# Data files that should not be tracked
+data/embedding_cache/
+data/memory_vectors.index
+data/memory_vectors_mappings.json
+
+# Large texture files
+src/ui/static/models/**/*.png
+src/ui/static/models/**/*.jpg
+
+# Large log files
+bmam.log
