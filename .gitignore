@@ -68,9 +68,9 @@ temp/
 checkpoints/
 
 # Data files that should not be tracked
-data/embedding_cache/
-data/memory_vectors.index
-data/memory_vectors_mappings.json
+/data/embedding_cache/
+/data/memory_vectors.index
+/data/memory_vectors_mappings.json
 
 # Large texture files
 src/ui/static/models/**/*.png
@@ -78,3 +78,9 @@ src/ui/static/models/**/*.jpg
 
 # Large log files
 bmam.log
+# Ignore runtime caches and DB files
+/data/embedding_cache/embeddings.json
+/data/brain_memory.db
+/data/agent_buffers/
+/data/brain/connection_matrix.json
+/data/brain/synaptic_plasticity.json
