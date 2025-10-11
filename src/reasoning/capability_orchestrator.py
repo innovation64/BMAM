@@ -916,8 +916,9 @@ Guidelines:
 2. For "What fields would X pursue?" questions → prefer GENERAL interest inferences
 3. For "What specific area?" questions → prefer SPECIFIC single answers over broad lists
 4. For "Why?" questions → prefer CAUSAL reasoning over descriptions
-5. For "When?" questions → prefer DATES over durations
-6. Shorter, more direct answers are usually better than verbose explanations
+5. For "When?" or "What date?" questions → **ALWAYS prefer temporal_calculation over other capabilities** (even if it shows duration/calculation, it's more relevant than facts)
+6. Temporal answers (dates, times, durations) should be prioritized for time-related questions
+7. Shorter, more direct answers are usually better than verbose explanations
 
 Respond with ONLY the number (1, 2, 3, etc.) of the best candidate.
 """

@@ -332,9 +332,9 @@ Question: {query}
 Available Evidence (organized by brain regions):
 {memories_text}
 
-Task: {"Calculate DURATION between two dates/events" if is_duration_query else "Calculate absolute date from relative time references"} using CROSS-MEMORY reasoning.
+Task: {"Calculate DURATION between two dates/events" if is_duration_query else "Calculate ABSOLUTE DATE from relative time references"} using CROSS-MEMORY reasoning.
 
-{'🔥 DURATION CALCULATION MODE:' if is_duration_query else '🔥 DATE CALCULATION MODE:'}
+{'🔥 DURATION CALCULATION MODE:' if is_duration_query else '🔥 DATE CALCULATION MODE - MUST RETURN ABSOLUTE DATE (e.g., \"7 May 2023\"), NOT RELATIVE TIME!'}
 
 {'Step 1 - Identify Time Points:' if is_duration_query else 'Step 1 - Find Conversation Date (查询海马体):'}
 {'''Look for TWO time references:
@@ -389,7 +389,7 @@ Output JSON only:
     "relative_time": "extracted relative expression or null",
     "calculated_date": "calculated absolute date{' or null if duration query' if is_duration_query else ''}",
     "duration": "{('extracted or calculated duration (e.g., \'4 years\')' if is_duration_query else 'null')}",
-    "answer": "final answer in requested format ({('duration like \'4 years\'' if is_duration_query else 'date')})",
+    "answer": "final answer in requested format ({('duration like \'4 years\' or \'17 days\'' if is_duration_query else 'ABSOLUTE DATE like \'7 May 2023\' (NOT \'yesterday\' or \'-1 day\')')})",
     "confidence": 0.0-1.0,
     "reasoning_chain": ["Memory A: ...", "Memory B: ...", "calculated: ..."],
     "calculation_steps": "detailed cross-memory calculation",
@@ -404,12 +404,33 @@ Output JSON only:
                 temperature=0.1,
                 max_tokens=500
             )
+            # 提取JSON内容
             if '```json' in content:
                 content = content.split('```json')[1].split('```')[0].strip()
             elif '```' in content:
                 content = content.split('```')[1].split('```')[0].strip()
 
-            result = json.loads(content)
+            # 尝试解析JSON，处理格式错误
+            try:
+                result = json.loads(content)
+            except json.JSONDecodeError as e:
+                logger.warning(f"JSON parsing failed: {e}, attempting to fix...")
+                # 尝试修复常见的JSON问题
+                content = content.replace(',}', '}').replace(',]', ']')
+                last_brace = content.rfind('}')
+                if last_brace > 0:
+                    content = content[:last_brace+1]
+                try:
+                    result = json.loads(content)
+                    logger.info("✅ JSON fixed and parsed successfully")
+                except:
+                    logger.error(f"Cannot parse JSON, using fallback")
+                    result = {
+                        'answer': 'Unable to determine',
+                        'reasoning': 'JSON parsing error',
+                        'confidence': 0.3,
+                        'reasoning_chain': []
+                    }
 
             if is_duration_query:
                 result = await self._enforce_duration_answer(

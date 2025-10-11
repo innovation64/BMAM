@@ -368,15 +368,17 @@ WRONG Answer: "8 May 2023" ❌"""
 
         # 检测查询意图类型
         query_patterns = {
-            'recall': ['什么时候', '哪里', '谁', '怎么', '为什么', '多少', '几点', '是否', '有没有', '刚才', '之前'],
+            'temporal': ['when', 'what date', 'what time', '什么时候', '几点', '哪天', '何时'],  # 🔥 新增时间查询检测
+            'recall': ['哪里', '谁', '怎么', '为什么', '多少', '是否', '有没有', '刚才', '之前'],
             'preference': ['喜欢', '偏好', '习惯', '通常', '一般', '经常', '基于我的', '根据我的', '我的兴趣'],
             'recommendation': ['推荐', '建议', '介绍', '适合', '有什么'],
             'factual': ['是什么', '叫什么', '在哪', '几个']
         }
 
         query_intent = None
+        user_input_lower = user_input.lower()
         for intent, patterns in query_patterns.items():
-            if any(pattern in user_input for pattern in patterns):
+            if any(pattern in user_input_lower for pattern in patterns):
                 query_intent = intent
                 break
 
@@ -484,6 +486,27 @@ WRONG Answer: "8 May 2023" ❌"""
                     if item not in relevant:
                         relevant.append(item)
                         logger.info(f"🔍 Forcibly included LGBTQ-related memory for identity question: {item['content'][:60]}...")
+
+        # 🔥 NEW: For temporal questions, use query intent matching to boost/demote memories
+        if query_intent == 'temporal':
+            # 时间查询: 优先包含时间信息的记忆,降低仅包含身份信息的记忆权重
+            for item in relevant:
+                content = item['content']
+                content_lower = content.lower()
+
+                # Boost: 包含时间相关词汇的记忆
+                temporal_indicators = ['may', 'june', 'july', 'august', 'yesterday', 'today', 'on', 'at', '2023', '2024', 'date']
+                has_temporal_info = any(indicator in content_lower for indicator in temporal_indicators)
+                if has_temporal_info:
+                    item['score'] += WEIGHTS.get('query_intent_bonus', 3.0)
+                    logger.debug(f"📅 Boosted temporal memory: {content[:60]}...")
+
+                # Demote: 仅包含身份信息但无时间信息的记忆
+                identity_indicators = ['transgender', 'identity', 'who is', 'what is']
+                has_identity_only = any(ind in content_lower for ind in identity_indicators) and not has_temporal_info
+                if has_identity_only:
+                    item['score'] -= WEIGHTS.get('keyword_match', 1.0)
+                    logger.debug(f"⬇️ Demoted identity-only memory for temporal query: {content[:60]}...")
 
         # 按相关性排序，返回前5条（增加返回数量以提供更多上下文）
         relevant.sort(key=lambda x: x['score'], reverse=True)
