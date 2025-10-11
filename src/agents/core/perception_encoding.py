@@ -47,8 +47,51 @@ Your role is to:
             return await self._analyze_chunks(message.content['chunks'])
         elif action == 'generate_overview':
             return await self._generate_overview(message.content['segments'])
+        elif action == 'detect_language':
+            return await self._detect_language(message.content['user_input'])
 
         return {'error': f'Unknown action: {action}'}
+
+    async def _detect_language(self, user_input: str) -> Dict[str, Any]:
+        """检测用户输入的语言
+
+        Args:
+            user_input: 用户输入文本
+
+        Returns:
+            {
+                'language': 'zh' | 'en',
+                'confidence': float,
+                'chinese_ratio': float
+            }
+        """
+        if not user_input or not user_input.strip():
+            return {'language': 'en', 'confidence': 0.5, 'chinese_ratio': 0.0}
+
+        # 统计中文字符
+        chinese_chars = sum(1 for c in user_input if '\u4e00' <= c <= '\u9fff')
+        total_chars = len(user_input.strip())
+
+        if total_chars == 0:
+            return {'language': 'en', 'confidence': 0.5, 'chinese_ratio': 0.0}
+
+        chinese_ratio = chinese_chars / total_chars
+
+        # 判断语言
+        if chinese_ratio > 0.3:
+            language = 'zh'
+            confidence = min(0.9, 0.5 + chinese_ratio)
+        else:
+            language = 'en'
+            confidence = min(0.9, 0.5 + (1 - chinese_ratio))
+
+        logger.info(f"🌐 Language detection: {language} (confidence={confidence:.2f}, chinese_ratio={chinese_ratio:.2f})")
+
+        return {
+            'language': language,
+            'confidence': confidence,
+            'chinese_ratio': chinese_ratio
+        }
 
     async def _encode_input(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
         """Enhanced input encoding with intelligent chunking"""
@@ -140,12 +183,12 @@ Your role is to:
             'has_code': bool(re.search(r'```|def |class |function |import ', content)),
             'has_urls': bool(re.search(r'https?://\S+', content)),
             'has_numbers': bool(re.search(r'\d+', content)),
-            'language': self._detect_language(content),
+            'language': self._detect_language_simple(content),
             'complexity': self._assess_complexity(content)
         }
 
-    def _detect_language(self, text: str) -> str:
-        """Simple language detection"""
+    def _detect_language_simple(self, text: str) -> str:
+        """Simple language detection for chunk analysis"""
         chinese_chars = re.findall(r'[\u4e00-\u9fff]+', text)
         chinese_ratio = len(''.join(chinese_chars)) / len(text) if text else 0
 

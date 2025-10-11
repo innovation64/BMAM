@@ -35,11 +35,12 @@ class AgentBufferSystem:
                     'recent_inputs': [],
                     'processing_queue': [],
                     'recent_exchanges': [],
-                'recent_inputs': [],
-                'recent_outputs': []
+                    'recent_inputs': [],
+                    'recent_outputs': []
+                }
             },
             'long_term_memory': {
-                'name': '长期记忆智能体', 
+                'name': '长期记忆智能体',
                 'brain_region': 'neocortex',
                 'buffer_file': 'long_term_memory_buffer.json',
                 'max_items': 1000,
@@ -51,8 +52,9 @@ class AgentBufferSystem:
                     'recent_inputs': [],
                     'recent_outputs': [],
                     'recent_exchanges': [],
-                'recent_inputs': [],
-                'recent_outputs': []
+                    'recent_inputs': [],
+                    'recent_outputs': []
+                }
             },
             'memory_retrieval': {
                 'name': '记忆检索智能体',
@@ -80,8 +82,9 @@ class AgentBufferSystem:
                     'importance_scores': {},
                     'scheduled_tasks': [],
                     'recent_exchanges': [],
-                'recent_inputs': [],
-                'recent_outputs': []
+                    'recent_inputs': [],
+                    'recent_outputs': []
+                }
             },
             'memory_distortion': {
                 'name': '记忆失真智能体',
@@ -94,8 +97,9 @@ class AgentBufferSystem:
                     'noise_levels': {},
                     'reality_checks': [],
                     'recent_exchanges': [],
-                'recent_inputs': [],
-                'recent_outputs': []
+                    'recent_inputs': [],
+                    'recent_outputs': []
+                }
             },
             'reflection': {
                 'name': '反思智能体',
@@ -108,8 +112,9 @@ class AgentBufferSystem:
                     'meta_thoughts': [],
                     'connections_made': [],
                     'recent_exchanges': [],
-                'recent_inputs': [],
-                'recent_outputs': []
+                    'recent_inputs': [],
+                    'recent_outputs': []
+                }
             },
             'forgetting': {
                 'name': '遗忘智能体',
@@ -122,8 +127,9 @@ class AgentBufferSystem:
                     'decay_rates': {},
                     'importance_threshold': 0.3,
                     'recent_exchanges': [],
-                'recent_inputs': [],
-                'recent_outputs': []
+                    'recent_inputs': [],
+                    'recent_outputs': []
+                }
             },
             'stress_response': {
                 'name': '应激反应智能体',
@@ -136,8 +142,9 @@ class AgentBufferSystem:
                     'emotional_memories': [],
                     'arousal_levels': {},
                     'recent_exchanges': [],
-                'recent_inputs': [],
-                'recent_outputs': []
+                    'recent_inputs': [],
+                    'recent_outputs': []
+                }
             },
             'conversation': {
                 'name': '对话智能体',
@@ -150,8 +157,9 @@ class AgentBufferSystem:
                     'context_stack': [],
                     'user_model': {},
                     'recent_exchanges': [],
-                'recent_inputs': [],
-                'recent_outputs': []
+                    'recent_inputs': [],
+                    'recent_outputs': []
+                }
             },
             'executive_control': {
                 'name': '执行控制智能体',
@@ -164,8 +172,9 @@ class AgentBufferSystem:
                     'coordination_plans': [],
                     'resource_allocation': {},
                     'recent_exchanges': [],
-                'recent_inputs': [],
-                'recent_outputs': []
+                    'recent_inputs': [],
+                    'recent_outputs': []
+                }
             },
             'perception_encoding': {
                 'name': '感知编码智能体',
@@ -178,8 +187,9 @@ class AgentBufferSystem:
                     'pattern_library': [],
                     'sensory_cache': {},
                     'recent_exchanges': [],
-                'recent_inputs': [],
-                'recent_outputs': []
+                    'recent_inputs': [],
+                    'recent_outputs': []
+                }
             },
             'action_execution': {
                 'name': '行动执行智能体',
@@ -192,8 +202,9 @@ class AgentBufferSystem:
                     'motor_plans': {},
                     'feedback_signals': [],
                     'recent_exchanges': [],
-                'recent_inputs': [],
-                'recent_outputs': []
+                    'recent_inputs': [],
+                    'recent_outputs': []
+                }
             }
         }
         

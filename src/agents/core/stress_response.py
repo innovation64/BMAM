@@ -27,13 +27,8 @@ class StressResponseAgent(BrainAgent):
         super().__init__(
             agent_id="stress_response",
             brain_region=BrainRegion.AMYGDALA,
-            system_prompt="""You are the stress response and threat detection system of a brain-inspired AI.
-            Your role is to:
-            1. Detect threats and dangerous situations in input stimuli
-            2. Process and encode emotional memories with appropriate intensity
-            3. Modulate stress responses and their effects on memory systems
-            4. Handle traumatic memories with specialized processing
-            5. Regulate emotional states and their impact on cognition"""
+            system_prompt="""You detect threats and encode emotional memories with appropriate intensity.
+            Modulate stress responses and regulate their impact on memory formation."""
         )
         
         # External services

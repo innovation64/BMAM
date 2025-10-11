@@ -27,13 +27,8 @@ class ReflectionAgent(BrainAgent):
         super().__init__(
             agent_id="reflection",
             brain_region=BrainRegion.DEFAULT_MODE,
-            system_prompt="""You are the reflection and metacognition system of a brain-inspired AI.
-            Your role is to:
-            1. Analyze patterns and connections across memories
-            2. Generate deep insights and abstract understanding
-            3. Enable self-awareness and metacognitive processes
-            4. Identify themes and recurring patterns in experiences
-            5. Facilitate learning through reflection and introspection"""
+            system_prompt="""You identify patterns and generate insights across memories.
+            Focus on understanding why patterns exist and what they reveal about learning."""
         )
         
         # External services
@@ -91,7 +86,17 @@ class ReflectionAgent(BrainAgent):
             return await self._perspective_taking_analysis(message.content['scenario'])
         elif action == 'generate_insights':
             return await self._generate_quick_insights(message.content.get('memories', []))
-        
+        elif action == 'infer_from_patterns':
+            return await self._infer_from_patterns(
+                message.content.get('memories', []),
+                message.content.get('query', '')
+            )
+        elif action == 'abstract_reasoning':
+            return await self._abstract_reasoning(
+                message.content.get('memories', []),
+                message.content.get('question_type', 'general')
+            )
+
         return {'error': f'Unknown reflection action: {action}'}
     
     async def _analyze_memory_patterns(self, time_range: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -1063,3 +1068,110 @@ class ReflectionAgent(BrainAgent):
             "memory_count": memory_count,
             "status": "quick_analysis_complete"
         }
+
+    async def _infer_from_patterns(self, memories: List, query: str) -> Dict[str, Any]:
+        """
+        🧠 Pattern-based reasoning (Reflection Agent推理能力)
+        
+        从记忆模式推断答案 - 用于Q3类型问题
+        Example: "LGBTQ support" + "transgender stories" → "helping profession" → "Psychology"
+        """
+        if not memories:
+            return {'answer': None, 'confidence': 0.0, 'reasoning': 'No memories to analyze'}
+        
+        # 格式化记忆
+        memories_text = '\n'.join([f"- {m.get('content', str(m))}" if isinstance(m, dict) else f"- {m}" for m in memories[:10]])
+        
+        prompt = f"""You are the Default Mode Network (DMN) performing abstract pattern-based reasoning.
+
+Question: {query}
+
+Available Memories:
+{memories_text}
+
+Task: Identify deep patterns and abstract inferences.
+
+🔥 Pattern Recognition Steps:
+1. **Extract themes**: What recurring themes appear? (e.g., "helping others", "social justice", "identity exploration")
+2. **Identify behavioral patterns**: What actions suggest deeper interests? (e.g., "attending support groups" → caring profession)
+3. **Abstract reasoning**: What fields/domains naturally connect to these patterns?
+
+Example reasoning:
+- Memories: "LGBTQ support group" + "transgender stories inspiring" + "researching adoption"
+- Pattern: Helping marginalized communities + understanding identity + family building
+- Abstract inference: Professions that combine psychology, counseling, social work
+
+Output JSON only:
+{{
+    "patterns_identified": ["pattern1", "pattern2"],
+    "abstract_connection": "how patterns connect to answer",
+    "answer": "inferred answer based on patterns",
+    "confidence": 0.0-1.0,
+    "reasoning": "step-by-step pattern-based reasoning"
+}}
+"""
+        
+        try:
+            response = await self.call_llm(prompt, temperature=0.3, max_tokens=400)
+            
+            # Parse JSON
+            import json
+            if '```json' in response:
+                response = response.split('```json')[1].split('```')[0].strip()
+            elif '```' in response:
+                response = response.split('```')[1].split('```')[0].strip()
+            
+            result = json.loads(response)
+            logger.info(f"✅ Reflection pattern reasoning: {result.get('answer')} (conf={result.get('confidence', 0):.2f})")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Reflection pattern reasoning error: {e}")
+            return {'answer': None, 'confidence': 0.0, 'reasoning': f'Error: {str(e)}'}
+
+
+    async def _abstract_reasoning(self, memories: List, question_type: str) -> Dict[str, Any]:
+        """
+        🧠 Abstract reasoning for high-level inferences
+        
+        抽象推理 - 从具体记忆到抽象概念
+        """
+        if not memories:
+            return {'inferences': [], 'confidence': 0.0}
+        
+        memories_text = '\n'.join([f"- {m.get('content', str(m))}" if isinstance(m, dict) else f"- {m}" for m in memories[:10]])
+        
+        prompt = f"""You are performing abstract reasoning (Default Mode Network).
+
+Question Type: {question_type}
+Memories:
+{memories_text}
+
+Task: Generate abstract inferences that go beyond the literal content.
+
+For example:
+- Literal: "attended LGBTQ group" 
+- Abstract: "values inclusivity and identity affirmation"
+- Implication: "likely pursues helping professions like counseling"
+
+Output JSON:
+{{
+    "abstract_concepts": ["concept1", "concept2"],
+    "inferences": ["inference1", "inference2"],
+    "confidence": 0.0-1.0
+}}
+"""
+        
+        try:
+            response = await self.call_llm(prompt, temperature=0.4, max_tokens=300)
+            import json
+            if '```json' in response:
+                response = response.split('```json')[1].split('```')[0].strip()
+            elif '```' in response:
+                response = response.split('```')[1].split('```')[0].strip()
+                
+            result = json.loads(response)
+            return result
+        except Exception as e:
+            logger.error(f"Abstract reasoning error: {e}")
+            return {'inferences': [], 'confidence': 0.0}

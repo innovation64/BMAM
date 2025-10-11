@@ -7,8 +7,15 @@ Integrate standard memory evaluation datasets for BMAM testing
 import asyncio
 import json
 import os
-import requests
 from pathlib import Path
+
+# Optional dependency
+try:
+    import requests
+    REQUESTS_AVAILABLE = True
+except ImportError:
+    REQUESTS_AVAILABLE = False
+    requests = None
 from typing import Dict, List, Any, Optional
 from datetime import datetime
 import logging
@@ -52,7 +59,7 @@ class BenchmarkDatasets:
             "needle_in_haystack": {
                 "name": "Needle in Haystack",
                 "description": "Information retrieval in long contexts",
-                "url": "custom",
+                "url": "https://github.com/gkamradt/LLMTest_NeedleInAHaystack",
                 "local_path": self.cache_dir / "needle_in_haystack",
                 "data_files": ["test_cases.json"],
                 "categories": ["short", "medium", "long", "very_long"]
@@ -60,10 +67,10 @@ class BenchmarkDatasets:
             "memorybank": {
                 "name": "MemoryBank",
                 "description": "Comprehensive memory evaluation",
-                "url": "https://github.com/zhongwanjun/MemoryBank",
+                "url": "https://github.com/zhongwanjun/MemoryBank-SiliconFriend",
                 "local_path": self.cache_dir / "memorybank",
-                "data_files": ["test_data.json"],
-                "categories": ["episodic", "semantic", "procedural"]
+                "data_files": ["memory_bank_cn.json", "probing_questions_cn.jsonl", "memory_bank_en.json", "probing_questions_en.jsonl"],
+                "categories": ["conversation_history", "probing_questions", "bilingual"]
             }
         }
 
@@ -91,7 +98,7 @@ class BenchmarkDatasets:
             elif dataset_name == "locomo":
                 success = await self._download_locomo(local_path)
             elif dataset_name == "needle_in_haystack":
-                success = await self._generate_needle_in_haystack(local_path)
+                success = await self._download_needle_in_haystack(local_path)
             elif dataset_name == "memorybank":
                 success = await self._download_memorybank(local_path)
             else:
@@ -201,56 +208,85 @@ class BenchmarkDatasets:
             logger.error(f"Failed to create LoCoMo data: {e}")
             return False
 
-    async def _generate_needle_in_haystack(self, local_path: Path) -> bool:
-        """Generate Needle in Haystack test cases"""
+    async def _download_needle_in_haystack(self, local_path: Path) -> bool:
+        """Download standard Needle in Haystack dataset from GitHub"""
         try:
+            import subprocess
+
+            # Clone the standard repository
+            repo_url = "https://github.com/gkamradt/LLMTest_NeedleInAHaystack.git"
+            temp_dir = local_path.parent / "temp_needle_repo"
+
+            # Clean up any existing temp directory
+            if temp_dir.exists():
+                import shutil
+                shutil.rmtree(temp_dir)
+
+            # Clone repository
+            result = subprocess.run(
+                ["git", "clone", repo_url, str(temp_dir)],
+                capture_output=True,
+                text=True,
+                check=True
+            )
+
+            if result.returncode != 0:
+                logger.error(f"Failed to clone repository: {result.stderr}")
+                return False
+
+            # Copy relevant files to local_path
+            import shutil
+            if (temp_dir / "needlehaystack").exists():
+                shutil.copytree(temp_dir / "needlehaystack", local_path / "needlehaystack")
+            if (temp_dir / "README.md").exists():
+                shutil.copy2(temp_dir / "README.md", local_path / "README.md")
+            if (temp_dir / "requirements.txt").exists():
+                shutil.copy2(temp_dir / "requirements.txt", local_path / "requirements.txt")
+
+            # Create a standardized test cases file
             test_cases = {
                 "version": "1.0",
-                "description": "Needle in haystack information retrieval test",
+                "description": "Standard Needle in Haystack evaluation from gkamradt",
+                "source": repo_url,
                 "test_cases": []
             }
 
-            # Different context lengths
-            length_configs = [
-                {"category": "short", "length": 1000, "count": 10},
-                {"category": "medium", "length": 5000, "count": 10},
-                {"category": "long", "length": 15000, "count": 10},
-                {"category": "very_long", "length": 50000, "count": 5}
+            # Add standard test configuration
+            standard_configs = [
+                {"context_length": 1000, "depth_percent": 50, "category": "short"},
+                {"context_length": 2000, "depth_percent": 50, "category": "short"},
+                {"context_length": 4000, "depth_percent": 50, "category": "medium"},
+                {"context_length": 8000, "depth_percent": 50, "category": "medium"},
+                {"context_length": 16000, "depth_percent": 50, "category": "long"},
+                {"context_length": 32000, "depth_percent": 50, "category": "long"},
+                {"context_length": 64000, "depth_percent": 50, "category": "very_long"},
+                {"context_length": 128000, "depth_percent": 50, "category": "very_long"},
             ]
 
-            case_id = 0
-            for config in length_configs:
-                for i in range(config["count"]):
-                    # Generate needle (target information)
-                    needle = f"The secret code is: NEEDLE_{case_id:04d}"
+            for i, config in enumerate(standard_configs):
+                test_case = {
+                    "id": f"nih_standard_{i:03d}",
+                    "category": config["category"],
+                    "context_length": config["context_length"],
+                    "depth_percent": config["depth_percent"],
+                    "needle": "The best thing to do in San Francisco is eat a sandwich and sit in Dolores Park on a sunny day.",
+                    "question": "What is the best thing to do in San Francisco?",
+                    "expected_answer": "The best thing to do in San Francisco is eat a sandwich and sit in Dolores Park on a sunny day."
+                }
+                test_cases["test_cases"].append(test_case)
 
-                    # Generate haystack (long distracting context)
-                    haystack = self._generate_haystack_context(config["length"], needle)
-
-                    test_case = {
-                        "id": f"nih_{case_id:04d}",
-                        "category": config["category"],
-                        "context": haystack,
-                        "needle": needle,
-                        "question": "What is the secret code mentioned in the text?",
-                        "expected_answer": needle,
-                        "metadata": {
-                            "context_length": len(haystack),
-                            "needle_position": haystack.find(needle),
-                            "relative_position": haystack.find(needle) / len(haystack)
-                        }
-                    }
-                    test_cases["test_cases"].append(test_case)
-                    case_id += 1
-
-            # Save test cases
+            # Save standardized test cases
             with open(local_path / "test_cases.json", 'w') as f:
                 json.dump(test_cases, f, indent=2)
+
+            # Clean up temp directory
+            if temp_dir.exists():
+                shutil.rmtree(temp_dir)
 
             return True
 
         except Exception as e:
-            logger.error(f"Failed to generate needle in haystack data: {e}")
+            logger.error(f"Failed to download needle in haystack data: {e}")
             return False
 
     async def _download_memorybank(self, local_path: Path) -> bool:
@@ -459,12 +495,18 @@ class BenchmarkDatasets:
         return info
 
     def _get_cache_info(self, path: Path) -> Dict:
-        """Get cache information for a dataset"""
+        """Get cache information for a dataset (optimized for speed)"""
         info = {
             "path": str(path),
-            "cached_at": datetime.fromtimestamp(path.stat().st_mtime).isoformat(),
-            "size_mb": sum(f.stat().st_size for f in path.rglob('*') if f.is_file()) / 1024 / 1024
+            "cached_at": datetime.fromtimestamp(path.stat().st_mtime).isoformat() if path.exists() else None,
         }
+
+        # Quick file count (limit to avoid slow recursion)
+        try:
+            json_files = list(path.glob('*.json'))[:10]  # Limit to first 10
+            info["sample_files"] = len(json_files)
+        except Exception:
+            info["sample_files"] = 0
 
         # Count items in dataset
         data_files = list(path.glob("*.json"))

@@ -74,6 +74,12 @@
                     updateWaveformAmplitude(data.value);
                 }
                 break;
+            case 'brain_activity':
+                // 🧠 新增: 脑区激活和推理链可视化
+                if (window.updateBrainActivity) {
+                    window.updateBrainActivity(data.regions, data.reasoning_chain);
+                }
+                break;
             default:
                 console.debug('Unhandled message type:', data.type, data);
         }

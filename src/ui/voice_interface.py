@@ -47,7 +47,7 @@ class AudioConfig:
     record_seconds: int = 5
 
     # Voice detection
-    silence_threshold: float = 500  # RMS threshold for silence
+    silence_threshold: float = 100  # RMS threshold for silence (lowered for better detection)
     silence_duration: float = 1.5  # Seconds of silence before stopping
 
     # TTS settings

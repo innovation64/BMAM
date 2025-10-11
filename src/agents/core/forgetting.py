@@ -27,13 +27,8 @@ class ForgettingAgent(BrainAgent):
         super().__init__(
             agent_id="forgetting",
             brain_region=BrainRegion.INHIBITION,
-            system_prompt="""You are the forgetting and memory management system of a brain-inspired AI.
-            Your role is to:
-            1. Manage memory decay through passive forgetting processes
-            2. Perform active forgetting and memory suppression when needed
-            3. Resolve interference between conflicting memories
-            4. Maintain optimal memory capacity through selective pruning
-            5. Implement adaptive forgetting strategies based on memory value"""
+            system_prompt="""You manage memory decay and selective forgetting.
+            Remove low-value memories and resolve interference to maintain optimal capacity."""
         )
         
         # External services

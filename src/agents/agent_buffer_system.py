@@ -233,6 +233,21 @@ class AgentBufferSystem:
                     'recent_outputs': [],
                     'recent_exchanges': []
                 }
+            },
+            'retrieval_router': {
+                'name': '检索策略路由器',
+                'brain_region': 'dlpfc',
+                'buffer_file': 'retrieval_router_buffer.json',
+                'max_items': 100,
+                'structure': {
+                    'strategy_decisions': [],
+                    'query_features': [],
+                    'strategy_stats': {},
+                    'success_rates': {},
+                    'recent_inputs': [],
+                    'recent_outputs': [],
+                    'recent_exchanges': []
+                }
             }
         }
         

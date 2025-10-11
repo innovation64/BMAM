@@ -55,4 +55,4 @@ rouge-score>=0.1.2
 nltk>=3.8
 
 # Optional: For other API providers
-# anthropic>=0.7.0
+# anthropic>=0.7.0networkx>=3.0

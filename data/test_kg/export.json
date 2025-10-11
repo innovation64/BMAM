@@ -1,0 +1,131 @@
+{
+  "nodes": [
+    {
+      "node_id": "person_alice",
+      "entity_type": "person",
+      "content": "Alice",
+      "properties": {
+        "age": 25
+      },
+      "created_at": "2025-09-30T14:38:56.807707",
+      "access_count": 0,
+      "importance": 0.5
+    },
+    {
+      "node_id": "person_bob",
+      "entity_type": "person",
+      "content": "Bob",
+      "properties": {
+        "age": 30
+      },
+      "created_at": "2025-09-30T14:38:56.807722",
+      "access_count": 0,
+      "importance": 0.5
+    },
+    {
+      "node_id": "concept_ai",
+      "entity_type": "concept",
+      "content": "人工智能",
+      "properties": {},
+      "created_at": "2025-09-30T14:38:56.807727",
+      "access_count": 0,
+      "importance": 0.5
+    },
+    {
+      "node_id": "concept_ml",
+      "entity_type": "concept",
+      "content": "机器学习",
+      "properties": {},
+      "created_at": "2025-09-30T14:38:56.807731",
+      "access_count": 0,
+      "importance": 0.5
+    }
+  ],
+  "edges": [
+    {
+      "source_id": "person_alice",
+      "target_id": "concept_ai",
+      "relation_type": "related_to",
+      "strength": 0.9,
+      "properties": {},
+      "created_at": "2025-09-30T14:40:25.347498",
+      "access_count": 0
+    },
+    {
+      "source_id": "person_bob",
+      "target_id": "concept_ai",
+      "relation_type": "related_to",
+      "strength": 0.8,
+      "properties": {},
+      "created_at": "2025-09-30T14:40:25.347506",
+      "access_count": 0
+    },
+    {
+      "source_id": "concept_ml",
+      "target_id": "concept_ai",
+      "relation_type": "part_of",
+      "strength": 1.0,
+      "properties": {},
+      "created_at": "2025-09-30T14:40:25.347511",
+      "access_count": 0
+    }
+  ],
+  "statistics": {
+    "basic": {
+      "total_nodes": 4,
+      "total_edges": 3,
+      "entity_types": {
+        "person": 2,
+        "concept": 2
+      },
+      "relation_types": {
+        "related_to": 2,
+        "part_of": 1
+      }
+    },
+    "centrality": {
+      "top_pagerank": [
+        [
+          "concept_ai",
+          0.5419853569696174
+        ],
+        [
+          "person_alice",
+          0.1526715476767942
+        ],
+        [
+          "person_bob",
+          0.1526715476767942
+        ],
+        [
+          "concept_ml",
+          0.1526715476767942
+        ]
+      ],
+      "top_degree": [
+        [
+          "concept_ai",
+          3
+        ],
+        [
+          "person_alice",
+          1
+        ],
+        [
+          "person_bob",
+          1
+        ],
+        [
+          "concept_ml",
+          1
+        ]
+      ]
+    },
+    "graph_properties": {
+      "is_connected": true,
+      "num_components": 1,
+      "density": 0.25,
+      "avg_degree": 1.5
+    }
+  }
+}

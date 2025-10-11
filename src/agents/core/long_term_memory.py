@@ -29,13 +29,8 @@ class LongTermMemoryAgent(BrainAgent):
         super().__init__(
             agent_id="long_term_memory",
             brain_region=BrainRegion.NEOCORTEX,
-            system_prompt="""You are the long-term memory system of a brain-inspired AI.
-            Your role is to:
-            1. Store and organize permanent memories in distributed semantic networks
-            2. Build and maintain knowledge graphs
-            3. Create semantic associations between memories
-            4. Manage memory consolidation from short-term to long-term
-            5. Maintain memory integrity and prevent degradation"""
+            system_prompt="""You organize permanent memories into semantic networks.
+            Create meaningful associations and ensure memory integrity through consolidation."""
         )
         
         # External services (injected for modularity)
@@ -125,6 +120,30 @@ class LongTermMemoryAgent(BrainAgent):
             'duplicate_detected': False
         }
     
+    def _is_preference_update(self, old_content: str, new_content: str) -> bool:
+        """判断新内容是否为偏好更新而非完全重复"""
+        # 提取偏好关键词
+        preference_patterns = ['喜欢', '偏好', '习惯', '通常', '经常']
+
+        old_has_preference = any(pattern in old_content for pattern in preference_patterns)
+        new_has_preference = any(pattern in new_content for pattern in preference_patterns)
+
+        if not (old_has_preference and new_has_preference):
+            return False
+
+        # 提取实体（简单实现：提取名词）
+        def extract_entities(text):
+            # 移除偏好词和标点，提取剩余实体
+            for pattern in preference_patterns + ['我', '用户', '：', '。', '，']:
+                text = text.replace(pattern, ' ')
+            return set([word.strip() for word in text.split() if len(word.strip()) > 1])
+
+        old_entities = extract_entities(old_content)
+        new_entities = extract_entities(new_content)
+
+        # 如果有新的实体出现，说明是偏好更新
+        return len(new_entities - old_entities) > 0
+
     async def _build_semantic_associations(self, memory_id: str) -> Dict[str, Any]:
         """Build semantic associations between memories"""
         
@@ -170,7 +189,7 @@ class LongTermMemoryAgent(BrainAgent):
             'network_size': len(self.semantic_network)
         }
 
-    async def _find_duplicate_memory(self, memory_data: Dict[str, Any], similarity_threshold: float = 0.88) -> Optional[Dict[str, Any]]:
+    async def _find_duplicate_memory(self, memory_data: Dict[str, Any], similarity_threshold: float = 0.95) -> Optional[Dict[str, Any]]:
         """Search existing memories to avoid storing near-duplicates."""
 
         if not memory_data.get('content'):
@@ -273,14 +292,30 @@ class LongTermMemoryAgent(BrainAgent):
 
         existing.metadata = metadata
 
-        # Track content variants when not identical
+        # Track content variants when not identical - with temporal tracking
         new_content = new_data.get('content', '').strip()
         if new_content and new_content != (existing.content or '').strip():
-            variants = existing.metadata.get('content_variants', []) if existing.metadata else []
-            if new_content not in variants:
-                variants = list(variants) + [new_content]
-                existing.metadata = existing.metadata or {}
+            existing.metadata = existing.metadata or {}
+
+            # Enhanced: track variants with timestamps for temporal reasoning
+            variants = existing.metadata.get('content_variants', [])
+            if new_content not in [v.get('content') if isinstance(v, dict) else v for v in variants]:
+                variant_entry = {
+                    'content': new_content,
+                    'timestamp': datetime.now().isoformat(),
+                    'is_update': self._is_preference_update(existing.content, new_content)
+                }
+                variants = list(variants) + [variant_entry]
                 existing.metadata['content_variants'] = variants
+
+                # If this is a preference update, mark the latest one
+                if variant_entry['is_update']:
+                    existing.metadata['latest_preference'] = new_content
+                    existing.metadata['preference_updated_at'] = variant_entry['timestamp']
+                    # Update the main content to reflect latest preference
+                    existing.content = f"{existing.content} | 最新偏好：{new_content}"
+                    logger.info(f"🔄 Preference updated: {existing.content[:80]}")
+
                 updated = True
 
         # Boost importance when duplicate encountered frequently

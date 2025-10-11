@@ -91,12 +91,12 @@ class PersonalityProfile:
         
         if self.speech_style is None:
             self.speech_style = {
-                "正式程度": 0.4,  # 0=非常随意，1=非常正式
-                "幽默感": 0.7,   # 使用幽默的倾向
-                "表情符号使用": 0.6,  # 使用表情的频率
-                "语气亲切度": 0.9,   # 语气的亲切程度
-                "详细程度": 0.6,     # 回答的详细程度
-                "提问倾向": 0.7      # 主动提问的倾向
+                "正式程度": 0.5,  # 0=非常随意，1=非常正式 (提高专业度)
+                "幽默感": 0.4,   # 使用幽默的倾向 (降低避免过度活泼)
+                "表情符号使用": 0.2,  # 使用表情的频率 (大幅降低)
+                "语气亲切度": 0.7,   # 语气的亲切程度 (适度降低)
+                "详细程度": 0.4,     # 回答的详细程度 (降低避免啰嗦)
+                "提问倾向": 0.3      # 主动提问的倾向 (降低避免过度引导)
             }
         
         if self.personality_memories is None:
@@ -423,27 +423,54 @@ class PersonalityAgent(BrainAgent):
 
         if _contains_keywords(combined, ['详细', '展开说', '多讲']) and self.style_preferences['brevity'] != 'elaborate':
             self.style_preferences['brevity'] = 'elaborate'
-    
+
+    def _apply_style_to_response(self, response: str, personality_context: Dict[str, Any], emotional_context: Dict[str, Any]) -> str:
+        styled = response
+
+        style = personality_context.get('style_adjustments', {})
+        tone_hint = style.get('tone', '')
+        formality = self.style_preferences.get('formality', 0.4)
+        brevity = self.style_preferences.get('brevity', 'balanced')
+
+        if formality < 0.4:
+            styled = styled.replace('您', '你')
+        elif formality > 0.7:
+            styled = styled.replace('你', '您')
+
+        if brevity == 'concise' and len(styled) > 200:
+            sentences = [s for s in styled.replace('?', '？').replace('!', '！').split('。') if s]
+            styled = '。'.join(sentences[:2]) + ('。' if sentences else '')
+
+        if tone_hint and tone_hint not in styled:
+            styled = f"{styled} {tone_hint}"
+
+        if self.style_preferences.get('emoji') and '😊' not in styled and len(styled) < 220:
+            styled = styled + ' 😊'
+
+        processed = self._post_process_response(styled, personality_context, response)
+        return processed
+
     async def _generate_natural_response(self, user_input: str, personality_context: Dict[str, Any], 
                                        emotional_context: Dict[str, Any], base_response: str = "") -> str:
         """生成自然的个性化回应"""
-        
-        # 构建人格化的prompt
+
+        base_response = (base_response or "").strip()
+        if base_response:
+            return self._apply_style_to_response(base_response, personality_context, emotional_context)
+
+        # 没有基础回复时才调用 LLM 生成
         personality_prompt = self._build_personality_prompt(
             user_input, personality_context, emotional_context, base_response
         )
-        
-        # 使用LLM服务生成回应 - 解耦的调用
+
         try:
-            response = await self.llm_service.call_llm(personality_prompt)
-            
-            # 后处理：确保回应符合人格特征
-            processed_response = self._post_process_response(response, personality_context, base_response)
-            
-            return processed_response
-            
-        except Exception as e:
-            # 如果LLM调用失败，提供回退回应
+            response = await self.llm_service.call_llm(
+                personality_prompt,
+                max_tokens=220,
+                temperature=0.7
+            )
+            return self._post_process_response(response, personality_context, base_response)
+        except Exception:
             return self._generate_fallback_response(user_input, emotional_context, personality_context, base_response)
     
     def _build_personality_prompt(self, user_input: str, personality_context: Dict[str, Any], 
@@ -505,11 +532,11 @@ class PersonalityAgent(BrainAgent):
     
     def _post_process_response(self, response: str, personality_context: Dict[str, Any], base_response: str = "") -> str:
         """后处理回应，确保符合人格特征"""
-        
+
         # 移除可能的AI自我指称
         response = response.replace('作为AI', '').replace('作为人工智能', '')
         response = response.replace('我是AI助手', '我').replace('AI助手', '我')
-        
+
         # 根据幽默感特征适当添加轻松元素
         humor_level = self.profile.traits[PersonalityTrait.HUMOR.value]
         if humor_level > 0.6 and len(response) > 50 and '哈' not in response:
@@ -519,24 +546,34 @@ class PersonalityAgent(BrainAgent):
                 if random.random() < 0.3:
                     casual_expressions = ['呢', '哦', '嘛']
                     response += random.choice(casual_expressions)
-        
+
         # 确保回应长度适中
         if len(response) > 200:
             # 如果太长，尝试精简
             sentences = response.split('。')
             if len(sentences) > 2:
                 response = '。'.join(sentences[:2]) + '。'
-        
+
         response = response.strip()
 
-        # 确保保留基础事实
+        # 智能事实保留检查 - 避免润色后的重复
         base_response = (base_response or "").strip()
-        if base_response:
-            key_phrases = [phrase for phrase in base_response.replace('，', ' ').replace('。', ' ').split(' ') if phrase]
-            missing = [phrase for phrase in key_phrases if phrase and phrase not in response]
-            if missing:
-                # 将事实性内容附加在结尾，防止遗漏
-                response = f"{response}\n我还记得：{base_response}"
+        if base_response and len(base_response) > 20:
+            # 检查核心关键词而非逐字匹配，避免润色后重复
+            base_keywords = set()
+            for phrase in base_response.replace('，', ' ').replace('。', ' ').replace('、', ' ').split():
+                if len(phrase) > 1 and phrase not in ['我们', '可以', '这个', '那个', '一些', '非常']:
+                    base_keywords.add(phrase)
+
+            response_keywords = set()
+            for phrase in response.replace('，', ' ').replace('。', ' ').replace('、', ' ').split():
+                if len(phrase) > 1:
+                    response_keywords.add(phrase)
+
+            # 只有当大部分关键信息缺失时才补充
+            overlap_ratio = len(base_keywords & response_keywords) / max(len(base_keywords), 1)
+            if overlap_ratio < 0.3:  # 关键词重叠度低于30%才补充
+                response = f"{response}\n补充：{base_response}"
 
         return response
     

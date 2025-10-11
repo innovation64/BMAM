@@ -11,14 +11,16 @@ from .memory_distortion import MemoryDistortionAgent
 from .reflection import ReflectionAgent
 from .forgetting import ForgettingAgent
 from .stress_response import StressResponseAgent
+from .retrieval_router import RetrievalStrategyRouter
 
 __all__ = [
     'ShortTermMemoryAgent',
-    'LongTermMemoryAgent', 
+    'LongTermMemoryAgent',
     'MemoryRetrievalAgent',
     'ConsolidationAgent',
     'MemoryDistortionAgent',
     'ReflectionAgent',
     'ForgettingAgent',
-    'StressResponseAgent'
+    'StressResponseAgent',
+    'RetrievalStrategyRouter'
 ]

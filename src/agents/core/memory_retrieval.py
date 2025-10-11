@@ -8,7 +8,7 @@ from typing import Dict, Any, List, Optional
 import logging
 import math
 import re
-from collections import Counter
+from collections import Counter, OrderedDict
 
 from ..base import BrainAgent, AgentMessage, BrainRegion
 from ...memory.memory_item import MemoryItem
@@ -29,13 +29,8 @@ class MemoryRetrievalAgent(BrainAgent):
         super().__init__(
             agent_id="memory_retrieval",
             brain_region=BrainRegion.HIPPOCAMPUS,
-            system_prompt="""You are the memory retrieval system of a brain-inspired AI.
-            Your role is to:
-            1. Find and reconstruct memories using cues and context
-            2. Perform pattern completion from partial information
-            3. Execute semantic, episodic, and associative retrieval
-            4. Optimize retrieval strategies based on query type
-            5. Handle retrieval failures and provide alternatives"""
+            system_prompt="""You retrieve memories using cues and context.
+            Reconstruct patterns from partial information and explain your retrieval confidence."""
         )
         
         # External services
@@ -45,11 +40,13 @@ class MemoryRetrievalAgent(BrainAgent):
         
         # Retrieval strategies
         self.retrieval_strategies = ['semantic', 'temporal', 'associative', 'emotional', 'contextual']
-        
-        # Cache for recent retrievals
-        self.retrieval_cache = {}
-        self.cache_size = 20
-        
+
+        # Cache for recent retrievals (优化：使用OrderedDict + 增大容量)
+        self.retrieval_cache = OrderedDict()
+        self.cache_size = 200  # 从20增加到200
+        self.cache_hit_count = 0
+        self.cache_miss_count = 0
+
         # Retrieval statistics
         self.retrieval_count = 0
         self.hit_rate = 0.0
@@ -60,11 +57,19 @@ class MemoryRetrievalAgent(BrainAgent):
         
         if action == 'semantic_search':
             return await self._semantic_retrieval(
-                message.content['query'], 
+                message.content['query'],
+                message.content.get('k', 10),
+                message.content.get('time_range')  # 🔥 接收时间范围参数
+            )
+        elif action == 'temporal_search':
+            # ✅ 新增: 时间戳检索功能
+            return await self._temporal_retrieval(
+                message.content['query'],
+                message.content.get('time_range'),
                 message.content.get('k', 10)
             )
         elif action == 'episodic_search':
-            return await self._episodic_retrieval(message.content['cues'])
+            return await self._episodic_retrieval(message.content.get('cues'))
         elif action == 'associative_search':
             return await self._associative_retrieval(message.content['memory_id'])
         elif action == 'pattern_completion':
@@ -73,18 +78,26 @@ class MemoryRetrievalAgent(BrainAgent):
             return await self._contextual_retrieval(message.content['context'])
         elif action == 'multi_strategy_search':
             return await self._multi_strategy_retrieval(message.content['query'])
-        
+
         return {'error': f'Unknown retrieval action: {action}'}
     
-    async def _semantic_retrieval(self, query: str, k: int = 10) -> Dict[str, Any]:
-        """Semantic retrieval using vector similarity"""
-        
-        # Check cache first
-        cache_key = f"semantic_{query}_{k}"
+    async def _semantic_retrieval(self, query: str, k: int = 10, time_range: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Semantic retrieval using vector similarity with optional time filtering"""
+
+        # Check cache first (优化：更精确的cache_key - 包含time_range)
+        cache_key = f"semantic_{query}_{k}_{str(time_range)}"
         if cache_key in self.retrieval_cache:
-            self.hit_rate = (self.hit_rate * self.retrieval_count + 1) / (self.retrieval_count + 1)
+            self.cache_hit_count += 1
             self.retrieval_count += 1
+            self.hit_rate = self.cache_hit_count / self.retrieval_count
+
+            # LRU: 移到末尾
+            self.retrieval_cache.move_to_end(cache_key)
+            logger.debug(f"Cache HIT for query: '{query[:30]}...' (hit_rate={self.hit_rate:.2%})")
             return self.retrieval_cache[cache_key]
+
+        self.cache_miss_count += 1
+        self.retrieval_count += 1
         
         if not self.embedding_service or not self.vector_db:
             return {'error': 'Required services not available'}
@@ -92,11 +105,11 @@ class MemoryRetrievalAgent(BrainAgent):
         # Generate query embedding
         query_embedding = await self.embedding_service.encode_text(query)
         
-        # Search for similar memories (降低阈值以提高中文搜索效果)
+        # Search for similar memories (提高阈值以减少噪音记忆)
         similar_memories = self.vector_db.search(
-            query_embedding, 
-            k=k, 
-            threshold=0.1
+            query_embedding,
+            k=k,
+            threshold=0.3
         )
         
         memories = []
@@ -148,9 +161,75 @@ class MemoryRetrievalAgent(BrainAgent):
                             'retrieval_confidence': retrieval_confidence,
                             'retrieval_method': 'semantic'
                         })
-        
-        # Sort by retrieval confidence
-        memories.sort(key=lambda x: x['retrieval_confidence'], reverse=True)
+
+        # 🔥 Time range filtering (if time_range is provided)
+        if time_range:
+            logger.info(f"⏰ Applying time_range filter: {time_range}")
+            filtered_memories = []
+
+            start_time = None
+            end_time = None
+
+            if 'start' in time_range:
+                start_time = datetime.fromisoformat(time_range['start'])
+            if 'end' in time_range:
+                end_time = datetime.fromisoformat(time_range['end'])
+
+            for mem in memories:
+                # Extract timestamp from memory
+                timestamp_str = None
+                if 'memory' in mem and isinstance(mem['memory'], dict):
+                    timestamp_str = mem['memory'].get('created_at') or mem['memory'].get('timestamp')
+                elif 'timestamp' in mem:
+                    timestamp_str = mem['timestamp']
+
+                if timestamp_str:
+                    try:
+                        mem_time = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00')).replace(tzinfo=None)
+
+                        # Filter by time range
+                        if start_time and mem_time < start_time:
+                            logger.debug(f"⏰ Skipping memory before start_time: {timestamp_str}")
+                            continue
+                        if end_time and mem_time > end_time:
+                            logger.debug(f"⏰ Skipping memory after end_time: {timestamp_str}")
+                            continue
+
+                        filtered_memories.append(mem)
+                    except Exception as e:
+                        logger.warning(f"Failed to parse timestamp {timestamp_str}: {e}")
+                        # Keep memories with unparseable timestamps
+                        filtered_memories.append(mem)
+                else:
+                    # Keep memories without timestamps
+                    filtered_memories.append(mem)
+
+            logger.info(f"⏰ Time filtering: {len(memories)} → {len(filtered_memories)} memories")
+            memories = filtered_memories
+
+        # Sort by retrieval confidence and recency (prefer newer memories)
+        def get_sort_key(mem):
+            confidence = mem['retrieval_confidence']
+            # Extract timestamp from memory
+            timestamp_str = None
+            if 'memory' in mem and isinstance(mem['memory'], dict):
+                timestamp_str = mem['memory'].get('created_at') or mem['memory'].get('timestamp')
+
+            # Convert to comparable value (newer = higher score)
+            recency_bonus = 0.0
+            if timestamp_str:
+                try:
+                    from datetime import datetime
+                    mem_time = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                    age_hours = (datetime.now() - mem_time.replace(tzinfo=None)).total_seconds() / 3600
+                    # Recent memories get a small bonus (decays over 7 days)
+                    recency_bonus = max(0, 0.1 * (1 - age_hours / (7 * 24)))
+                except:
+                    pass
+
+            return confidence + recency_bonus
+
+        memories.sort(key=get_sort_key, reverse=True)
         
         result = {
             'memories': memories,
@@ -165,32 +244,136 @@ class MemoryRetrievalAgent(BrainAgent):
         self.retrieval_count += 1
         
         return result
-    
-    async def _episodic_retrieval(self, cues: Dict[str, Any]) -> Dict[str, Any]:
-        """Episodic retrieval using temporal and contextual cues"""
-        
+
+    async def _temporal_retrieval(self, query: str, time_range: Optional[Dict[str, Any]] = None, k: int = 10) -> Dict[str, Any]:
+        """
+        ✅ 时间戳检索功能
+        根据时间范围过滤记忆并结合语义检索
+
+        Args:
+            query: 查询文本
+            time_range: 时间范围 {'start': '2023-05-01', 'end': '2023-05-31'} 或 {'relative': 'yesterday'}
+            k: 返回记忆数量
+
+        Returns:
+            检索结果字典
+        """
+        from datetime import datetime, timedelta
+        import re
+
         if not self.db_manager:
             return {'error': 'Database manager not available'}
-        
+
+        # ✅ 自动从query中提取时间表达式 (如果未提供time_range)
+        if not time_range:
+            time_range = self._extract_time_from_query(query)
+
+        # 解析时间范围
+        start_time = None
+        end_time = None
+
+        if time_range:
+            # 相对时间 (e.g., 'yesterday', 'last week', 'last month')
+            if 'relative' in time_range:
+                relative = time_range['relative'].lower()
+                now = datetime.now()
+                if relative == 'yesterday':
+                    start_time = now - timedelta(days=1)
+                    end_time = now
+                elif 'last week' in relative or 'week ago' in relative:
+                    start_time = now - timedelta(weeks=1)
+                    end_time = now
+                elif 'last month' in relative or 'month ago' in relative:
+                    start_time = now - timedelta(days=30)
+                    end_time = now
+                elif 'last year' in relative:
+                    start_time = now - timedelta(days=365)
+                    end_time = now
+
+            # 绝对时间
+            if 'start' in time_range:
+                try:
+                    start_time = datetime.fromisoformat(time_range['start'])
+                except:
+                    pass
+            if 'end' in time_range:
+                try:
+                    end_time = datetime.fromisoformat(time_range['end'])
+                except:
+                    pass
+
+        # 先进行语义检索获取候选记忆
+        semantic_result = await self._semantic_retrieval(query, k=k*2)  # 获取更多候选
+        candidate_memories = semantic_result.get('memories', [])
+
+        # 按时间范围过滤
+        filtered_memories = []
+        for mem in candidate_memories:
+            memory_obj = mem.get('memory', {})
+            timestamp_str = memory_obj.get('created_at') or memory_obj.get('timestamp')
+
+            if not timestamp_str:
+                continue  # 跳过无时间戳的记忆
+
+            try:
+                mem_time = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00')).replace(tzinfo=None)
+
+                # 检查是否在时间范围内
+                in_range = True
+                if start_time and mem_time < start_time:
+                    in_range = False
+                if end_time and mem_time > end_time:
+                    in_range = False
+
+                if in_range:
+                    filtered_memories.append(mem)
+            except:
+                continue  # 时间解析失败，跳过
+
+        # 按时间倒序排序 (最新的在前)
+        filtered_memories.sort(key=lambda m: m.get('memory', {}).get('created_at') or '', reverse=True)
+
+        # 限制返回数量
+        result_memories = filtered_memories[:k]
+
+        return {
+            'memories': result_memories,
+            'retrieval_method': 'temporal',
+            'query': query,
+            'time_range': time_range,
+            'count': len(result_memories),
+            'confidence': sum(m['retrieval_confidence'] for m in result_memories) / len(result_memories) if result_memories else 0
+        }
+
+    async def _episodic_retrieval(self, cues: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Episodic retrieval using temporal and contextual cues"""
+
+        if not self.db_manager:
+            return {'error': 'Database manager not available'}
+
+        # Handle None cues
+        if cues is None:
+            cues = {}
+
         memories = []
-        
+
         # Build retrieval criteria from cues
         criteria = {}
-        
+
         # Temporal cues
-        if 'time_range' in cues:
+        if 'time_range' in cues and cues['time_range'] is not None:
             start_time = cues['time_range'].get('start')
             end_time = cues['time_range'].get('end')
             # This would filter by timestamp in actual implementation
-        
+
         # Context cues
         if 'context' in cues:
             criteria['context_tags'] = cues['context']
-        
+
         # Emotional cues
         if 'emotion' in cues:
             criteria['emotion_tags'] = cues['emotion']
-        
+
         # Location cues (stored in metadata)
         if 'location' in cues:
             criteria['location'] = cues['location']
@@ -434,7 +617,12 @@ class MemoryRetrievalAgent(BrainAgent):
             return {'memories': [], 'retrieval_method': 'bm25', 'count': 0}
 
         tokens = self._tokenize(query)
-        if not tokens:
+
+        # ✅ P0-Q4修复: 生成关键词变形以提高召回率
+        # 例如: "research" → ["research", "researching", "researched", "researcher"]
+        expanded_tokens = self._expand_keyword_variants(tokens)
+
+        if not expanded_tokens:
             return {'memories': [], 'retrieval_method': 'bm25', 'count': 0}
 
         try:
@@ -468,10 +656,13 @@ class MemoryRetrievalAgent(BrainAgent):
             doc_length = len(doc_tokens)
             score = 0.0
 
-            for token in tokens:
+            # ✅ P0-Q4修复: 使用扩展后的tokens进行匹配
+            for token in expanded_tokens:
                 if token not in term_counts:
                     continue
-                df = doc_freq[token]
+                df = doc_freq.get(token, 0)
+                if df == 0:
+                    continue
                 idf = math.log((N - df + 0.5) / (df + 0.5) + 1)
                 tf = term_counts[token]
                 numerator = tf * (k1 + 1)
@@ -514,6 +705,50 @@ class MemoryRetrievalAgent(BrainAgent):
         latin_tokens = re.findall(r"[a-z0-9']+", lowered)
         chinese_tokens = [char for char in lowered if '\u4e00' <= char <= '\u9fff']
         return latin_tokens + chinese_tokens
+
+    def _expand_keyword_variants(self, tokens: List[str]) -> List[str]:
+        """
+        ✅ P0-Q4修复: 生成关键词变形以提高召回率
+
+        例如: "research" → ["research", "researching", "researched", "researcher"]
+        这样可以匹配 "Caroline researched adoption agencies" 中的 "researched"
+        """
+        expanded = set(tokens)  # 保留原始tokens
+
+        for token in tokens:
+            # 仅处理英文词
+            if not re.match(r'^[a-z]+$', token):
+                continue
+
+            # 常见动词变形规则
+            if len(token) >= 4:  # 避免处理太短的词
+                # -ing形式
+                if token.endswith('e'):
+                    expanded.add(token[:-1] + 'ing')  # make → making
+                else:
+                    expanded.add(token + 'ing')  # research → researching
+
+                # -ed形式
+                if token.endswith('e'):
+                    expanded.add(token + 'd')  # research → researched (但research不以e结尾)
+                elif token.endswith('y'):
+                    expanded.add(token[:-1] + 'ied')  # study → studied
+                else:
+                    expanded.add(token + 'ed')  # research → researched
+
+                # -er形式 (名词)
+                expanded.add(token + 'er')  # research → researcher
+
+                # -s形式 (复数/第三人称)
+                if token.endswith('s') or token.endswith('x') or token.endswith('ch') or token.endswith('sh'):
+                    expanded.add(token + 'es')
+                elif token.endswith('y'):
+                    expanded.add(token[:-1] + 'ies')
+                else:
+                    expanded.add(token + 's')
+
+        logger.debug(f"Keyword expansion: {tokens} → {expanded}")
+        return list(expanded)
     
     def _calculate_retrieval_confidence(self, similarity: float, memory: MemoryItem) -> float:
         """Calculate overall retrieval confidence"""
@@ -533,24 +768,22 @@ class MemoryRetrievalAgent(BrainAgent):
         cue_count = 0
         
         # Temporal cue matching
-        if 'time_range' in cues and memory.timestamp:
+        if 'time_range' in cues and cues['time_range'] is not None and memory.timestamp:
             cue_count += 1
             # Simple temporal proximity score
             score += 0.3
-        
+
         # Context cue matching
-        if 'context' in cues:
+        if 'context' in cues and cues['context']:
             cue_count += 1
             context_matches = len(set(cues['context']) & set(memory.context_tags))
-            if cues['context']:
-                score += (context_matches / len(cues['context'])) * 0.4
-        
+            score += (context_matches / len(cues['context'])) * 0.4
+
         # Emotional cue matching
-        if 'emotion' in cues:
+        if 'emotion' in cues and cues['emotion']:
             cue_count += 1
             emotion_matches = len(set(cues['emotion']) & set(memory.emotion_tags))
-            if cues['emotion']:
-                score += (emotion_matches / len(cues['emotion'])) * 0.3
+            score += (emotion_matches / len(cues['emotion'])) * 0.3
         
         return score if cue_count > 0 else 0.0
     
@@ -607,7 +840,54 @@ class MemoryRetrievalAgent(BrainAgent):
         
         completed = await self.call_llm(prompt)
         return completed
-    
+
+    def _extract_time_from_query(self, query: str) -> Optional[Dict[str, Any]]:
+        """
+        ✅ 从查询中自动提取时间表达式
+
+        支持格式:
+        - 相对时间: "yesterday", "last week", "last month", "last year"
+        - 绝对日期: "2023-05-01", "May 7 2023", "7 May 2023"
+        - 中文时间: "昨天", "上周", "上个月", "去年"
+        """
+        import re
+        from datetime import datetime, timedelta
+
+        query_lower = query.lower()
+
+        # 检测相对时间表达式
+        relative_patterns = {
+            'yesterday|昨天': 'yesterday',
+            'last week|上周|一周前': 'last week',
+            'last month|上月|上个月|一个月前': 'last month',
+            'last year|去年': 'last year'
+        }
+
+        for pattern, relative in relative_patterns.items():
+            if re.search(pattern, query_lower):
+                return {'relative': relative}
+
+        # 检测绝对日期 (YYYY-MM-DD, DD Month YYYY, Month DD YYYY等)
+        date_patterns = [
+            r'\b(\d{4})-(\d{1,2})-(\d{1,2})\b',  # 2023-05-07
+            r'\b(\d{1,2})\s+(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})\b',  # 7 May 2023
+            r'\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2}),?\s+(\d{4})\b'  # May 7, 2023
+        ]
+
+        for pattern in date_patterns:
+            match = re.search(pattern, query, re.IGNORECASE)
+            if match:
+                try:
+                    # 尝试解析日期
+                    date_str = match.group(0)
+                    # 简化处理: 返回找到的日期作为起始时间
+                    return {'start': date_str, 'end': None}
+                except:
+                    continue
+
+        # 未找到时间表达式
+        return None
+
     def _calculate_context_match(self, memory: MemoryItem, context_features: Dict) -> float:
         """Calculate how well a memory matches context features"""
         score = 0.0
@@ -666,10 +946,25 @@ class MemoryRetrievalAgent(BrainAgent):
         return matched
     
     def _update_cache(self, key: str, value: Any):
-        """Update retrieval cache with LRU policy"""
-        if len(self.retrieval_cache) >= self.cache_size:
-            # Remove oldest entry
-            oldest_key = next(iter(self.retrieval_cache))
-            del self.retrieval_cache[oldest_key]
-        
+        """Update retrieval cache with LRU policy (优化：使用OrderedDict)"""
+        # 如果key已存在，先删除（为了更新顺序）
+        if key in self.retrieval_cache:
+            del self.retrieval_cache[key]
+
+        # 添加到末尾（最新）
         self.retrieval_cache[key] = value
+
+        # LRU淘汰：超过大小限制时删除最旧的（开头）
+        if len(self.retrieval_cache) > self.cache_size:
+            self.retrieval_cache.popitem(last=False)  # FIFO: 删除第一个
+
+    def get_cache_stats(self) -> Dict[str, Any]:
+        """获取缓存统计信息"""
+        return {
+            'cache_size': len(self.retrieval_cache),
+            'max_cache_size': self.cache_size,
+            'total_retrievals': self.retrieval_count,
+            'cache_hits': self.cache_hit_count,
+            'cache_misses': self.cache_miss_count,
+            'hit_rate': f"{self.hit_rate:.2%}" if self.retrieval_count > 0 else "N/A"
+        }

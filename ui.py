@@ -59,6 +59,8 @@ from src.coordination.brain_coordinator import BrainInspiredCoordinator
 from src.memory.memory_system import memory_system
 from src.coordination.clean_agent_system import AgentMessage
 from src.agents.agent_buffer_system import agent_buffer_system
+from src.memory.knowledge_graph import knowledge_graph
+from src.memory.kg_integration import kg_integration
 
 # 初始化协调器
 brain_coordinator = BrainInspiredCoordinator()
@@ -98,6 +100,9 @@ class BrainUIInterface:
         self.dialogue_history = []  # 保持最近的对话记录
         self.max_history_turns = 10  # 最多保留10轮对话
         self.max_context_tokens = 2000  # 上下文最大token限制
+
+        # KG增强检索开关
+        self.kg_enhanced_search = False  # 默认关闭
         
         # 实时监控
         self.monitoring_active = False
@@ -207,26 +212,32 @@ class BrainUIInterface:
                 logger.error(f"Monitoring error: {e}")
                 time.sleep(10)
     
-    async def process_conversation(self, user_input: str, history: List[List[str]]) -> Tuple[List[List[str]], str, go.Figure, str, str]:
+    async def process_conversation(self, user_input: str, history: List[List[str]]) -> Tuple[List[List[str]], str, go.Figure, str, str, str]:
         """
         处理用户对话
-        返回: (updated_history, processing_log, performance_chart, system_status, memory_info)
+        返回: (updated_history, processing_log, performance_chart, system_status, memory_info, capability_analysis)
         """
         if not user_input.strip():
-            return history, "等待用户输入...", self._create_empty_chart(), self._get_system_status(), self._get_memory_info()
-        
+            return history, "等待用户输入...", self._create_empty_chart(), self._get_system_status(), self._get_memory_info(), "## 🧠 能力分析\n\n等待用户输入..."
+
         start_time = datetime.now()
-        
+
         try:
             logger.info(f"Processing conversation: {user_input[:50]}...")
-            
+
+            # 🧠 先进行能力分析 (新增!)
+            from src.reasoning.capability_analyzer import CapabilityAnalyzer
+            analyzer = CapabilityAnalyzer()
+            capability_result = await analyzer.analyze(user_input)
+
             # 更新会话统计
             self.session_stats['total_conversations'] += 1
             
             # 使用可塑性协调器处理输入，传递会话上下文和对话历史
             context = {
                 'session_context': self.session_context,  # 传递会话级上下文
-                'dialogue_history': self._get_conversation_context()  # 传递对话历史
+                'dialogue_history': self._get_conversation_context(),  # 传递对话历史
+                'kg_enhanced_search': self.kg_enhanced_search  # 传递KG增强检索开关
             }
             result = await brain_coordinator.process_user_input(user_input, context)
             
@@ -298,8 +309,11 @@ class BrainUIInterface:
             performance_chart = self._create_performance_chart()
             system_status = self._get_system_status()
             memory_info = self._get_memory_info()
-            
-            return history, processing_log, performance_chart, system_status, memory_info
+
+            # 🧠 格式化能力分析结果 (新增!)
+            capability_analysis = self._format_capability_analysis(capability_result, user_input)
+
+            return history, processing_log, performance_chart, system_status, memory_info, capability_analysis
             
         except Exception as e:
             error_msg = f"❌ 系统异常: {str(e)}"
@@ -314,7 +328,8 @@ class BrainUIInterface:
                 error_msg,
                 self._create_empty_chart(),
                 "❌ 系统异常",
-                "❌ 无法获取记忆信息"
+                "❌ 无法获取记忆信息",
+                "❌ 能力分析失败"
             )
     
     def _generate_plastic_processing_log(self, user_input: str, result: dict, processing_time: float) -> str:
@@ -398,6 +413,76 @@ class BrainUIInterface:
         
         return log
     
+    def _format_capability_analysis(self, capability_result: dict, user_input: str) -> str:
+        """格式化能力分析结果 - 展示动态推理过程"""
+        capabilities = capability_result.get('capabilities', [])
+        confidence = capability_result.get('confidence', 0)
+        execution_plan = capability_result.get('execution_plan', 'N/A')
+
+        # 能力中文映射
+        capability_names = {
+            'memory_retrieval': '📚 记忆检索',
+            'fact_extraction': '🔍 事实提取',
+            'temporal_calculation': '⏰ 时间计算',
+            'duration_inference': '⌛ 时长推理',
+            'identity_inference': '👤 身份推断',
+            'pattern_recognition': '🎯 模式识别',
+            'interest_inference': '💡 兴趣推断',
+            'causal_reasoning': '🔗 因果推理',
+            'counterfactual_reasoning': '🤔 反事实推理',
+            'comparison': '⚖️ 对比分析',
+            'multi_hop_inference': '🔀 多跳推理'
+        }
+
+        analysis = f"""## 🧠 动态能力分析
+
+### 📝 用户问题
+> {user_input}
+
+### 🎯 检测到的推理能力 ({len(capabilities)}个)
+"""
+
+        for i, cap in enumerate(capabilities, 1):
+            cap_name = cap.get('name', 'unknown')
+            priority = cap.get('priority', 0)
+            reason = cap.get('reason', 'N/A')
+            display_name = capability_names.get(cap_name, cap_name.replace('_', ' ').title())
+
+            priority_bar = "🟦" * priority + "⬜" * (5 - priority)
+
+            analysis += f"""
+**{i}. {display_name}** (`{cap_name}`)
+- **优先级**: {priority}/5 {priority_bar}
+- **理由**: {reason}
+"""
+
+        # 从能力推断问题类型
+        inferred_type = "unknown"
+        if any(c['name'] in ['temporal_calculation', 'duration_inference'] for c in capabilities):
+            inferred_type = "temporal (时间问题)"
+        elif any(c['name'] == 'identity_inference' for c in capabilities):
+            inferred_type = "identity (身份问题)"
+        elif any(c['name'] == 'interest_inference' for c in capabilities):
+            inferred_type = "multi_hop (多跳推理)"
+        elif any(c['name'] == 'fact_extraction' for c in capabilities):
+            inferred_type = "factual (事实问题)"
+
+        analysis += f"""
+### 🎲 推断的问题类型
+**{inferred_type}**
+
+### 📈 置信度
+**{confidence:.2f}** {'🟢 高' if confidence > 0.8 else '🟡 中' if confidence > 0.5 else '🔴 低'}
+
+### 📋 执行计划
+{execution_plan}
+
+---
+💡 **说明**: 这是基于LLM动态分析的结果,系统会根据检测到的能力自动调整推理策略,而非依赖硬编码规则。
+"""
+
+        return analysis
+
     def _get_agent_chinese_name(self, agent_id: str) -> str:
         """获取智能体中文名称"""
         name_mapping = {
@@ -437,7 +522,7 @@ class BrainUIInterface:
             horizontal_spacing=0.12
         )
         
-        # 1. 响应时间趋势
+        # 1. 响应时间趋势 - 渐变色优化
         processing_times = [c.get('processing_time', 0) for c in self.conversation_history[-20:]]
         fig.add_trace(
             go.Scatter(
@@ -445,8 +530,10 @@ class BrainUIInterface:
                 y=processing_times,
                 mode='lines+markers',
                 name='响应时间',
-                line=dict(color='#1f77b4', width=2),
-                marker=dict(size=6)
+                line=dict(color='#667eea', width=3, shape='spline'),
+                marker=dict(size=8, color='#764ba2', line=dict(color='white', width=2)),
+                fill='tozeroy',
+                fillcolor='rgba(102, 126, 234, 0.1)'
             ),
             row=1, col=1
         )
@@ -463,7 +550,13 @@ class BrainUIInterface:
                     y=agent_names,
                     orientation='h',
                     name='激活次数',
-                    marker_color='#2ECC71'
+                    marker=dict(
+                        color=counts,
+                        colorscale=[[0, '#667eea'], [1, '#764ba2']],
+                        line=dict(color='white', width=1)
+                    ),
+                    text=counts,
+                    textposition='outside'
                 ),
                 row=1, col=2
             )
@@ -480,7 +573,14 @@ class BrainUIInterface:
                 labels=list(memory_data.keys()),
                 values=list(memory_data.values()),
                 name="记忆操作",
-                marker_colors=['#3498DB', '#E74C3C', '#95A5A6']
+                marker=dict(
+                    colors=['#667eea', '#764ba2', '#e0e7ff'],
+                    line=dict(color='white', width=2)
+                ),
+                hole=0.4,  # 甜甜圈图
+                textinfo='label+percent',
+                textfont=dict(size=12, color='white'),
+                hovertemplate='<b>%{label}</b><br>数量: %{value}<br>占比: %{percent}<extra></extra>'
             ),
             row=2, col=1
         )
@@ -502,29 +602,162 @@ class BrainUIInterface:
                     y=success_data,
                     mode='lines+markers',
                     name='成功率',
-                    line=dict(color='#27AE60', width=2),
-                    fill='tonexty'
+                    line=dict(color='#27ae60', width=3, shape='spline'),
+                    marker=dict(size=6, color='#2ecc71', line=dict(color='white', width=2)),
+                    fill='tozeroy',
+                    fillcolor='rgba(39, 174, 96, 0.2)'
                 ),
                 row=2, col=2
             )
         
-        # 更新布局
+        # 更新布局 - 现代化主题
         fig.update_layout(
             height=700,
             showlegend=False,
             title_text="🚀 类脑智能体系统性能监控",
-            title_x=0.5
+            title_x=0.5,
+            title_font=dict(size=20, color='#667eea', family='Arial Black'),
+            paper_bgcolor='rgba(255, 255, 255, 0.95)',
+            plot_bgcolor='rgba(248, 249, 250, 0.5)',
+            font=dict(family='Inter, sans-serif', color='#2c3e50'),
+            margin=dict(t=60, b=40, l=40, r=40)
         )
         
-        # 更新坐标轴
-        fig.update_xaxes(title_text="对话轮次", row=1, col=1)
-        fig.update_yaxes(title_text="时间(秒)", row=1, col=1)
-        fig.update_xaxes(title_text="激活次数", row=1, col=2)
-        fig.update_xaxes(title_text="对话轮次", row=2, col=2)
-        fig.update_yaxes(title_text="成功率(%)", row=2, col=2)
+        # 更新坐标轴 - 精致样式
+        fig.update_xaxes(
+            title_text="对话轮次",
+            row=1, col=1,
+            gridcolor='rgba(102, 126, 234, 0.1)',
+            showline=True,
+            linecolor='rgba(102, 126, 234, 0.3)'
+        )
+        fig.update_yaxes(
+            title_text="时间(秒)",
+            row=1, col=1,
+            gridcolor='rgba(102, 126, 234, 0.1)',
+            showline=True,
+            linecolor='rgba(102, 126, 234, 0.3)'
+        )
+        fig.update_xaxes(
+            title_text="激活次数",
+            row=1, col=2,
+            gridcolor='rgba(102, 126, 234, 0.1)'
+        )
+        fig.update_xaxes(
+            title_text="对话轮次",
+            row=2, col=2,
+            gridcolor='rgba(102, 126, 234, 0.1)',
+            showline=True,
+            linecolor='rgba(102, 126, 234, 0.3)'
+        )
+        fig.update_yaxes(
+            title_text="成功率(%)",
+            row=2, col=2,
+            gridcolor='rgba(102, 126, 234, 0.1)',
+            showline=True,
+            linecolor='rgba(102, 126, 234, 0.3)'
+        )
         
         return fig
     
+    def _get_kg_info(self) -> str:
+        """获取知识图谱统计信息"""
+        try:
+            stats = knowledge_graph.get_statistics()
+
+            basic = stats.get('basic', {})
+            centrality = stats.get('centrality', {})
+            graph_props = stats.get('graph_properties', {})
+
+            info = f"""## 🕸️ 知识图谱状态
+
+### 📊 基本统计
+**节点总数**: {basic.get('total_nodes', 0)}
+**边总数**: {basic.get('total_edges', 0)}
+**平均度数**: {graph_props.get('avg_degree', 0.0):.2f}
+
+### 🏷️ 实体类型分布
+"""
+            entity_types = basic.get('entity_types', {})
+            for etype, count in sorted(entity_types.items(), key=lambda x: x[1], reverse=True):
+                info += f"- **{etype}**: {count}\n"
+
+            info += "\n### 🔗 关系类型分布\n"
+            relation_types = basic.get('relation_types', {})
+            for rtype, count in sorted(relation_types.items(), key=lambda x: x[1], reverse=True):
+                info += f"- **{rtype}**: {count}\n"
+
+            info += f"""
+### 📈 图属性
+**连通性**: {'✅ 连通' if graph_props.get('is_connected', False) else '❌ 非连通'}
+**连通分量数**: {graph_props.get('num_components', 0)}
+**图密度**: {graph_props.get('density', 0.0):.4f}
+
+### ⭐ 重要节点 (PageRank Top 5)
+"""
+            top_pr = centrality.get('top_pagerank', [])
+            for i, (node_id, score) in enumerate(top_pr[:5], 1):
+                node = knowledge_graph.get_node(node_id)
+                content = node.content if node else node_id
+                info += f"{i}. **{content}** (得分: {score:.4f})\n"
+
+            info += "\n### 🎯 连接最多的节点 (Degree Top 5)\n"
+            top_degree = centrality.get('top_degree', [])
+            for i, (node_id, degree) in enumerate(top_degree[:5], 1):
+                node = knowledge_graph.get_node(node_id)
+                content = node.content if node else node_id
+                info += f"{i}. **{content}** (度数: {degree})\n"
+
+            return info
+
+        except Exception as e:
+            logger.error(f"获取KG信息失败: {e}")
+            return f"## ⚠️ 获取知识图谱信息失败\n\n错误: {str(e)}"
+
+    def _find_memory_associations(self, memory_id: str) -> str:
+        """查找记忆关联"""
+        if not memory_id or not memory_id.strip():
+            return "## 📊 关联信息\n\n⚠️ 请输入有效的记忆ID"
+
+        try:
+            # 异步调用需要在同步环境中运行
+            import asyncio
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            result = loop.run_until_complete(
+                kg_integration.find_memory_associations(memory_id.strip(), max_depth=2)
+            )
+            loop.close()
+
+            if not result.get('found'):
+                return f"## 📊 关联信息\n\n⚠️ 未找到记忆 `{memory_id}` 在知识图谱中"
+
+            info = f"""## 📊 记忆 `{memory_id}` 的关联信息
+
+### 🔗 关联记忆 ({len(result.get('related_memories', []))})
+"""
+            for mem in result.get('related_memories', [])[:10]:
+                content_preview = mem['content'][:50] + "..." if len(mem['content']) > 50 else mem['content']
+                info += f"- **ID**: `{mem['memory_id']}` (重要度: {mem['importance']:.2f})\n"
+                info += f"  {content_preview}\n\n"
+
+            info += f"\n### 🏷️ 关联实体 ({len(result.get('related_entities', []))})\n"
+            for entity in result.get('related_entities', [])[:10]:
+                info += f"- **{entity['entity']}** ({entity['type']}, 重要度: {entity['importance']:.2f})\n"
+
+            info += f"\n### 🛤️ 连接路径 ({len(result.get('paths', []))})\n"
+            for path_info in result.get('paths', [])[:5]:
+                path_str = " → ".join(path_info['path'])
+                info += f"- 到 `{path_info['target']}`: {path_str} (长度: {path_info['length']})\n"
+
+            info += f"\n**总上下文节点数**: {result.get('total_context', 0)}"
+
+            return info
+
+        except Exception as e:
+            logger.error(f"查找记忆关联失败: {e}")
+            return f"## ⚠️ 查找失败\n\n错误: {str(e)}"
+
     def _get_system_status(self) -> str:
         """获取系统状态信息"""
         try:
@@ -578,6 +811,21 @@ class BrainUIInterface:
 **记忆总数**: {memory_stats['database'].get('total_memories', 0)}
 **向量索引**: {memory_stats['vectors'].get('vector_count', 0)}
 
+### 🚀 缓存性能
+"""
+            # 获取缓存统计
+            try:
+                # Embedding缓存
+                emb_cache_stats = memory_system.embedding_service.cache.get_stats()
+                status += f"**Embedding缓存**: {emb_cache_stats['cache_size']}/{emb_cache_stats['max_size']} ({emb_cache_stats['hit_rate']})\n"
+
+                # Retrieval缓存
+                ret_cache_stats = brain_coordinator.memory_retrieval.get_cache_stats()
+                status += f"**检索缓存**: {ret_cache_stats['cache_size']}/{ret_cache_stats['max_cache_size']} ({ret_cache_stats['hit_rate']})\n"
+            except Exception as e:
+                status += f"**缓存统计**: 暂不可用\n"
+
+            status += """
 ### 💬 会话统计
 **本次对话**: {self.session_stats['total_conversations']}
 **成功响应**: {self.session_stats['successful_responses']}
@@ -769,7 +1017,109 @@ class BrainUIInterface:
             yaxis=dict(showgrid=False, showticklabels=False)
         )
         return fig
-    
+
+    def _create_cache_performance_chart(self) -> go.Figure:
+        """创建缓存性能图表"""
+        try:
+            # 获取缓存统计
+            emb_cache = memory_system.embedding_service.cache.get_stats()
+            ret_cache = brain_coordinator.memory_retrieval.get_cache_stats()
+
+            # 解析命中率百分比
+            emb_hit_rate = float(emb_cache['hit_rate'].strip('%')) if isinstance(emb_cache['hit_rate'], str) else 0
+            ret_hit_rate = float(ret_cache['hit_rate'].strip('%')) if isinstance(ret_cache['hit_rate'], str) else 0
+
+            # 创建子图
+            fig = make_subplots(
+                rows=2, cols=2,
+                subplot_titles=(
+                    '缓存命中率', '缓存使用率',
+                    'Embedding缓存详情', 'Retrieval缓存详情'
+                ),
+                specs=[
+                    [{'type': 'bar'}, {'type': 'indicator'}],
+                    [{'type': 'indicator'}, {'type': 'indicator'}]
+                ]
+            )
+
+            # 1. 命中率对比柱状图
+            fig.add_trace(
+                go.Bar(
+                    x=['Embedding', 'Retrieval'],
+                    y=[emb_hit_rate, ret_hit_rate],
+                    marker_color=['#36a9e1', '#f39c12'],
+                    text=[f"{emb_hit_rate:.1f}%", f"{ret_hit_rate:.1f}%"],
+                    textposition='auto'
+                ),
+                row=1, col=1
+            )
+
+            # 2. 总体缓存使用率
+            total_used = emb_cache['cache_size'] + ret_cache['cache_size']
+            total_max = emb_cache['max_size'] + ret_cache['max_cache_size']
+            usage_rate = (total_used / total_max * 100) if total_max > 0 else 0
+
+            fig.add_trace(
+                go.Indicator(
+                    mode="gauge+number+delta",
+                    value=usage_rate,
+                    title={'text': "总使用率"},
+                    delta={'reference': 50},
+                    gauge={
+                        'axis': {'range': [None, 100]},
+                        'bar': {'color': "#27ae60"},
+                        'steps': [
+                            {'range': [0, 50], 'color': "lightgray"},
+                            {'range': [50, 80], 'color': "lightyellow"},
+                            {'range': [80, 100], 'color': "lightcoral"}
+                        ],
+                        'threshold': {
+                            'line': {'color': "red", 'width': 4},
+                            'thickness': 0.75,
+                            'value': 90
+                        }
+                    }
+                ),
+                row=1, col=2
+            )
+
+            # 3. Embedding缓存详情
+            fig.add_trace(
+                go.Indicator(
+                    mode="number+delta",
+                    value=emb_cache['cache_size'],
+                    title={'text': f"Embedding<br>({emb_cache['hit_count']} hits)"},
+                    delta={'reference': emb_cache['max_size'] * 0.5, 'relative': False},
+                    number={'suffix': f"/{emb_cache['max_size']}"}
+                ),
+                row=2, col=1
+            )
+
+            # 4. Retrieval缓存详情
+            fig.add_trace(
+                go.Indicator(
+                    mode="number+delta",
+                    value=ret_cache['cache_size'],
+                    title={'text': f"Retrieval<br>({ret_cache['cache_hits']} hits)"},
+                    delta={'reference': ret_cache['max_cache_size'] * 0.5, 'relative': False},
+                    number={'suffix': f"/{ret_cache['max_cache_size']}"}
+                ),
+                row=2, col=2
+            )
+
+            fig.update_layout(
+                height=500,
+                showlegend=False,
+                title_text="🚀 缓存性能监控",
+                title_x=0.5
+            )
+
+            return fig
+
+        except Exception as e:
+            logger.warning(f"Failed to create cache chart: {e}")
+            return self._create_empty_chart()
+
     def clear_session_data(self):
         """清除会话数据"""
         self.conversation_history.clear()
@@ -814,27 +1164,236 @@ def create_brain_interface():
         title="类脑智能体记忆框架",
         theme=theme,
         css="""
-        .main-header { 
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-            padding: 20px; 
-            border-radius: 10px; 
-            color: white; 
-            text-align: center; 
-            margin-bottom: 20px;
+        /* 全局样式优化 */
+        .gradio-container {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%) !important;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
         }
-        .status-card {
-            background: #f8f9fa;
-            padding: 15px;
-            border-radius: 8px;
-            border-left: 4px solid #007bff;
-            margin: 10px 0;
-        }
-        .metric-card {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            padding: 15px;
-            border-radius: 8px;
+
+        /* 主标题区域 - 更现代的玻璃态设计 */
+        .main-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            backdrop-filter: blur(10px);
+            padding: 32px;
+            border-radius: 16px;
             color: white;
             text-align: center;
+            margin-bottom: 24px;
+            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+
+        .main-header h1 {
+            font-size: 2.5em;
+            font-weight: 700;
+            margin-bottom: 8px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .main-header h2 {
+            font-size: 1.2em;
+            font-weight: 400;
+            opacity: 0.95;
+            margin-bottom: 12px;
+        }
+
+        .main-header p {
+            font-size: 1em;
+            opacity: 0.9;
+        }
+
+        /* 卡片样式 - 新拟态设计 */
+        .status-card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+            margin: 12px 0;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .status-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+        }
+
+        /* 指标卡片 - 渐变优化 */
+        .metric-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            border-radius: 12px;
+            color: white;
+            text-align: center;
+            box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
+            transition: transform 0.2s ease;
+        }
+
+        .metric-card:hover {
+            transform: scale(1.03);
+        }
+
+        /* 聊天框优化 */
+        .message-user {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+            color: white !important;
+            border-radius: 12px 12px 4px 12px !important;
+            padding: 12px 16px !important;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3) !important;
+        }
+
+        .message-bot {
+            background: rgba(255, 255, 255, 0.95) !important;
+            color: #2c3e50 !important;
+            border-radius: 12px 12px 12px 4px !important;
+            padding: 12px 16px !important;
+            border: 1px solid rgba(102, 126, 234, 0.2) !important;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+        }
+
+        /* 按钮优化 */
+        .primary-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+            border: none !important;
+            border-radius: 8px !important;
+            padding: 10px 24px !important;
+            font-weight: 600 !important;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3) !important;
+            transition: all 0.2s ease !important;
+        }
+
+        .primary-btn:hover {
+            transform: translateY(-2px) !important;
+            box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4) !important;
+        }
+
+        .secondary-btn {
+            background: rgba(255, 255, 255, 0.9) !important;
+            border: 2px solid #667eea !important;
+            color: #667eea !important;
+            border-radius: 8px !important;
+            font-weight: 600 !important;
+            transition: all 0.2s ease !important;
+        }
+
+        .secondary-btn:hover {
+            background: #667eea !important;
+            color: white !important;
+            transform: translateY(-2px) !important;
+        }
+
+        /* 标签页优化 */
+        .tab-nav {
+            background: rgba(255, 255, 255, 0.6) !important;
+            backdrop-filter: blur(10px) !important;
+            border-radius: 12px !important;
+            padding: 4px !important;
+        }
+
+        .tab-nav button {
+            border-radius: 8px !important;
+            font-weight: 500 !important;
+            transition: all 0.2s ease !important;
+        }
+
+        .tab-nav button.selected {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+            color: white !important;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3) !important;
+        }
+
+        /* 输入框优化 */
+        textarea, input[type="text"] {
+            border-radius: 8px !important;
+            border: 2px solid rgba(102, 126, 234, 0.3) !important;
+            background: rgba(255, 255, 255, 0.95) !important;
+            transition: all 0.2s ease !important;
+        }
+
+        textarea:focus, input[type="text"]:focus {
+            border-color: #667eea !important;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1) !important;
+        }
+
+        /* Markdown内容优化 */
+        .markdown-text h2 {
+            color: #667eea;
+            font-weight: 700;
+            margin-top: 16px;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid rgba(102, 126, 234, 0.2);
+        }
+
+        .markdown-text h3 {
+            color: #764ba2;
+            font-weight: 600;
+            margin-top: 12px;
+            margin-bottom: 8px;
+        }
+
+        .markdown-text code {
+            background: rgba(102, 126, 234, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Fira Code', monospace;
+        }
+
+        .markdown-text pre {
+            background: rgba(44, 62, 80, 0.95);
+            color: #ecf0f1;
+            padding: 16px;
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+
+        /* 下拉菜单优化 */
+        select {
+            border-radius: 8px !important;
+            border: 2px solid rgba(102, 126, 234, 0.3) !important;
+            background: rgba(255, 255, 255, 0.95) !important;
+            padding: 8px 12px !important;
+        }
+
+        /* 加载动画 */
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .loading {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        /* 滚动条优化 */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #5568d3 0%, #653a8b 100%);
+        }
+
+        /* 响应式优化 */
+        @media (max-width: 768px) {
+            .main-header h1 {
+                font-size: 1.8em;
+            }
+            .main-header h2 {
+                font-size: 1em;
+            }
         }
         """
     ) as demo:
@@ -904,6 +1463,9 @@ def create_brain_interface():
                 with gr.Tab("🔗 可塑性洞察"):
                     plasticity_info = gr.Markdown("## 🔗 神经可塑性洞察\n\n加载中...")
 
+                with gr.Tab("🧠 能力分析"):
+                    capability_analysis = gr.Markdown("## 🧠 动态能力分析\n\n等待用户输入...")
+
                 with gr.Tab("📦 缓冲监控"):
                     agent_selector = gr.Dropdown(
                         choices=brain_ui.available_agents,
@@ -916,7 +1478,27 @@ def create_brain_interface():
 
                 with gr.Tab("📜 Agent日志"):
                     agent_logs = gr.Markdown("## 📜 智能体执行日志\n\n等待选择...")
-        
+
+                with gr.Tab("🕸️ 知识图谱"):
+                    kg_info = gr.Markdown("## 🕸️ 知识图谱\n\n加载中...")
+                    with gr.Row():
+                        kg_enhanced_checkbox = gr.Checkbox(
+                            label="启用图增强检索",
+                            value=False,
+                            info="开启后将使用知识图谱扩展检索上下文"
+                        )
+                        kg_refresh_btn = gr.Button("🔄 刷新图谱", size="sm")
+
+                    gr.Markdown("### 🔍 记忆关联查看")
+                    with gr.Row():
+                        memory_id_input = gr.Textbox(
+                            placeholder="输入记忆ID查看关联...",
+                            label="记忆ID",
+                            scale=3
+                        )
+                        find_associations_btn = gr.Button("🔎 查找关联", scale=1)
+                    kg_associations = gr.Markdown("## 📊 关联信息\n\n等待查询...")
+
         # 详细日志区域
         with gr.Row():
             processing_log = gr.Markdown("## 📋 处理详情\n\n等待对话...", height=200)
@@ -939,6 +1521,7 @@ def create_brain_interface():
                     brain_ui._get_system_status(),
                     brain_ui._get_memory_info(),
                     brain_ui.get_plasticity_overview(),
+                    "## 🧠 能力分析\n\n等待用户输入...",
                     brain_ui.get_buffer_snapshot(target_agent),
                     brain_ui.get_agent_logs(target_agent)
                 )
@@ -956,7 +1539,7 @@ def create_brain_interface():
                 updated = _run_async_in_global_loop(
                     brain_ui.process_conversation(message, history)
                 )
-                updated_history, processing_log, performance_chart, system_status_md, memory_info_md = updated
+                updated_history, processing_log, performance_chart, system_status_md, memory_info_md, capability_analysis_md = updated
                 return (
                     updated_history,
                     processing_log,
@@ -964,6 +1547,7 @@ def create_brain_interface():
                     system_status_md,
                     memory_info_md,
                     brain_ui.get_plasticity_overview(),
+                    capability_analysis_md,
                     brain_ui.get_buffer_snapshot(target_agent),
                     brain_ui.get_agent_logs(target_agent)
                 )
@@ -979,6 +1563,7 @@ def create_brain_interface():
                     brain_ui._get_system_status(),
                     brain_ui._get_memory_info(),
                     brain_ui.get_plasticity_overview(),
+                    "❌ 能力分析失败",
                     brain_ui.get_buffer_snapshot(target_agent),
                     brain_ui.get_agent_logs(target_agent)
                 )
@@ -991,6 +1576,7 @@ def create_brain_interface():
                 brain_ui._get_memory_info(),
                 brain_ui._create_performance_chart(),
                 brain_ui.get_plasticity_overview(),
+                "## 🧠 能力分析\n\n等待用户输入...",
                 brain_ui.get_buffer_snapshot(target_agent),
                 brain_ui.get_agent_logs(target_agent)
             )
@@ -1006,6 +1592,7 @@ def create_brain_interface():
                 brain_ui._get_system_status(),
                 brain_ui._get_memory_info(),
                 brain_ui.get_plasticity_overview(),
+                "## 🧠 能力分析\n\n等待用户输入...",
                 brain_ui.get_buffer_snapshot(target_agent),
                 brain_ui.get_agent_logs(target_agent)
             )
@@ -1040,30 +1627,48 @@ def create_brain_interface():
         send_btn.click(
             handle_conversation,
             inputs=[msg_input, chatbot, selected_agent_state],
-            outputs=[chatbot, processing_log, performance_chart, system_status, memory_info, plasticity_info, buffer_info, agent_logs]
+            outputs=[chatbot, processing_log, performance_chart, system_status, memory_info, plasticity_info, capability_analysis, buffer_info, agent_logs]
         ).then(lambda: "", outputs=[msg_input])
 
         msg_input.submit(
             handle_conversation,
             inputs=[msg_input, chatbot, selected_agent_state],
-            outputs=[chatbot, processing_log, performance_chart, system_status, memory_info, plasticity_info, buffer_info, agent_logs]
+            outputs=[chatbot, processing_log, performance_chart, system_status, memory_info, plasticity_info, capability_analysis, buffer_info, agent_logs]
         ).then(lambda: "", outputs=[msg_input])
 
         clear_btn.click(
             clear_all_data,
             inputs=[selected_agent_state],
-            outputs=[chatbot, processing_log, performance_chart, system_status, memory_info, plasticity_info, buffer_info, agent_logs]
+            outputs=[chatbot, processing_log, performance_chart, system_status, memory_info, plasticity_info, capability_analysis, buffer_info, agent_logs]
         )
 
         refresh_btn.click(
             get_current_status,
             inputs=[selected_agent_state],
-            outputs=[system_status, memory_info, performance_chart, plasticity_info, buffer_info, agent_logs]
+            outputs=[system_status, memory_info, performance_chart, plasticity_info, capability_analysis, buffer_info, agent_logs]
         )
 
         export_btn.click(
             export_conversation,
             outputs=[processing_log]
+        )
+
+        # KG相关事件
+        kg_refresh_btn.click(
+            lambda: brain_ui._get_kg_info(),
+            outputs=[kg_info]
+        )
+
+        kg_enhanced_checkbox.change(
+            lambda checked: setattr(brain_ui, 'kg_enhanced_search', checked) or f"✅ 图增强检索已{'开启' if checked else '关闭'}",
+            inputs=[kg_enhanced_checkbox],
+            outputs=[processing_log]
+        )
+
+        find_associations_btn.click(
+            brain_ui._find_memory_associations,
+            inputs=[memory_id_input],
+            outputs=[kg_associations]
         )
 
         if brain_ui.available_agents:
@@ -1088,7 +1693,13 @@ def create_brain_interface():
         demo.load(
             get_current_status,
             inputs=[selected_agent_state],
-            outputs=[system_status, memory_info, performance_chart, plasticity_info, buffer_info, agent_logs]
+            outputs=[system_status, memory_info, performance_chart, plasticity_info, capability_analysis, buffer_info, agent_logs]
+        )
+
+        # 页面加载时初始化KG信息
+        demo.load(
+            lambda: brain_ui._get_kg_info(),
+            outputs=[kg_info]
         )
     
     return demo

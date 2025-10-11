@@ -26,8 +26,8 @@ class EmbeddingFailureError(Exception):
     pass
 
 class EmbeddingCache:
-    """嵌入向量缓存 - 内置实现"""
-    
+    """嵌入向量缓存 - 内置实现（优化版）"""
+
     def __init__(self, cache_dir: str = "data/embedding_cache", max_size: int = 10000, ttl_hours: int = 24):
         self.cache_dir = get_absolute_path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -36,6 +36,16 @@ class EmbeddingCache:
         self.ttl = timedelta(hours=ttl_hours)
         self._cache = {}
         self._load_cache()
+
+        # 优化：批量写入
+        self._pending_writes = {}
+        self._write_threshold = 10  # 累积10个再写入
+        self._last_save_time = datetime.now()
+        self._save_interval = timedelta(minutes=5)  # 每5分钟强制保存一次
+
+        # 统计
+        self.hit_count = 0
+        self.miss_count = 0
     
     def _get_cache_key(self, text: str) -> str:
         """生成缓存键"""
@@ -66,34 +76,72 @@ class EmbeddingCache:
         if key in self._cache:
             entry = self._cache[key]
             if datetime.fromisoformat(entry['timestamp']) + self.ttl > datetime.now():
+                self.hit_count += 1
                 return entry['embedding']
+            else:
+                # 过期，删除
+                del self._cache[key]
+        self.miss_count += 1
         return None
     
     def put(self, text: str, embedding: List[float]):
-        """存储嵌入到缓存"""
+        """存储嵌入到缓存（批量写入优化）"""
         key = self._get_cache_key(text)
-        self._cache[key] = {
+        entry = {
             'embedding': embedding,
             'timestamp': datetime.now().isoformat()
         }
-        
+
+        self._cache[key] = entry
+        self._pending_writes[key] = entry
+
         # 简单的LRU清理
         if len(self._cache) > self.max_size:
             oldest_key = min(self._cache.keys(), key=lambda k: self._cache[k]['timestamp'])
             del self._cache[oldest_key]
-        
-        self._save_cache()
+
+        # 批量写入：累积到阈值或超过时间间隔才保存
+        should_save = (
+            len(self._pending_writes) >= self._write_threshold or
+            datetime.now() - self._last_save_time >= self._save_interval
+        )
+
+        if should_save:
+            self._save_cache()
+            self._pending_writes.clear()
+            self._last_save_time = datetime.now()
     
+    def get_stats(self) -> Dict[str, Any]:
+        """获取缓存统计信息"""
+        total = self.hit_count + self.miss_count
+        hit_rate = self.hit_count / total if total > 0 else 0.0
+
+        return {
+            'cache_size': len(self._cache),
+            'max_size': self.max_size,
+            'hit_count': self.hit_count,
+            'miss_count': self.miss_count,
+            'hit_rate': f"{hit_rate:.2%}",
+            'pending_writes': len(self._pending_writes)
+        }
+
+    def force_save(self):
+        """强制保存缓存（用于优雅关闭）"""
+        if self._pending_writes:
+            self._save_cache()
+            self._pending_writes.clear()
+            logger.info(f"Force saved embedding cache with {len(self._cache)} entries")
+
     async def get_embedding(self, text: str, compute_func):
         """获取嵌入向量，使用缓存或计算新的"""
         # 先检查缓存
         cached = self.get(text)
         if cached is not None:
             return np.array(cached)
-        
+
         # 缓存中没有，计算新的
         embedding = await compute_func(text)
-        
+
         # 存储到缓存
         if isinstance(embedding, np.ndarray):
             self.put(text, embedding.tolist())

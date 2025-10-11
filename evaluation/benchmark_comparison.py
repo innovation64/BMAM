@@ -32,8 +32,8 @@ class BenchmarkComparison:
         self.results_dir = self.bmam_path / "results" / "benchmark_comparison"
         self.results_dir.mkdir(parents=True, exist_ok=True)
 
-        # Initialize evaluation components
-        self.llm_judge = LLMJudge()
+        # Initialize evaluation components (lazy loading)
+        self._llm_judge = None
         self.datasets = BenchmarkDatasets()
 
         # Standard benchmarks used by MemOS
@@ -67,6 +67,85 @@ class BenchmarkComparison:
                 }
             }
         }
+
+    @property
+    def llm_judge(self):
+        """Lazy initialization of LLM Judge to avoid loading models on import"""
+        if self._llm_judge is None:
+            logger.info("Initializing LLM Judge (first use)...")
+            self._llm_judge = LLMJudge()
+        return self._llm_judge
+
+    def check_memos_baseline_availability(self, benchmark: str = None) -> Dict[str, Any]:
+        """
+        Check if MemOS baseline results are available for comparison
+        Returns status and helpful instructions if missing
+
+        Args:
+            benchmark: Specific benchmark to check, or None to check all
+        """
+        benchmarks_to_check = [benchmark] if benchmark else ["longmemeval", "locomo"]
+        status = {}
+
+        for bench in benchmarks_to_check:
+            if bench not in self.benchmarks:
+                status[bench] = {
+                    "available": False,
+                    "error": f"Unknown benchmark: {bench}"
+                }
+                continue
+
+            results_path = self.memos_path / "evaluation" / "scripts" / "results" / bench
+            status[bench] = {
+                "benchmark": bench,
+                "results_path": str(results_path),
+                "path_exists": results_path.exists(),
+                "available": False,
+                "result_files": [],
+                "instructions": None
+            }
+
+            if not results_path.exists():
+                status[bench]["instructions"] = (
+                    f"MemOS results directory not found.\n"
+                    f"To generate baseline results:\n"
+                    f"1. cd {self.memos_path}\n"
+                    f"2. python evaluation/scripts/run_{bench}.py\n"
+                    f"3. Results will be saved to: {results_path}"
+                )
+                continue
+
+            # Check for specific result files
+            if bench == "longmemeval":
+                result_files = list(results_path.glob("**/metrics.json"))
+            elif bench == "locomo":
+                patterns = [
+                    "memos-api*/memos_locomo_grades.json",
+                    "memos-local*/memos_locomo_grades.json",
+                    "**/grades.json",
+                    "**/locomo_grades.json"
+                ]
+                result_files = []
+                for pattern in patterns:
+                    result_files.extend(results_path.glob(pattern))
+
+            status[bench]["result_files"] = [str(f) for f in result_files]
+            status[bench]["available"] = len(result_files) > 0
+
+            if not result_files:
+                status[bench]["instructions"] = (
+                    f"MemOS results directory exists but no result files found.\n"
+                    f"Expected files not found in: {results_path}\n"
+                    f"To generate baseline results:\n"
+                    f"1. cd {self.memos_path}\n"
+                    f"2. python evaluation/scripts/run_{bench}.py"
+                )
+            else:
+                latest_file = max(result_files, key=os.path.getctime)
+                status[bench]["latest_result"] = str(latest_file)
+                status[bench]["result_count"] = len(result_files)
+
+        return status
 
     async def run_bmam_evaluation(self, benchmark: str) -> Dict:
         """Run BMAM evaluation on specified benchmark"""
@@ -271,113 +350,73 @@ class BenchmarkComparison:
         return results
 
     def _load_memos_longmemeval(self) -> Dict:
-        """Load MemOS LongMemEval results"""
+        """Load MemOS LongMemEval results - NO MOCK DATA"""
         results_path = self.memos_path / "evaluation" / "scripts" / "results" / "longmemeval"
 
-        # Look for recent results
-        if results_path.exists():
-            result_files = list(results_path.glob("**/metrics.json"))
-            if result_files:
-                latest_file = max(result_files, key=os.path.getctime)
-                with open(latest_file) as f:
-                    data = json.load(f)
-                return self._parse_memos_longmemeval_results(data)
+        if not results_path.exists():
+            raise FileNotFoundError(
+                f"MemOS LongMemEval results directory not found: {results_path}\n"
+                f"Please run MemOS evaluation first to generate baseline results.\n"
+                f"Navigate to MemOS directory and run: python evaluation/scripts/run_longmemeval.py"
+            )
 
-        # Return mock baseline if no results found
-        return {
-            "llm_judge_score": 0.75,
-            "f1": 0.68,
-            "rouge1_f": 0.72,
-            "rouge2_f": 0.45,
-            "rougeL_f": 0.65,
-            "bleu1": 0.58,
-            "avg_response_time": 2.5,
-            "context_tokens": 1500
-        }
+        result_files = list(results_path.glob("**/metrics.json"))
+        if not result_files:
+            raise FileNotFoundError(
+                f"No MemOS LongMemEval results found in {results_path}\n"
+                f"Expected to find metrics.json files.\n"
+                f"Please run MemOS evaluation first."
+            )
+
+        latest_file = max(result_files, key=os.path.getctime)
+        logger.info(f"Loading MemOS LongMemEval results from: {latest_file}")
+
+        with open(latest_file) as f:
+            data = json.load(f)
+
+        return self._parse_memos_longmemeval_results(data)
 
     def _load_memos_locomo(self) -> Dict:
-        """Load MemOS LoCoMo results"""
+        """Load MemOS LoCoMo results - NO MOCK DATA"""
         results_path = self.memos_path / "evaluation" / "scripts" / "results" / "locomo"
 
-        if results_path.exists():
-            # Look for MemOS evaluation results
-            possible_files = [
-                "memos-api*/memos_locomo_grades.json",
-                "memos-local*/memos_locomo_grades.json",
-                "**/grades.json",
-                "**/locomo_grades.json"
-            ]
+        if not results_path.exists():
+            raise FileNotFoundError(
+                f"MemOS LoCoMo results directory not found: {results_path}\n"
+                f"Please run MemOS evaluation first to generate baseline results.\n"
+                f"Navigate to MemOS directory and run: python evaluation/scripts/run_locomo.py"
+            )
 
-            for pattern in possible_files:
-                result_files = list(results_path.glob(pattern))
-                if result_files:
-                    latest_file = max(result_files, key=os.path.getctime)
-                    try:
-                        with open(latest_file) as f:
-                            data = json.load(f)
-                        logger.info(f"Loaded MemOS LoCoMo results from {latest_file}")
-                        return self._parse_memos_locomo_results(data)
-                    except Exception as e:
-                        logger.error(f"Failed to parse MemOS results from {latest_file}: {e}")
+        # Look for MemOS evaluation results
+        possible_files = [
+            "memos-api*/memos_locomo_grades.json",
+            "memos-local*/memos_locomo_grades.json",
+            "**/grades.json",
+            "**/locomo_grades.json"
+        ]
 
-        # Use realistic baseline results based on MemOS typical performance
-        logger.warning("No MemOS LoCoMo results found, using estimated baseline")
-        return {
-            "overall_score": 0.68,  # Typical MemOS performance
-            "llm_judge_score": 0.68,
-            "llm_judge_std": 0.15,
-            "categories": {
-                "single_hop": {
-                    "accuracy": 0.82,
-                    "llm_judge_score": 0.82,
-                    "avg_time": 1.2,
-                    "f1": 0.75,
-                    "rouge1_f": 0.78
-                },
-                "multi_hop": {
-                    "accuracy": 0.64,
-                    "llm_judge_score": 0.64,
-                    "avg_time": 2.8,
-                    "f1": 0.62,
-                    "rouge1_f": 0.65
-                },
-                "temporal_reasoning": {
-                    "accuracy": 0.58,
-                    "llm_judge_score": 0.58,
-                    "avg_time": 3.1,
-                    "f1": 0.55,
-                    "rouge1_f": 0.60
-                },
-                "open_domain": {
-                    "accuracy": 0.70,
-                    "llm_judge_score": 0.70,
-                    "avg_time": 2.2,
-                    "f1": 0.68,
-                    "rouge1_f": 0.72
-                }
-            },
-            "lexical": {
-                "f1": 0.65,
-                "rouge1_f": 0.69,
-                "rouge2_f": 0.42,
-                "rougeL_f": 0.61,
-                "bleu1": 0.58,
-                "bleu2": 0.35,
-                "bleu3": 0.24,
-                "bleu4": 0.18,
-                "meteor": 0.52
-            },
-            "semantic": {
-                "bert_f1": 0.71,
-                "similarity": 0.73
-            },
-            "performance": {
-                "response_duration_ms": 1800,
-                "search_duration_ms": 650,
-                "total_duration_ms": 2450,
-                "context_tokens": 1200
-            }
-        }
+        found_file = None
+        for pattern in possible_files:
+            result_files = list(results_path.glob(pattern))
+            if result_files:
+                found_file = max(result_files, key=os.path.getctime)
+                break
+
+        if not found_file:
+            raise FileNotFoundError(
+                f"No MemOS LoCoMo results found in {results_path}\n"
+                f"Searched for patterns: {possible_files}\n"
+                f"Please run MemOS evaluation first to generate baseline results."
+            )
+
+        logger.info(f"Loading MemOS LoCoMo results from: {found_file}")
+
+        try:
+            with open(found_file) as f:
+                data = json.load(f)
+            return self._parse_memos_locomo_results(data)
+        except Exception as e:
+            raise ValueError(f"Failed to parse MemOS results from {found_file}: {e}")
 
     def _parse_memos_longmemeval_results(self, data: Dict) -> Dict:
         """Parse MemOS LongMemEval results format"""

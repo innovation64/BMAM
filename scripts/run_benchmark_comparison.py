@@ -300,6 +300,38 @@ class ComprehensiveBenchmarkRunner:
                 cache_info = config["cache_info"]
                 print(f"{'':20} | {'':12} | Items: {cache_info.get('item_count', 'unknown')}")
 
+    def check_memos_baseline(self):
+        """Check MemOS baseline availability"""
+        print("\n🔍 Checking MemOS Baseline Availability...")
+        print("=" * 60)
+
+        status = self.comparator.check_memos_baseline_availability()
+
+        for benchmark, info in status.items():
+            print(f"\n📊 {benchmark.upper()}")
+            print("-" * 40)
+            print(f"Path: {info['results_path']}")
+            print(f"Path Exists: {'✅' if info['path_exists'] else '❌'}")
+            print(f"Results Available: {'✅ YES' if info['available'] else '❌ NO'}")
+
+            if info['available']:
+                print(f"Result Files Found: {info['result_count']}")
+                print(f"Latest: {Path(info['latest_result']).name}")
+            elif info.get('instructions'):
+                print("\n⚠️  MISSING BASELINE DATA")
+                print(info['instructions'])
+
+        print("\n" + "=" * 60)
+        all_available = all(info['available'] for info in status.values())
+        if all_available:
+            print("✅ All MemOS baseline results are available")
+            print("   Ready to run benchmark comparison")
+        else:
+            print("❌ Some MemOS baseline results are missing")
+            print("   Please run MemOS evaluations first")
+            print("\n💡 Tip: MemOS must be evaluated separately to generate baseline")
+            print("   This ensures scientific integrity - no mock data is used.")
+
 
 async def main():
     """Main entry point"""
@@ -307,9 +339,9 @@ async def main():
 
     parser.add_argument(
         "--mode",
-        choices=["quick", "full", "setup", "list"],
+        choices=["quick", "full", "setup", "list", "check"],
         default="quick",
-        help="Comparison mode: quick (core benchmarks), full (all benchmarks), setup (download datasets), list (show benchmarks)"
+        help="Comparison mode: quick (core benchmarks), full (all benchmarks), setup (download datasets), list (show benchmarks), check (verify MemOS baseline)"
     )
 
     parser.add_argument(
@@ -361,6 +393,9 @@ async def main():
 
         elif args.mode == "list":
             runner.list_available_benchmarks()
+
+        elif args.mode == "check":
+            runner.check_memos_baseline()
 
         elif args.mode == "quick":
             await runner.setup_datasets()

@@ -163,7 +163,7 @@ def get_settings() -> SystemSettings:
         faiss_compaction_frequency=int(get_env("FAISS_COMPACTION_FREQUENCY", "50")),
         fallback_cache_size=int(get_env("FALLBACK_CACHE_SIZE", "50")),
         memory_storage_timeout=float(get_env("MEMORY_STORAGE_TIMEOUT", "8.0")),
-        llm_call_timeout=float(get_env("LLM_CALL_TIMEOUT", "20.0")),
+        llm_call_timeout=float(get_env("LLM_CALL_TIMEOUT", "30.0")),  # 增加到30秒以适应复杂查询
         max_chunk_tokens=int(get_env("MAX_CHUNK_TOKENS", "2000")),
         max_input_tokens=int(get_env("MAX_INPUT_TOKENS", "8000")),
         chunk_overlap_tokens=int(get_env("CHUNK_OVERLAP_TOKENS", "100")),

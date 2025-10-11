@@ -454,6 +454,80 @@ class DatabaseManager:
 
         return memories
 
+    def load_memories_by_criteria(self, **criteria) -> List[MemoryItem]:
+        """Load memories matching specific criteria for episodic and keyword retrieval"""
+        memories = []
+        try:
+            session = self.get_session()
+            try:
+                query = session.query(MemoryRecord).filter_by(is_active=True)
+
+                # Filter by context tags
+                if 'context_tags' in criteria:
+                    context = criteria['context_tags']
+                    if isinstance(context, str):
+                        context = [context]
+                    # JSON contains check for context tags
+                    for tag in context:
+                        query = query.filter(MemoryRecord.context_tags.contains(tag))
+
+                # Filter by emotion tags
+                if 'emotion_tags' in criteria:
+                    emotion = criteria['emotion_tags']
+                    if isinstance(emotion, str):
+                        emotion = [emotion]
+                    for tag in emotion:
+                        query = query.filter(MemoryRecord.emotion_tags.contains(tag))
+
+                # Filter by memory type
+                if 'memory_type' in criteria:
+                    query = query.filter_by(memory_type=criteria['memory_type'])
+
+                # Filter by importance threshold
+                if 'min_importance' in criteria:
+                    query = query.filter(MemoryRecord.importance >= criteria['min_importance'])
+
+                # Filter by consolidation level
+                if 'consolidation_level' in criteria:
+                    query = query.filter_by(consolidation_level=criteria['consolidation_level'])
+
+                # Order by timestamp (most recent first)
+                query = query.order_by(MemoryRecord.timestamp.desc())
+
+                # Limit results
+                limit = criteria.get('limit', 100)
+                records = query.limit(limit).all()
+
+                for record in records:
+                    memory = MemoryItem(
+                        id=record.id,
+                        content=record.content,
+                        memory_type=record.memory_type,
+                        importance=record.importance,
+                        emotion_tags=record.emotion_tags or [],
+                        emotion_intensity=record.emotion_intensity,
+                        brain_region=record.brain_region,
+                        consolidation_level=record.consolidation_level,
+                        access_frequency=record.access_frequency,
+                        decay_rate=record.decay_rate,
+                        stress_marker=record.stress_marker,
+                        timestamp=record.timestamp,
+                        last_accessed=record.last_accessed,
+                        last_consolidated=record.last_consolidated,
+                        associations=record.associations or [],
+                        source_reliability=record.source_reliability,
+                        context_tags=record.context_tags or [],
+                        metadata=record.memory_metadata or {},
+                        embedding_id=record.embedding_id
+                    )
+                    memories.append(memory)
+            finally:
+                session.close()
+        except Exception as e:
+            logger.error(f"Failed to load memories by criteria: {e}")
+
+        return memories
+
     def get_recent_memories(self, limit: int = 1000) -> List[MemoryItem]:
         """Fetch most recent active memories for maintenance tasks."""
         try:
@@ -532,11 +606,16 @@ class AdvancedMemorySystem:
         
         logger.info("Advanced Memory System initialized successfully")
     
-    async def store_memory(self, content: str, memory_type: str = "episodic", 
+    async def store_memory(self, content: str, memory_type: str = "episodic",
                     importance: float = 0.5, emotion_tags: List[str] = None,
                     context_tags: List[str] = None, metadata: Dict[str, Any] = None) -> str:
         """Store a new memory with embedding"""
         try:
+            # 🧠 Semantic Memory Tagging DISABLED (纯开销,没被使用!)
+            # 性能优化: 删除semantic tagging可节省30%存储时间
+            if metadata is None:
+                metadata = {}
+
             # Create memory item
             memory = MemoryItem(
                 content=content,
@@ -544,9 +623,9 @@ class AdvancedMemorySystem:
                 importance=importance,
                 emotion_tags=emotion_tags or [],
                 context_tags=context_tags or [],
-                metadata=metadata or {}
+                metadata=metadata
             )
-            
+
             # Generate embedding
             try:
                 memory.embedding = await self.embedding_service.encode_text(content)
@@ -599,29 +678,51 @@ class AdvancedMemorySystem:
             return []
     
     async def _semantic_search(self, query: str, k: int, threshold: float) -> List[Dict[str, Any]]:
-        """Perform semantic search using vector similarity"""
+        """Perform semantic search using vector similarity with multi-tier fallback"""
         try:
             # Generate query embedding
             query_embedding = await self.embedding_service.encode_text(query)
-            
+
+            # 🔧 P0 Fix 1: Dynamic threshold adjustment (avoid too strict threshold)
+            effective_threshold = max(0.25, min(threshold, 0.75))
+
             # Search similar vectors
-            similar_memories = self.vector_db.search(query_embedding, k, threshold)
+            similar_memories = self.vector_db.search(query_embedding, k, effective_threshold)
+
+            # 🔧 P0 Fix 2: Multi-tier fallback for low recall
+            if len(similar_memories) < max(3, k // 2):
+                logger.warning(f"Low recall ({len(similar_memories)} results with threshold={effective_threshold:.2f}), retrying with relaxed threshold")
+                # Retry with lower threshold and more results
+                similar_memories = self.vector_db.search(query_embedding, k * 3, threshold=0.15)
+
+                # If still low, try ultra-relaxed
+                if len(similar_memories) < 2:
+                    logger.warning(f"Ultra-low recall, trying threshold=0.05")
+                    similar_memories = self.vector_db.search(query_embedding, k * 5, threshold=0.05)
         except Exception as e:
             logger.warning(f"Failed to generate query embedding for '{query}': {e}")
             # Fall back to keyword search if embedding fails
             return []
-        
-        # Load full memory objects
+
+        # Load full memory objects with quality filtering
         results = []
         for memory_id, similarity in similar_memories:
+            # 🔧 P0 Fix 3: Quality validation (reject very low similarity)
+            if similarity < 0.1:
+                continue
+
             memory = self.db_manager.load_memory(memory_id)
             if memory:
                 result = memory.to_dict()
                 result['similarity_score'] = similarity
                 result['search_type'] = 'semantic'
                 results.append(result)
-        
-        logger.info(f"Semantic search for '{query}' found {len(results)} results")
+
+        # Sort by similarity and return top-k
+        results.sort(key=lambda x: x['similarity_score'], reverse=True)
+        results = results[:k]
+
+        logger.info(f"Semantic search for '{query}' found {len(results)} results (threshold={effective_threshold:.2f})")
         return results
     
     def _hybrid_search(self, query: str, k: int, threshold: float, **filters) -> List[Dict[str, Any]]:

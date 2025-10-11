@@ -260,6 +260,25 @@
             <div id="memory-list"></div>
         </div>
 
+        <!-- 🧠 Brain Region Activation Panel -->
+        <div id="brain-panel" style="position: absolute; left: 5%; top: 10%; width: 25%; height: 35%; background: rgba(30, 30, 50, 0.85); border-radius: 20px; padding: 20px; backdrop-filter: blur(10px); border: 1px solid rgba(0, 217, 255, 0.3);">
+            <h3 style="margin-bottom: 15px; color: #00D9FF; font-size: 16px;">🧠 Brain Network Activity</h3>
+            <div style="font-size: 11px; color: #888; margin-bottom: 10px;">
+                Distributed Reasoning Architecture
+            </div>
+            <div id="brain-regions" style="display: grid; grid-template-columns: 1fr; gap: 8px; max-height: 250px; overflow-y: auto;">
+                <!-- Brain regions will be populated by JavaScript -->
+            </div>
+        </div>
+
+        <!-- 📊 Reasoning Chain Panel -->
+        <div id="reasoning-panel" style="position: absolute; left: 5%; bottom: 10%; width: 25%; max-height: 40%; background: rgba(30, 30, 50, 0.85); border-radius: 20px; padding: 20px; backdrop-filter: blur(10px); border: 1px solid rgba(107, 70, 193, 0.3); overflow-y: auto;">
+            <h3 style="margin-bottom: 15px; color: #6B46C1; font-size: 16px;">📊 Reasoning Chain</h3>
+            <div id="reasoning-steps" style="font-size: 12px; color: #ccc;">
+                <div style="color: #888; font-style: italic;">Waiting for query...</div>
+            </div>
+        </div>
+
         <div id="chat-bubble">
             <span id="chat-text"></span>
         </div>
@@ -276,5 +295,6 @@
     </div>
 
     <script src="/static/ui-controller.js"></script>
+    <script src="/static/brain-viz.js"></script>
 </body>
 </html>

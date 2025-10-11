@@ -101,14 +101,14 @@ class BrainAgent(ABC):
         """Process incoming message - to be implemented by subclasses"""
         raise NotImplementedError
     
-    async def call_llm(self, prompt: str, context: Dict[str, Any] = None, max_tokens: int = None, temperature: float = None, quick_fail: bool = False) -> str:
+    async def call_llm(self, prompt: str, context: Dict[str, Any] = None, max_tokens: int = None, temperature: float = None, quick_fail: bool = False, system_prompt: str = None) -> str:
         """统一的LLM调用接口 - 集成限流、统一重试策略和错误处理"""
         # 使用全局信号量进行并发控制，避免连接池竞态
         from ..coordination.clean_agent_system import _global_semaphore
         async with _global_semaphore:
 
-            # 统一应用层重试策略  
-            max_retries = 0 if quick_fail else 2
+            # 统一应用层重试策略（增加重试次数以应对网络波动）
+            max_retries = 0 if quick_fail else 4  # 提高到4次重试
             timeout_override = 5.0 if quick_fail else None  # 5s timeout for quick_fail
             base_delay = 1.0
             cache_key = self._build_cache_key(prompt, context)
@@ -171,12 +171,16 @@ class BrainAgent(ABC):
                         "trace": error_trace
                     }, "error")
                     
-                    # 判断是否为可重试的错误
+                    # 判断是否为可重试的错误（扩展错误类型检测）
                     error_str = str(e).lower()
+                    error_type = type(e).__name__
                     is_retryable = any(keyword in error_str for keyword in [
-                        'tcptransport', 'connection error', 'connection pool', 
-                        'closed=true', 'unable to perform', 'timeout'
-                    ])
+                        'tcptransport', 'connection error', 'connection pool',
+                        'closed=true', 'unable to perform', 'timeout',
+                        '520', '502', '503', '504',  # HTTP错误码
+                        'internal server error', 'bad gateway', 'service unavailable',
+                        'gateway timeout', 'cloudflare'
+                    ]) or error_type in ['TimeoutError', 'asyncio.TimeoutError']
                     
                     if is_retryable and attempt < max_retries:
                         # 指数退避重试

@@ -27,13 +27,8 @@ class MemoryDistortionAgent(BrainAgent):
         super().__init__(
             agent_id="memory_distortion",
             brain_region=BrainRegion.HIPPOCAMPUS,
-            system_prompt="""You are the memory distortion detection and management system of a brain-inspired AI.
-            Your role is to:
-            1. Monitor and detect memory reconstruction errors
-            2. Identify and handle false memories
-            3. Verify memory sources and authenticity
-            4. Manage memory distortion and contamination
-            5. Implement source monitoring processes"""
+            system_prompt="""You detect memory reconstruction errors and verify memory authenticity.
+            Flag false memories and monitor source reliability to prevent contamination."""
         )
         
         # External services
