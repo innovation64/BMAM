@@ -91,7 +91,7 @@ METHOD_CODE = '''
                     receiver='memory_retrieval',
                     message_type='request',
                     content={
-                        'action': 'semantic_search',
+                        'action': 'multi_strategy_search',  # ✅ 使用混合检索策略
                         'query': user_input,
                         'k': 20,
                         'time_range': time_range  # 🔥 传递时间范围参数!

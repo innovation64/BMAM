@@ -1696,7 +1696,7 @@ class BrainInspiredCoordinator:
                 sender='coordinator',
                 receiver='perception_encoding',
                 message_type='request',
-                content={'action': 'detect_language', 'user_input': user_input}  # ✅ 修复参数名
+                content={'action': 'detect_language', 'text': user_input}
             )
         )
 
