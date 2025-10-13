@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 """
-Complete LoCoMo Dataset Test with Full MemOS Evaluation Metrics
+LoCoMo Dataset Sample Test with Full MemOS Evaluation Metrics (Optimized v2)
 
-Tests ALL 10 conversation samples from LoCoMo benchmark with comprehensive metrics:
-- LLMJudge Score (primary metric)
-- F1, ROUGE-L, BLEU-1/2, METEOR, BERT-F1, Similarity
+Key improvements:
+1. Separate answer generation from metrics calculation
+2. Batch BERTScore calculation (all at once, not one-by-one)
+3. Prevents memory issues and crashes
 
-Reference: MemOS paper evaluation methodology
-
-WARNING: This takes ~35 hours to complete!
-For quick testing, use test_locomo_sample_memos.py instead.
+Tests a SAMPLE of LoCoMo benchmark (e.g., first 100 QA pairs from 3 samples)
+Full metrics: LLMJudge, F1, ROUGE-L, BLEU-1/2, METEOR, BERT-F1, Similarity
 """
 
 import asyncio
@@ -36,7 +35,7 @@ logging.basicConfig(
     level=logging.ERROR,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('test_locomo_full.log'),
+        logging.FileHandler('test_locomo_sample_v2.log'),
         logging.StreamHandler()
     ]
 )
@@ -44,7 +43,7 @@ logger = logging.getLogger(__name__)
 
 
 class MemOSMetricsCalculator:
-    """Calculate all MemOS evaluation metrics"""
+    """Calculate all MemOS evaluation metrics with batch support"""
 
     def __init__(self):
         # Try to import NLP metrics libraries
@@ -75,10 +74,14 @@ class MemOSMetricsCalculator:
             logger.warning("NLTK not installed")
             self.has_nltk = False
 
-        # Temporarily disable BERTScore - causes process crashes
-        # Run test_bertscore.ipynb first to verify it works
-        self.has_bert_score = False
-        logger.info("⚠️  BERTScore disabled (set to 0.0)")
+        try:
+            from bert_score import score as bert_score
+            self.bert_score = bert_score
+            self.has_bert_score = True
+            logger.info("✅ BERTScore available (will use batch mode)")
+        except ImportError:
+            logger.warning("bert-score not installed")
+            self.has_bert_score = False
 
         try:
             from sentence_transformers import SentenceTransformer, util
@@ -158,18 +161,6 @@ class MemOSMetricsCalculator:
             logger.error(f"METEOR calculation error: {e}")
             return 0.0
 
-    def calculate_bert_f1(self, reference: str, generated: str) -> float:
-        """Calculate BERTScore F1"""
-        if not self.has_bert_score:
-            return 0.0
-
-        try:
-            _, _, F1 = self.bert_score([str(generated)], [str(reference)], lang="en", rescale_with_baseline=True, verbose=False)
-            return F1.item()
-        except Exception as e:
-            logger.error(f"BERTScore calculation error: {e}")
-            return 0.0
-
     def calculate_similarity(self, reference: str, generated: str) -> float:
         """Calculate semantic similarity using sentence transformers"""
         if not self.has_similarity:
@@ -185,30 +176,66 @@ class MemOSMetricsCalculator:
             logger.error(f"Similarity calculation error: {e}")
             return 0.0
 
-    def calculate_all_metrics(self, reference: str, generated: str) -> Dict[str, float]:
-        """Calculate all MemOS metrics for a single QA pair"""
+    def calculate_lightweight_metrics(self, reference: str, generated: str) -> Dict[str, float]:
+        """Calculate fast metrics (everything except BERTScore)"""
         return {
             'f1': self.calculate_f1(reference, generated),
             'rouge_l': self.calculate_rouge_l(reference, generated),
             'bleu_1': self.calculate_bleu(reference, generated, n=1),
             'bleu_2': self.calculate_bleu(reference, generated, n=2),
             'meteor': self.calculate_meteor(reference, generated),
-            'bert_f1': self.calculate_bert_f1(reference, generated),
             'similarity': self.calculate_similarity(reference, generated)
         }
 
+    def batch_calculate_bert_f1(self, references: List[str], generated_list: List[str]) -> List[float]:
+        """
+        Batch calculate BERTScore F1 for multiple QA pairs
 
-async def test_locomo_full():
-    """Test complete LoCoMo dataset for full MemOS comparison"""
+        This is MUCH faster than calculating one-by-one:
+        - Model loaded only once
+        - GPU batch processing (if available)
+        - ~10x speedup
+        """
+        if not self.has_bert_score:
+            return [0.0] * len(references)
+
+        if len(references) == 0:
+            return []
+
+        try:
+            print(f"\n🔄 Calculating BERTScore for {len(references)} QA pairs (batch mode)...")
+            start_time = time.time()
+
+            # Use same parameters as MemOS evaluation
+            _, _, F1 = self.bert_score(
+                [str(g) for g in generated_list],
+                [str(r) for r in references],
+                lang='en',  # Uses roberta-large
+                rescale_with_baseline=True,  # Same as MemOS
+                verbose=False,
+                batch_size=32  # Process in batches for stability
+            )
+
+            elapsed = time.time() - start_time
+            print(f"✅ BERTScore complete in {elapsed:.1f}s ({elapsed/len(references):.2f}s per QA)")
+
+            return F1.tolist()
+        except Exception as e:
+            logger.error(f"Batch BERTScore calculation error: {e}")
+            return [0.0] * len(references)
+
+
+async def test_locomo_sample():
+    """Test a sample of LoCoMo dataset for quick MemOS comparison"""
 
     print("=" * 80)
-    print("🧪 Complete LoCoMo Dataset Test with MemOS Metrics")
+    print("🧪 LoCoMo Sample Test with MemOS Metrics (Optimized v2)")
     print("=" * 80)
     print()
 
     # Configuration
-    NUM_SAMPLES = 10  # Test ALL conversation samples
-    MAX_QA_PER_SAMPLE = None  # Test ALL QA pairs (no limit)
+    NUM_SAMPLES = 3  # Test first 3 conversation samples
+    MAX_QA_PER_SAMPLE = 50  # Test first 50 QA pairs per sample
 
     # Load LoCoMo dataset
     dataset_path = Path('data/benchmarks/locomo/locomo10.json')
@@ -219,17 +246,8 @@ async def test_locomo_full():
     with open(dataset_path, 'r', encoding='utf-8') as f:
         dataset = json.load(f)
 
-    # Calculate totals
-    total_qa_full = sum(len(sample.get('qa', [])) for sample in dataset)
-    total_dialogues_full = sum(
-        sum(len(sample['conversation'][k]) for k in sample['conversation'].keys()
-            if k.startswith('session_') and not k.endswith('_date_time'))
-        for sample in dataset
-    )
-
     print(f"📚 Loaded LoCoMo dataset: {len(dataset)} conversation samples")
-    print(f"📊 Testing: ALL {NUM_SAMPLES} samples, ALL {total_qa_full} QA pairs")
-    print(f"⏱️  Estimated time: ~35 hours (Learning: {total_dialogues_full} dialogues, Testing: {total_qa_full} questions)")
+    print(f"📊 Testing: First {NUM_SAMPLES} samples, up to {MAX_QA_PER_SAMPLE} QA pairs each")
     print()
 
     # Initialize systems
@@ -303,15 +321,14 @@ async def test_locomo_full():
         print(f"   ✅ Learning complete ({total_dialogues} dialogues)")
         print()
 
-        # Phase 2: Test QA pairs (all of them if MAX_QA_PER_SAMPLE is None)
-        qa_to_test = qa_pairs if MAX_QA_PER_SAMPLE is None else qa_pairs[:MAX_QA_PER_SAMPLE]
-        print(f"   ❓ Phase 2: Testing {len(qa_to_test)} Questions...")
+        # Phase 2: Generate answers + LLM Judge (NO metrics yet)
+        qa_to_test = qa_pairs[:MAX_QA_PER_SAMPLE]
+        print(f"   ❓ Phase 2: Generating Answers ({len(qa_to_test)} questions)...")
 
         sample_results = []
         sample_correct = 0
-        sample_metrics = defaultdict(list)
 
-        with tqdm(total=len(qa_to_test), desc="   Testing", unit="question", leave=False) as pbar:
+        with tqdm(total=len(qa_to_test), desc="   Answering", unit="question", leave=False) as pbar:
             for qa_idx, qa in enumerate(qa_to_test, 1):
                 question = qa.get('question', '')
                 gold_answer = qa.get('answer', '')
@@ -327,14 +344,14 @@ async def test_locomo_full():
                     generated_answer = result.response
                     memories_count = len(result.memories_retrieved) if result.memories_retrieved else 0
 
-                    # LLM Judge evaluation
+                    # LLM Judge evaluation (fast, ~1-2s)
                     judgment = await llm_judge.judge_answer(question, str(gold_answer), generated_answer)
                     is_correct = judgment['correct']
 
-                    # Calculate all MemOS metrics
-                    nlp_metrics = metrics_calculator.calculate_all_metrics(str(gold_answer), generated_answer)
+                    # Calculate lightweight metrics (fast, no BERTScore yet)
+                    lightweight_metrics = metrics_calculator.calculate_lightweight_metrics(str(gold_answer), generated_answer)
 
-                    # Record result
+                    # Record result (without BERTScore for now)
                     qa_result = {
                         'sample_id': sample_id,
                         'qa_index': qa_idx,
@@ -347,25 +364,15 @@ async def test_locomo_full():
                         'llm_judge_reasoning': judgment['reasoning'],
                         'response_time': elapsed_time,
                         'memories_retrieved': memories_count,
-                        **nlp_metrics
+                        **lightweight_metrics,
+                        'bert_f1': None  # Will be filled in Phase 3
                     }
 
                     sample_results.append(qa_result)
-                    all_results.append(qa_result)
 
                     # Update statistics
                     if is_correct:
                         sample_correct += 1
-
-                    for metric_name, metric_value in nlp_metrics.items():
-                        sample_metrics[metric_name].append(metric_value)
-
-                    # Update category statistics
-                    category_stats[category]['total'] += 1
-                    if is_correct:
-                        category_stats[category]['correct'] += 1
-                    for metric_name, metric_value in nlp_metrics.items():
-                        category_stats[category]['metrics'][metric_name].append(metric_value)
 
                 except Exception as e:
                     logger.error(f"Error testing Q{qa_idx}: {e}")
@@ -380,9 +387,46 @@ async def test_locomo_full():
                         'error': str(e)
                     }
                     sample_results.append(qa_result)
-                    all_results.append(qa_result)
 
                 pbar.update(1)
+
+        print(f"   ✅ Answers generated: {sample_correct}/{len(qa_to_test)} correct")
+        print()
+
+        # Phase 3: Batch calculate BERTScore for ALL answers at once
+        print(f"   📊 Phase 3: Calculating BERTScore (batch mode)...")
+
+        # Prepare batch data
+        references = [r['gold_answer'] for r in sample_results if 'error' not in r]
+        generated = [r['generated_answer'] for r in sample_results if 'error' not in r]
+
+        # Batch calculate BERTScore
+        bert_scores = metrics_calculator.batch_calculate_bert_f1(references, generated)
+
+        # Fill in BERTScore results
+        bert_idx = 0
+        for qa_result in sample_results:
+            if 'error' not in qa_result:
+                qa_result['bert_f1'] = bert_scores[bert_idx]
+                bert_idx += 1
+            else:
+                qa_result['bert_f1'] = 0.0
+
+        print(f"   ✅ BERTScore complete (mean: {sum(bert_scores)/len(bert_scores):.4f})")
+        print()
+
+        # Add to all_results and update category stats
+        for qa_result in sample_results:
+            all_results.append(qa_result)
+
+            category = qa_result['category']
+            category_stats[category]['total'] += 1
+            if qa_result.get('llm_judge_correct', False):
+                category_stats[category]['correct'] += 1
+
+            for metric in ['f1', 'rouge_l', 'bleu_1', 'bleu_2', 'meteor', 'bert_f1', 'similarity']:
+                if metric in qa_result and qa_result[metric] is not None:
+                    category_stats[category]['metrics'][metric].append(qa_result[metric])
 
         # Sample summary
         sample_accuracy = (sample_correct / len(qa_to_test) * 100) if len(qa_to_test) > 0 else 0
@@ -394,11 +438,7 @@ async def test_locomo_full():
             'total_dialogues': total_dialogues,
             'total_qa_tested': len(qa_to_test),
             'correct': sample_correct,
-            'accuracy': sample_accuracy,
-            'avg_metrics': {
-                metric: (sum(values) / len(values) if values else 0.0)
-                for metric, values in sample_metrics.items()
-            }
+            'accuracy': sample_accuracy
         }
         sample_summaries.append(sample_summary)
 
@@ -407,7 +447,7 @@ async def test_locomo_full():
 
     # Overall summary
     print("=" * 80)
-    print("📊 Complete Dataset Test Results")
+    print("📊 Sample Test Results")
     print("=" * 80)
     print()
 
@@ -425,7 +465,7 @@ async def test_locomo_full():
     all_metrics = defaultdict(list)
     for result in all_results:
         for metric in ['f1', 'rouge_l', 'bleu_1', 'bleu_2', 'meteor', 'bert_f1', 'similarity']:
-            if metric in result:
+            if metric in result and result[metric] is not None:
                 all_metrics[metric].append(result[metric])
 
     metrics_summary = {}
@@ -450,15 +490,16 @@ async def test_locomo_full():
 
     # Save results
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    results_dir = Path('results/locomo_full')
+    results_dir = Path('results/locomo_sample')
     results_dir.mkdir(parents=True, exist_ok=True)
 
     final_results = {
         'timestamp': datetime.now().isoformat(),
-        'dataset': 'LoCoMo-10-Complete',
+        'dataset': 'LoCoMo-Sample-v2',
         'config': {
             'num_samples': NUM_SAMPLES,
-            'max_qa_per_sample': 'ALL' if MAX_QA_PER_SAMPLE is None else MAX_QA_PER_SAMPLE
+            'max_qa_per_sample': MAX_QA_PER_SAMPLE,
+            'version': 'v2-batch-bertscore'
         },
         'total_samples_tested': NUM_SAMPLES,
         'total_qa_pairs': total_qa,
@@ -470,7 +511,7 @@ async def test_locomo_full():
         'detailed_results': all_results
     }
 
-    results_file = results_dir / f'locomo_sample_results_{timestamp}.json'
+    results_file = results_dir / f'locomo_sample_results_v2_{timestamp}.json'
     with open(results_file, 'w', encoding='utf-8') as f:
         json.dump(final_results, f, indent=2, ensure_ascii=False)
 
@@ -516,4 +557,4 @@ async def test_locomo_full():
 
 
 if __name__ == '__main__':
-    asyncio.run(test_locomo_full())
+    asyncio.run(test_locomo_sample())
