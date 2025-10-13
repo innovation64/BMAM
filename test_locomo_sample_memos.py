@@ -71,13 +71,10 @@ class MemOSMetricsCalculator:
             logger.warning("NLTK not installed")
             self.has_nltk = False
 
-        try:
-            from bert_score import score as bert_score
-            self.bert_score = bert_score
-            self.has_bert_score = True
-        except ImportError:
-            logger.warning("bert-score not installed")
-            self.has_bert_score = False
+        # Temporarily disable BERTScore - causes process crashes
+        # Run test_bertscore.ipynb first to verify it works
+        self.has_bert_score = False
+        logger.info("⚠️  BERTScore disabled (set to 0.0)")
 
         try:
             from sentence_transformers import SentenceTransformer, util
@@ -158,12 +155,19 @@ class MemOSMetricsCalculator:
             return 0.0
 
     def calculate_bert_f1(self, reference: str, generated: str) -> float:
-        """Calculate BERTScore F1"""
+        """Calculate BERTScore F1 (using roberta-large, same as MemOS)"""
         if not self.has_bert_score:
             return 0.0
 
         try:
-            P, R, F1 = self.bert_score([str(generated)], [str(reference)], lang='en', verbose=False)
+            # Use same parameters as MemOS evaluation
+            _, _, F1 = self.bert_score(
+                [str(generated)],
+                [str(reference)],
+                lang='en',  # Uses roberta-large
+                rescale_with_baseline=True,  # Same as MemOS
+                verbose=False
+            )
             return F1.item()
         except Exception as e:
             logger.error(f"BERTScore calculation error: {e}")
