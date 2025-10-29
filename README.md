@@ -50,19 +50,67 @@
 ## 📁 项目结构
 
 ```
-Brain-Inspired-Design/
-├── src/                   # 核心源代码
-│   ├── agents/           # 智能体实现
-│   │   ├── core/        # 8个核心记忆处理智能体
-│   │   ├── auxiliary/   # 4个辅助功能智能体
-│   │   └── adapters/    # 智能体适配器
-│   ├── coordination/     # 智能体协调系统
-│   ├── memory/          # 记忆系统
-│   ├── services/        # OpenAI服务封装
-│   └── monitoring/      # 性能监控
-├── ui.py               # 主要交互界面
-├── main.py             # 程序入口点
-└── requirements.txt    # 依赖文件
+BMAM/
+├── src/                          # 核心源代码
+│   ├── agents/                  # 智能体实现
+│   │   ├── core/               # 核心记忆处理智能体
+│   │   │   ├── perception_encoding.py    # 感知编码
+│   │   │   ├── memory_retrieval.py       # 记忆检索
+│   │   │   ├── long_term_memory.py       # 长期记忆
+│   │   │   ├── consolidation.py          # 记忆巩固
+│   │   │   ├── reasoning_validator.py    # 推理验证
+│   │   │   └── reflection.py             # 反思
+│   │   ├── brain_regions/      # 脑区功能模块
+│   │   │   ├── prefrontal_working_memory.py   # 前额叶工作记忆
+│   │   │   ├── hippocampal_consolidation.py   # 海马体巩固
+│   │   │   └── amygdala_emotion.py            # 杏仁核情绪
+│   │   └── environment/         # 外部环境探索
+│   │       ├── web_search.py              # 网络搜索
+│   │       └── external_knowledge.py      # 外部知识
+│   ├── coordination/            # 智能体协调系统
+│   │   └── brain_coordinator.py          # ⭐ 脑区协调器 (Phase 4 P0)
+│   ├── memory/                  # 记忆系统
+│   │   ├── memory_system.py              # 核心记忆系统
+│   │   ├── knowledge_graph.py            # 知识图谱
+│   │   ├── background_memory_processes.py # 后台记忆处理
+│   │   └── brain_regions/                # 脑区记忆结构
+│   │       ├── hippocampal_event_graph.py      # 海马体事件图
+│   │       ├── temporal_concept_graph.py       # 时序概念图
+│   │       ├── amygdala_emotion_tags.py        # 情绪标签
+│   │       └── prefrontal_inference_rules.py   # 推理规则
+│   ├── reasoning/               # 推理系统
+│   │   ├── capability_analyzer.py        # 能力分析
+│   │   └── capability_orchestrator.py    # 能力编排
+│   ├── optimization/            # 性能优化
+│   │   ├── query_cache.py                # 查询缓存
+│   │   ├── context_limiter.py            # 上下文限制
+│   │   ├── fast_path.py                  # 快速路径
+│   │   └── metacognition.py              # 元认知优化
+│   ├── services/                # 外部服务
+│   │   └── openai_embedding_service.py   # OpenAI嵌入服务
+│   ├── ui/                      # 用户界面
+│   │   ├── web_ui_server.py              # Web UI服务器
+│   │   ├── voice_interface.py            # 语音交互
+│   │   └── voice_anime_ui.py             # 动画界面
+│   └── utils/                   # 工具模块
+│       ├── knowledge_graph_builder.py    # KG构建器
+│       └── memory_signal_config.py       # 记忆信号配置
+├── tests/                       # 测试套件
+│   ├── integration/            # 集成测试
+│   │   ├── test_q2_temporal_reasoning.py  # ⭐ Q2回归测试
+│   │   └── test_external_exploration_integration.py
+│   ├── unit/                   # 单元测试
+│   └── benchmarks/             # 基准测试
+├── data/                        # 数据目录
+│   ├── brain_memory.db         # 脑记忆数据库
+│   ├── working_memory.db       # 工作记忆数据库
+│   └── locomo_kg.json          # LoCoMo知识图谱
+├── config/                      # 配置文件
+│   └── memory_signal_config.json
+├── run_locomo_test.py          # LoCoMo基准测试入口
+├── ui.py                        # UI入口
+├── main.py                      # 主程序入口
+└── requirements.txt             # 依赖文件
 ```
 
 ## 🛠️ 快速开始
