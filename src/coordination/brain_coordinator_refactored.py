@@ -429,6 +429,7 @@ class BrainInspiredCoordinator:
         )
 
         self.prefrontal_storage = PrefrontalAgent(capacity=10, brain_coordinator=None)
+        self.prefrontal_agent = self.prefrontal_storage  # Alias for functional brain regions test
         self.basal_ganglia = BasalGangliaAgent(capacity=500)
 
 
