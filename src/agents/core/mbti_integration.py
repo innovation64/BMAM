@@ -89,7 +89,7 @@ class MBTIIntegratedPersonalityAgent(BrainAgent):
             current_type = self.current_mbti_agent.profile.mbti_type.value
             self.session_stats['personality_usage'][current_type] = 0
 
-            logger.info(f"Initialized MBTI system with {current_type} personality")
+            logger.debug(f"Initialized MBTI system with {current_type} personality")
 
         except Exception as e:
             logger.error(f"Error initializing MBTI agents: {e}")

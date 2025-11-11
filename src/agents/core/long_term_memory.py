@@ -103,7 +103,7 @@ class LongTermMemoryAgent(BrainAgent):
         
         if success:
             self.total_memories += 1
-            logger.info(f"✅ Successfully stored memory {memory_id} via memory_system: '{memory_payload['content'][:50]}...'")
+            logger.debug(f"✅ Successfully stored memory {memory_id} via memory_system: '{memory_payload['content'][:50]}...'")
             
             # Build initial associations - 使用返回的memory_id
             await self._build_semantic_associations(memory_id)
@@ -314,7 +314,7 @@ class LongTermMemoryAgent(BrainAgent):
                     existing.metadata['preference_updated_at'] = variant_entry['timestamp']
                     # Update the main content to reflect latest preference
                     existing.content = f"{existing.content} | 最新偏好：{new_content}"
-                    logger.info(f"🔄 Preference updated: {existing.content[:80]}")
+                    logger.debug(f"🔄 Preference updated: {existing.content[:80]}")
 
                 updated = True
 
@@ -333,7 +333,7 @@ class LongTermMemoryAgent(BrainAgent):
         if updated:
             self.db_manager.save_memory(existing)
 
-        logger.info(
+        logger.debug(
             "🔁 Duplicate memory merged into %s (similarity %.3f, importance %.2f)",
             memory_id,
             similarity,

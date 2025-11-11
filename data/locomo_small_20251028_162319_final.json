@@ -1,0 +1,383 @@
+{
+  "batch_size": "small",
+  "config": {
+    "name": "小批测试",
+    "num_questions": 5,
+    "description": "快速验证系统基本功能",
+    "estimated_time": "2-3分钟",
+    "checkpoint_file": "locomo_small_checkpoint.json"
+  },
+  "sample_id": 0,
+  "total_questions": 5,
+  "completed_questions": 5,
+  "statistics": {
+    "avg_score": 0.78,
+    "accuracy": 0.8,
+    "correct_count": 4,
+    "total_score": 3.9,
+    "elapsed_time_seconds": 85.0,
+    "elapsed_time_minutes": 1.4
+  },
+  "results": [
+    {
+      "question_num": 1,
+      "question": "When did Caroline go to the LGBTQ support group?",
+      "expected_answer": "7 May 2023",
+      "actual_answer": "7 May 2023",
+      "score": 1.0,
+      "correct": true,
+      "reasoning": "The actual answer matches the expected answer perfectly, providing all key information required.",
+      "category": 2,
+      "evidence": [
+        "D1:3"
+      ],
+      "timestamp": "2025-10-28T16:22:15.756173",
+      "retrieval_diagnosis": {
+        "memories_count": 19,
+        "top_3_memories": [
+          {
+            "id": "07636581",
+            "session_id": 13,
+            "bm25_score": 0.0,
+            "content_preview": "=== Session 13 - 3:31 pm on 23 August, 2023 ===\nCaroline: Hi Melanie! Hope you're doing good. Guess what I did this week? I took the first step towards becoming a mom - I applied to adoption agencies! It's a big decision, but I think I'm ready to give all my love to a child. I got lots of help from ",
+            "has_keywords": {
+              "adoption": true,
+              "lgbtq": true,
+              "support_group": false,
+              "paint": true,
+              "queer": false,
+              "trans": false
+            }
+          },
+          {
+            "id": "8f3e5b75",
+            "session_id": 5,
+            "bm25_score": 0.0,
+            "content_preview": "=== Session 5 - 1:36 pm on 3 July, 2023 ===\nCaroline: Since we last spoke, some big things have happened. Last week I went to an LGBTQ+ pride parade. Everyone was so happy and it made me feel like I belonged. It showed me how much our community has grown, it was amazing!\nMelanie: Wow, Caroline, soun",
+            "has_keywords": {
+              "adoption": false,
+              "lgbtq": true,
+              "support_group": false,
+              "paint": false,
+              "queer": false,
+              "trans": true
+            }
+          },
+          {
+            "id": "86e99a89",
+            "session_id": 1,
+            "bm25_score": 0.0,
+            "content_preview": "=== Session 1 - 1:56 pm on 8 May, 2023 ===\nCaroline: Hey Mel! Good to see you! How have you been?\nMelanie: Hey Caroline! Good to see you! I'm swamped with the kids & work. What's up with you? Anything new?\nCaroline: I went to a LGBTQ support group yesterday and it was so powerful.\nMelanie: Wow, that",
+            "has_keywords": {
+              "adoption": false,
+              "lgbtq": true,
+              "support_group": true,
+              "paint": true,
+              "queer": false,
+              "trans": true
+            }
+          }
+        ],
+        "routing": {
+          "mode": "unified_brain_network",
+          "converged": false,
+          "iterations": -1,
+          "capabilities_detected": [
+            "memory_retrieval",
+            "fact_extraction",
+            "temporal_calculation"
+          ],
+          "complexity_level": 2
+        }
+      }
+    },
+    {
+      "question_num": 2,
+      "question": "When did Melanie paint a sunrise?",
+      "expected_answer": 2022,
+      "actual_answer": "6 October 2023",
+      "score": 0.2,
+      "correct": false,
+      "reasoning": "The actual answer provides a specific date that is after the expected timeframe, indicating a complete misunderstanding of the question.",
+      "category": 2,
+      "evidence": [
+        "D1:12"
+      ],
+      "timestamp": "2025-10-28T16:22:27.808799",
+      "retrieval_diagnosis": {
+        "memories_count": 19,
+        "top_3_memories": [
+          {
+            "id": "9be76b93",
+            "session_id": 14,
+            "bm25_score": 0.0,
+            "content_preview": "=== Session 14 - 1:33 pm on 25 August, 2023 ===\nCaroline: Hey, Mel! How's it going? There's something I want to tell you. I went hiking last week and got into a bad spot with some people. It really bugged me, so I tried to apologize to them.\nMelanie: Wow, Caroline! Sorry that happened to you. It's t",
+            "has_keywords": {
+              "adoption": false,
+              "lgbtq": true,
+              "support_group": false,
+              "paint": true,
+              "queer": false,
+              "trans": true
+            }
+          },
+          {
+            "id": "33a03003",
+            "session_id": 17,
+            "bm25_score": 0.0,
+            "content_preview": "=== Session 17 - 10:31 am on 13 October, 2023 ===\nCaroline: Hey Mel, what's up? Long time no see! I just contacted my mentor for adoption advice. I'm ready to be a mom and share my love and family. It's a great feeling. Anything new with you? Anything exciting going on?\nMelanie: Hey Caroline! Great ",
+            "has_keywords": {
+              "adoption": true,
+              "lgbtq": false,
+              "support_group": false,
+              "paint": true,
+              "queer": false,
+              "trans": true
+            }
+          },
+          {
+            "id": "07636581",
+            "session_id": 13,
+            "bm25_score": 0.0,
+            "content_preview": "=== Session 13 - 3:31 pm on 23 August, 2023 ===\nCaroline: Hi Melanie! Hope you're doing good. Guess what I did this week? I took the first step towards becoming a mom - I applied to adoption agencies! It's a big decision, but I think I'm ready to give all my love to a child. I got lots of help from ",
+            "has_keywords": {
+              "adoption": true,
+              "lgbtq": true,
+              "support_group": false,
+              "paint": true,
+              "queer": false,
+              "trans": false
+            }
+          }
+        ],
+        "routing": {
+          "mode": "unified_brain_network",
+          "converged": false,
+          "iterations": -1,
+          "capabilities_detected": [
+            "memory_retrieval",
+            "temporal_calculation"
+          ],
+          "complexity_level": 1
+        }
+      }
+    },
+    {
+      "question_num": 3,
+      "question": "What fields would Caroline be likely to pursue in her educaton?",
+      "expected_answer": "Psychology, counseling certification",
+      "actual_answer": "counseling and mental health",
+      "score": 0.8,
+      "correct": true,
+      "reasoning": "The actual answer includes 'counseling and mental health,' which is relevant to the expected fields of psychology and counseling certification. However, it does not explicitly mention 'psychology' or 'counseling certification,' making it slightly less comprehensive.",
+      "category": 3,
+      "evidence": [
+        "D1:9",
+        "D1:11"
+      ],
+      "timestamp": "2025-10-28T16:22:53.450614",
+      "retrieval_diagnosis": {
+        "memories_count": 19,
+        "top_3_memories": [
+          {
+            "id": "112d2d5c",
+            "session_id": 7,
+            "bm25_score": 0.0,
+            "content_preview": "=== Session 7 - 4:33 pm on 12 July, 2023 ===\nCaroline: Hey Mel, great to chat with you again! So much has happened since we last spoke - I went to an LGBTQ conference two days ago and it was really special. I got the chance to meet and connect with people who've gone through similar journeys. It was",
+            "has_keywords": {
+              "adoption": false,
+              "lgbtq": true,
+              "support_group": false,
+              "paint": false,
+              "queer": false,
+              "trans": true
+            }
+          },
+          {
+            "id": "07636581",
+            "session_id": 13,
+            "bm25_score": 0.0,
+            "content_preview": "=== Session 13 - 3:31 pm on 23 August, 2023 ===\nCaroline: Hi Melanie! Hope you're doing good. Guess what I did this week? I took the first step towards becoming a mom - I applied to adoption agencies! It's a big decision, but I think I'm ready to give all my love to a child. I got lots of help from ",
+            "has_keywords": {
+              "adoption": true,
+              "lgbtq": true,
+              "support_group": false,
+              "paint": true,
+              "queer": false,
+              "trans": false
+            }
+          },
+          {
+            "id": "8f3e5b75",
+            "session_id": 5,
+            "bm25_score": 0.0,
+            "content_preview": "=== Session 5 - 1:36 pm on 3 July, 2023 ===\nCaroline: Since we last spoke, some big things have happened. Last week I went to an LGBTQ+ pride parade. Everyone was so happy and it made me feel like I belonged. It showed me how much our community has grown, it was amazing!\nMelanie: Wow, Caroline, soun",
+            "has_keywords": {
+              "adoption": false,
+              "lgbtq": true,
+              "support_group": false,
+              "paint": false,
+              "queer": false,
+              "trans": true
+            }
+          }
+        ],
+        "routing": {
+          "mode": "unified_brain_network",
+          "converged": false,
+          "iterations": -1,
+          "capabilities_detected": [
+            "interest_inference",
+            "research_extraction",
+            "multi_hop_inference"
+          ],
+          "complexity_level": 2
+        }
+      }
+    },
+    {
+      "question_num": 4,
+      "question": "What did Caroline research?",
+      "expected_answer": "Adoption agencies",
+      "actual_answer": "adoption agencies",
+      "score": 1.0,
+      "correct": true,
+      "reasoning": "The actual answer 'adoption agencies' is perfectly correct and contains all key information as it directly matches the expected answer.",
+      "category": 1,
+      "evidence": [
+        "D2:8"
+      ],
+      "timestamp": "2025-10-28T16:23:01.764152",
+      "retrieval_diagnosis": {
+        "memories_count": 19,
+        "top_3_memories": [
+          {
+            "id": "86e99a89",
+            "session_id": 1,
+            "bm25_score": 0.0,
+            "content_preview": "=== Session 1 - 1:56 pm on 8 May, 2023 ===\nCaroline: Hey Mel! Good to see you! How have you been?\nMelanie: Hey Caroline! Good to see you! I'm swamped with the kids & work. What's up with you? Anything new?\nCaroline: I went to a LGBTQ support group yesterday and it was so powerful.\nMelanie: Wow, that",
+            "has_keywords": {
+              "adoption": false,
+              "lgbtq": true,
+              "support_group": true,
+              "paint": true,
+              "queer": false,
+              "trans": true
+            }
+          },
+          {
+            "id": "33a03003",
+            "session_id": 17,
+            "bm25_score": 0.0,
+            "content_preview": "=== Session 17 - 10:31 am on 13 October, 2023 ===\nCaroline: Hey Mel, what's up? Long time no see! I just contacted my mentor for adoption advice. I'm ready to be a mom and share my love and family. It's a great feeling. Anything new with you? Anything exciting going on?\nMelanie: Hey Caroline! Great ",
+            "has_keywords": {
+              "adoption": true,
+              "lgbtq": false,
+              "support_group": false,
+              "paint": true,
+              "queer": false,
+              "trans": true
+            }
+          },
+          {
+            "id": "8f3e5b75",
+            "session_id": 5,
+            "bm25_score": 0.0,
+            "content_preview": "=== Session 5 - 1:36 pm on 3 July, 2023 ===\nCaroline: Since we last spoke, some big things have happened. Last week I went to an LGBTQ+ pride parade. Everyone was so happy and it made me feel like I belonged. It showed me how much our community has grown, it was amazing!\nMelanie: Wow, Caroline, soun",
+            "has_keywords": {
+              "adoption": false,
+              "lgbtq": true,
+              "support_group": false,
+              "paint": false,
+              "queer": false,
+              "trans": true
+            }
+          }
+        ],
+        "routing": {
+          "mode": "unified_brain_network",
+          "converged": false,
+          "iterations": -1,
+          "capabilities_detected": [
+            "research_extraction",
+            "memory_retrieval"
+          ],
+          "complexity_level": 1
+        }
+      }
+    },
+    {
+      "question_num": 5,
+      "question": "What is Caroline's identity?",
+      "expected_answer": "Transgender woman",
+      "actual_answer": "Caroline identifies as a transgender woman. She has been open about her journey and actively participates in the LGBTQ+ community, sharing her experiences to inspire others and promote understanding and acceptance.",
+      "score": 0.9,
+      "correct": true,
+      "reasoning": "The actual answer correctly identifies Caroline as a transgender woman and provides additional context about her openness and involvement in the LGBTQ+ community, which enhances the understanding of her identity.",
+      "category": 1,
+      "evidence": [
+        "D1:5"
+      ],
+      "timestamp": "2025-10-28T16:23:19.006603",
+      "retrieval_diagnosis": {
+        "memories_count": 29,
+        "top_3_memories": [
+          {
+            "id": "560dd979",
+            "session_id": 3,
+            "bm25_score": 0.0,
+            "content_preview": "=== Session 3 - 7:55 pm on 9 June, 2023 ===\nCaroline: Hey Melanie! How's it going? I wanted to tell you about my school event last week. It was awesome! I talked about my transgender journey and encouraged students to get involved in the LGBTQ community. It was great to see their reactions. It made ",
+            "has_keywords": {
+              "adoption": false,
+              "lgbtq": true,
+              "support_group": false,
+              "paint": false,
+              "queer": false,
+              "trans": true
+            }
+          },
+          {
+            "id": "35b0a296",
+            "session_id": 16,
+            "bm25_score": 0.0,
+            "content_preview": "=== Session 16 - 12:09 am on 13 September, 2023 ===\nCaroline: Hey Mel, long time no chat! I had a wicked day out with the gang last weekend - we went biking and saw some pretty cool stuff. It was so refreshing, and the pic I'm sending is just stunning, eh?\nMelanie: Hey Caroline! It's so good to hear",
+            "has_keywords": {
+              "adoption": false,
+              "lgbtq": true,
+              "support_group": false,
+              "paint": true,
+              "queer": false,
+              "trans": true
+            }
+          },
+          {
+            "id": "6c2ebd88",
+            "session_id": 11,
+            "bm25_score": 0.0,
+            "content_preview": "=== Session 11 - 2:24 pm on 14 August, 2023 ===\nMelanie: Hey Caroline! Last night was amazing! We celebrated my daughter's birthday with a concert surrounded by music, joy and the warm summer breeze. Seeing my kids' smiles was so awesome, and I'm so thankful for our special moments together.\nCarolin",
+            "has_keywords": {
+              "adoption": false,
+              "lgbtq": true,
+              "support_group": false,
+              "paint": true,
+              "queer": false,
+              "trans": true
+            }
+          }
+        ],
+        "routing": {
+          "mode": "unified_brain_network",
+          "converged": false,
+          "iterations": -1,
+          "capabilities_detected": [
+            "identity_inference",
+            "memory_retrieval",
+            "multi_hop_inference"
+          ],
+          "complexity_level": 2
+        }
+      }
+    }
+  ],
+  "timestamp": "2025-10-28T16:23:19.006856"
+}

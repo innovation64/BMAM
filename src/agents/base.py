@@ -81,7 +81,7 @@ class BrainAgent(ABC):
         self.fatigue_level = 0.0     # Mental fatigue (0-1)  
         self.attention_focus = []    # Current focus items
         
-        logger.info(f"Initialized {agent_id} ({brain_region})")
+        logger.debug(f"Initialized {agent_id} ({brain_region})")
     
     def log_execution(self, action: str, details: Any = None, status: str = "info"):
         """统一执行日志记录"""
@@ -200,7 +200,7 @@ class BrainAgent(ABC):
 
                         cached = self._get_cached_response(cache_key)
                         if cached:
-                            logger.info("Serving cached response for %s after LLM failure", self.agent_id)
+                            logger.debug("Serving cached response for %s after LLM failure", self.agent_id)
                             return f"[缓存响应]\n{cached}"
 
                         # 智能降级处理
@@ -253,8 +253,8 @@ class BrainAgent(ABC):
     
     async def initialize(self):
         """Initialize agent resources"""
-        logger.info(f"Agent {self.agent_id} initialized")
+        logger.debug(f"Agent {self.agent_id} initialized")
     
     async def shutdown(self):
         """Cleanup agent resources"""
-        logger.info(f"Agent {self.agent_id} shutting down")
+        logger.debug(f"Agent {self.agent_id} shutting down")

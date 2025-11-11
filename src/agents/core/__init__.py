@@ -11,7 +11,6 @@ from .memory_distortion import MemoryDistortionAgent
 from .reflection import ReflectionAgent
 from .forgetting import ForgettingAgent
 from .stress_response import StressResponseAgent
-from .retrieval_router import RetrievalStrategyRouter
 
 __all__ = [
     'ShortTermMemoryAgent',
@@ -21,6 +20,5 @@ __all__ = [
     'MemoryDistortionAgent',
     'ReflectionAgent',
     'ForgettingAgent',
-    'StressResponseAgent',
-    'RetrievalStrategyRouter'
+    'StressResponseAgent'
 ]

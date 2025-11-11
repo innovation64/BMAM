@@ -196,7 +196,7 @@ class OpenAIEmbeddingService:
         self.use_cache = use_cache
         self.cache = EmbeddingCache() if use_cache else None
         
-        logger.info(f"Initialized OpenAI embedding service with model: {self.model}")
+        logger.debug(f"Initialized OpenAI embedding service with model: {self.model}")
         logger.info(f"Embedding dimension: {self.dimension}")
         logger.info(f"Cache enabled: {use_cache}")
     
@@ -464,8 +464,8 @@ class OpenAIEmbeddingService:
         
         # Add cache stats if enabled
         if self.use_cache and self.cache:
-            info['cache_stats'] = self.cache.get_cache_stats()
-        
+            info['cache_stats'] = self.cache.get_stats()
+
         return info
 
 # Global instance for easy import

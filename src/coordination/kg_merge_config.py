@@ -392,7 +392,7 @@ def set_kg_merge_config(config: KGMergeConfig):
         raise ValueError(f"Invalid KG merge config: {errors}")
 
     _global_config = config
-    logger.info(f"✅ KG merge config updated: plasticity_score={config.kg_fact_plasticity_score}, "
+    logger.debug(f"✅ KG merge config updated: plasticity_score={config.kg_fact_plasticity_score}, "
                f"overlap_threshold={config.overlap_threshold}, "
                f"max_results={config.max_merged_results}")
 
@@ -401,7 +401,7 @@ def reset_kg_merge_config():
     """重置为默认配置"""
     global _global_config
     _global_config = get_default_config()
-    logger.info("🔄 KG merge config reset to default")
+    logger.debug("🔄 KG merge config reset to default")
 
 
 # ============================================================================

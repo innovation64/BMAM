@@ -1,0 +1,75 @@
+version: '1.0.0'
+language: 'en'
+
+temporal:
+  months:
+    - name: 'january'
+      aliases: ['jan']
+      number: 1
+    - name: 'february'
+      aliases: ['feb']
+      number: 2
+    - name: 'march'
+      aliases: ['mar']
+      number: 3
+    - name: 'april'
+      aliases: ['apr']
+      number: 4
+    - name: 'may'
+      aliases: []
+      number: 5
+    - name: 'june'
+      aliases: ['jun']
+      number: 6
+    - name: 'july'
+      aliases: ['jul']
+      number: 7
+    - name: 'august'
+      aliases: ['aug']
+      number: 8
+    - name: 'september'
+      aliases: ['sep', 'sept']
+      number: 9
+    - name: 'october'
+      aliases: ['oct']
+      number: 10
+    - name: 'november'
+      aliases: ['nov']
+      number: 11
+    - name: 'december'
+      aliases: ['dec']
+      number: 12
+
+  seasons:
+    - name: 'spring'
+      months: [3, 4, 5]
+      aliases: []
+    - name: 'summer'
+      months: [6, 7, 8]
+      aliases: []
+    - name: 'autumn'
+      months: [9, 10, 11]
+      aliases: ['fall']
+    - name: 'winter'
+      months: [12, 1, 2]
+      aliases: []
+
+  markers_past:
+    relative_year: ['last year', 'previous year']
+    relative_time: ['yesterday', 'last week', 'last month']
+    ago_patterns: ['ago', 'back', 'earlier']
+
+  future_indicators: ['going to', 'will', 'planning to', 'intend to', 'tomorrow', 'next week', 'next month', 'next year']
+
+knowledge_graph:
+  relation_types:
+    - name: 'located_in'
+      aliases: ['in', 'at', 'within']
+    - name: 'works_for'
+      aliases: ['employed by', 'works at']
+    - name: 'knows'
+      aliases: ['acquainted with', 'familiar with']
+    - name: 'likes'
+      aliases: ['enjoys', 'prefers']
+    - name: 'visited'
+      aliases: ['went to', 'traveled to']

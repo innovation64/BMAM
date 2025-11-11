@@ -52,7 +52,7 @@ class ConnectionMatrix:
         # 加载已有连接数据
         self._load_connections()
         
-        logger.info(f"初始化连接矩阵：{self.n_agents} 个智能体，{self.n_agents**2} 个连接")
+        logger.debug(f"初始化连接矩阵：{self.n_agents} 个智能体，{self.n_agents**2} 个连接")
     
     def get_connection_strength(self, agent_a: str, agent_b: str) -> float:
         """获取两个智能体间的连接强度"""
@@ -285,8 +285,8 @@ class ConnectionMatrix:
                 for k, v in last_times.items():
                     try:
                         self.last_activation_time[k] = datetime.fromisoformat(v)
-                    except:
-                        pass
+                    except (ValueError, TypeError) as e:
+                        logger.debug(f"Failed to restore activation time for {k}: {e}")
                 
                 # 更新参数
                 params = data.get('parameters', {})

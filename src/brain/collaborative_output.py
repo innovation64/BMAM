@@ -124,7 +124,7 @@ class CollaborativeOutput:
         """
         # Step 1: 分析答案类型
         answer_type, answer_metadata = await self._classify_answer_type(query, memories)
-        logger.info(f"📊 Answer type: {answer_type.value}")
+        logger.debug(f"📊 Answer type: {answer_type.value}")
 
         # Step 2: 确定协同脑区
         config = self.collaboration_config.get(answer_type, self.collaboration_config[AnswerType.FACTUAL])
@@ -164,7 +164,7 @@ class CollaborativeOutput:
             memories=memories
         )
 
-        logger.info(f"✅ Final answer: {final_answer[:100]}...")
+        logger.debug(f"✅ Final answer: {final_answer[:100]}...")
         return CollaborativeAnswer(
             content=final_answer,
             answer_type=answer_type,

@@ -8,6 +8,7 @@ Agent Buffer System
 import os
 import json
 import hashlib
+from copy import deepcopy
 from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
@@ -272,7 +273,7 @@ class AgentBufferSystem:
                 'agent_id': agent_id,
                 'agent_name': config['name'],
                 'brain_region': config['brain_region'],
-                'buffer_content': config['structure'].copy(),
+                'buffer_content': deepcopy(config['structure']),
                 'metadata': {
                     'created_at': datetime.now().isoformat(),
                     'last_updated': datetime.now().isoformat(),
@@ -315,7 +316,7 @@ class AgentBufferSystem:
             logger.warning(f"Buffer file corrupted for {agent_id}, reinitializing: {e}")
             await self._initialize_buffer_file(agent_id)
             # 返回默认结构
-            return self.agent_buffers[agent_id]['structure'].copy()
+            return deepcopy(self.agent_buffers[agent_id]['structure'])
     
     async def write_buffer(self, agent_id: str, key: str, value: Any, append: bool = False):
         """写入Agent的缓冲内容"""

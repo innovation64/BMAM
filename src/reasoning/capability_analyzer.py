@@ -156,7 +156,7 @@ class CapabilityAnalyzer:
         # 检查缓存
         cache_key = query.lower().strip()
         if cache_key in self.analysis_cache:
-            logger.info(f"📦 Capability analysis cache hit")
+            logger.debug(f"📦 Capability analysis cache hit")
             return self.analysis_cache[cache_key]
 
         # LLM分析
@@ -241,7 +241,7 @@ Output JSON:
 
             result['capabilities'] = valid_capabilities
 
-            logger.info(f"🧠 Capability analysis: {[c['name'] for c in valid_capabilities]}")
+            logger.debug(f"🧠 Capability analysis: {[c['name'] for c in valid_capabilities]}")
             return result
 
         except Exception as e:

@@ -61,12 +61,31 @@ def setup_logging(level: int = logging.INFO,
         project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         log_path = os.path.join(project_root, 'bmam.log')
         
+        class _VerboseFilter(logging.Filter):
+            """Filter noisy debug statements unless verbose mode is enabled."""
+
+            def __init__(self, verbose_enabled: bool):
+                super().__init__()
+                self._verbose_enabled = verbose_enabled
+
+            def filter(self, record: logging.LogRecord) -> bool:
+                if record.levelno >= logging.INFO:
+                    return True
+                return self._verbose_enabled
+
+        verbose_debug = os.getenv('BMAM_VERBOSE_DEBUG', '').lower() in ('1', 'true', 'yes')
+        stream_handler = logging.StreamHandler()
+        file_handler = logging.FileHandler(log_path, mode='a')
+        debug_filter = _VerboseFilter(verbose_enabled=verbose_debug)
+        stream_handler.addFilter(debug_filter)
+        file_handler.addFilter(debug_filter)
+
         logging.basicConfig(
             level=level,
             format=format,
             handlers=[
-                logging.StreamHandler(),
-                logging.FileHandler(log_path, mode='a')
+                stream_handler,
+                file_handler
             ]
         )
         _logging_configured = True

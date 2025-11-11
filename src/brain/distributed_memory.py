@@ -52,7 +52,7 @@ class RegionalMemoryStore:
             self.memories = self.memories[-self.max_capacity:]
             logger.debug(f"{self.region_name} memory pruned: {len(self.memories)}/{self.max_capacity}")
 
-        logger.info(f"✅ {self.region_name} stored {self.memory_type} memory: {memory_id}")
+        logger.debug(f"✅ {self.region_name} stored {self.memory_type} memory: {memory_id}")
         return memory_id
 
     def retrieve(self, query: str = None, k: int = 5, filters: Dict[str, Any] = None,
@@ -94,13 +94,13 @@ class RegionalMemoryStore:
             if 'start' in time_range:
                 try:
                     start_time = datetime.fromisoformat(time_range['start'])
-                except:
-                    pass
+                except (ValueError, TypeError) as e:
+                    logger.debug(f"Failed to parse start time: {e}")
             if 'end' in time_range:
                 try:
                     end_time = datetime.fromisoformat(time_range['end'])
-                except:
-                    pass
+                except (ValueError, TypeError) as e:
+                    logger.debug(f"Failed to parse end time: {e}")
 
             # 按时间范围过滤
             filtered_by_time = []
@@ -122,7 +122,8 @@ class RegionalMemoryStore:
 
                     if in_range:
                         filtered_by_time.append(m)
-                except:
+                except (ValueError, TypeError, AttributeError) as e:
+                    logger.debug(f"Failed to parse memory timestamp: {e}")
                     continue
 
             results = filtered_by_time
@@ -206,7 +207,7 @@ class DistributedMemorySystem:
             'procedural': 'cerebellum'
         }
 
-        logger.info("🧠 Distributed Memory System initialized with 5 brain regions")
+        logger.debug("🧠 Distributed Memory System initialized with 5 brain regions")
 
     def store_memory(self, content: str, memory_type: str, metadata: Dict[str, Any] = None) -> str:
         """
@@ -224,7 +225,7 @@ class DistributedMemorySystem:
         region = self.regions[region_name]
 
         memory_id = region.store(content, metadata)
-        logger.info(f"📝 Stored {memory_type} memory to {region_name}: {content[:50]}...")
+        logger.debug(f"📝 Stored {memory_type} memory to {region_name}: {content[:50]}...")
         return memory_id
 
     def retrieve_from_region(self, region_name: str, query: str = None, k: int = 5) -> List[Dict[str, Any]]:
@@ -269,7 +270,7 @@ class DistributedMemorySystem:
             results[region_name] = self.retrieve_from_region(region_name, query, k_per_region)
 
         total_memories = sum(len(mems) for mems in results.values())
-        logger.info(f"🧠 Multi-region retrieval: {total_memories} memories from {len(regions)} regions")
+        logger.debug(f"🧠 Multi-region retrieval: {total_memories} memories from {len(regions)} regions")
 
         return results
 
@@ -305,7 +306,7 @@ class DistributedMemorySystem:
         # 从工作记忆中移除 (可选)
         working_region.memories = [m for m in working_region.memories if m['id'] != working_memory_id]
 
-        logger.info(f"💾 Consolidated working memory {working_memory_id} -> {target_type} {longterm_id}")
+        logger.debug(f"💾 Consolidated working memory {working_memory_id} -> {target_type} {longterm_id}")
         return longterm_id
 
     def get_statistics(self) -> Dict[str, Any]:

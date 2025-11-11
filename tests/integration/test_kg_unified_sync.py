@@ -9,8 +9,12 @@ updating the memory dict and not syncing to the unified NetworkX graph.
 import pytest
 import asyncio
 import os
+import sys
 import shutil
 from pathlib import Path
+
+# Add project root to path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from src.memory.knowledge_graph import LightweightKnowledgeGraph
 from src.utils.knowledge_graph_builder import KnowledgeGraphBuilder
@@ -84,16 +88,21 @@ class TestKGUnifiedSync:
         assert memory_stats['total_relations'] == 2, "Memory dict should have 2 relations"
 
         # ✅ Verify NetworkX has data (THIS IS THE FIX)
-        nx_stats = unified_kg.get_statistics()
-        print(f"📊 NetworkX stats after sync: {nx_stats}")
+        nx_stats_full = unified_kg.get_statistics()
+        print(f"📊 NetworkX stats after sync: {nx_stats_full}")
+
+        # Extract basic stats (nested under 'basic')
+        basic_stats = nx_stats_full.get('basic', {})
 
         # NetworkX should have at least 3 nodes (Caroline, adoption, Sweden)
-        assert nx_stats['total_nodes'] >= 3, \
-            f"NetworkX should have at least 3 nodes, got {nx_stats['total_nodes']}"
+        node_count = basic_stats.get('total_nodes', 0)
+        assert node_count >= 3, \
+            f"NetworkX should have at least 3 nodes, got {node_count}"
 
         # NetworkX should have at least 2 edges
-        assert nx_stats['total_edges'] >= 2, \
-            f"NetworkX should have at least 2 edges, got {nx_stats['total_edges']}"
+        edge_count = basic_stats.get('total_edges', 0)
+        assert edge_count >= 2, \
+            f"NetworkX should have at least 2 edges, got {edge_count}"
 
         # Verify specific nodes exist
         caroline_node = unified_kg.get_node('Caroline')
@@ -141,29 +150,30 @@ class TestKGUnifiedSync:
         relations1 = []
         kg_builder_with_unified.add_to_graph(entities1, relations1)
 
-        stats1 = unified_kg.get_statistics()
-        print(f"After batch 1: {stats1}")
+        stats1_full = unified_kg.get_statistics()
+        print(f"After batch 1: {stats1_full}")
+        stats1 = stats1_full.get('basic', {})
 
         # Second batch
         entities2 = [{'name': 'Bob', 'type': 'Person', 'mentions': 1}]
         relations2 = [{'source': 'Alice', 'relation': 'knows', 'target': 'Bob'}]
         kg_builder_with_unified.add_to_graph(entities2, relations2)
 
-        stats2 = unified_kg.get_statistics()
-        print(f"After batch 2: {stats2}")
+        stats2_full = unified_kg.get_statistics()
+        print(f"After batch 2: {stats2_full}")
+        stats2 = stats2_full.get('basic', {})
 
         # Should have accumulated
-        assert stats2['total_nodes'] > stats1['total_nodes']
-        assert stats2['total_edges'] > stats1['total_edges']
+        assert stats2.get('total_nodes', 0) > stats1.get('total_nodes', 0)
+        assert stats2.get('total_edges', 0) > stats1.get('total_edges', 0)
 
         # Verify both nodes exist
         assert unified_kg.get_node('Alice') is not None
         assert unified_kg.get_node('Bob') is not None
 
         # Verify edge exists
-        neighbors = unified_kg.query_neighbors('Alice', max_depth=1)
-        neighbor_names = [n['node_id'] for n in neighbors]
-        assert 'Bob' in neighbor_names
+        neighbors = unified_kg.get_neighbors('Alice')
+        assert 'Bob' in neighbors
 
         print("✅ Test PASSED: Multiple adds accumulate correctly")
 
@@ -241,11 +251,12 @@ class TestHippocampusKGPersistence:
         print(f"📊 Memory Dict stats: {memory_stats}")
 
         # ✅ Verify NetworkX has data (THIS IS THE KEY TEST)
-        nx_stats = kg.get_statistics()
-        print(f"📊 NetworkX stats: {nx_stats}")
+        nx_stats_full = kg.get_statistics()
+        print(f"📊 NetworkX stats: {nx_stats_full}")
 
         # Should have nodes and edges
-        assert nx_stats['total_nodes'] > 0, \
+        basic_stats = nx_stats_full.get('basic', {})
+        assert basic_stats.get('total_nodes', 0) > 0, \
             "NetworkX should have nodes after Hippocampus storage"
 
         # Check if entities exist in NetworkX
@@ -270,7 +281,7 @@ class TestKGPersistence:
         unified_kg.add_edge('Test1', 'Test2', 'related_to')
 
         # Save to disk
-        unified_kg.save_to_disk()
+        unified_kg.save_graph()
 
         # Check files exist
         nodes_file = Path(test_kg_dir) / 'nodes.json'
@@ -279,13 +290,15 @@ class TestKGPersistence:
         assert nodes_file.exists(), "nodes.json should be created"
         assert edges_file.exists(), "edges.json should be created"
 
-        # Load from disk into new instance
+        # Load from disk into new instance (loads automatically in __init__)
         kg2 = LightweightKnowledgeGraph(save_dir=str(test_kg_dir))
-        kg2.load_from_disk()
 
-        stats = kg2.get_statistics()
-        assert stats['total_nodes'] >= 2
-        assert stats['total_edges'] >= 1
+        stats_full = kg2.get_statistics()
+        basic_stats = stats_full.get('basic', {})
+        assert basic_stats.get('total_nodes', 0) >= 2, \
+            f"Expected at least 2 nodes after reload, got {basic_stats.get('total_nodes', 0)}"
+        assert basic_stats.get('total_edges', 0) >= 1, \
+            f"Expected at least 1 edge after reload, got {basic_stats.get('total_edges', 0)}"
 
         print("✅ Test PASSED: NetworkX persists to disk correctly")
 

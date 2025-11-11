@@ -24,6 +24,8 @@ class SharedOpenAIClientManager:
             cls._instance._chat_client = None
             cls._instance._embedding_client = None
             cls._instance._lock = asyncio.Lock()
+            cls._instance._request_semaphore = None
+            cls._instance._semaphore_loop = None
         return cls._instance
     
     async def get_chat_client(self) -> AsyncOpenAI:
@@ -61,8 +63,24 @@ class SharedOpenAIClientManager:
         return self._embedding_client
     
     def get_request_semaphore(self) -> asyncio.Semaphore:
-        """获取请求信号量用于限流"""
-        return asyncio.Semaphore(4)  # 简单固定限制
+        """获取请求信号量用于限流（跨调用共享同一个信号量）"""
+        limit = int(os.getenv("OPENAI_MAX_CONCURRENCY", "4"))
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        needs_new = (
+            self._request_semaphore is None or
+            (loop is not None and self._semaphore_loop is not loop)
+        )
+
+        if needs_new:
+            # 在新事件循环中重新创建信号量，避免跨循环复用导致的异常
+            self._request_semaphore = asyncio.Semaphore(limit)
+            self._semaphore_loop = loop
+
+        return self._request_semaphore
     
     def get_stats(self) -> dict:
         """获取统计信息"""
@@ -75,6 +93,8 @@ class SharedOpenAIClientManager:
         # 强制清空所有缓存的客户端实例
         self._chat_client = None
         self._embedding_client = None
+        self._request_semaphore = None
+        self._semaphore_loop = None
         
         # 重新创建异步锁（避免跨事件循环问题）
         try:
