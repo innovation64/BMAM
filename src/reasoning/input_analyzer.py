@@ -54,7 +54,7 @@ class QuestionAnalyzer:
         # 检查缓存
         cache_key = query.lower().strip()
         if cache_key in self.analysis_cache:
-            logger.info(f"📦 Question analysis cache hit")
+            logger.debug(f"📦 Question analysis cache hit")
             return self.analysis_cache[cache_key]
 
         prompt = f"""Analyze what TYPE OF INFORMATION is needed to answer this question.
@@ -112,7 +112,7 @@ Remember: Identify the INFORMATION TYPE needed, not the answer!"""
             if result.get('confidence', 0) >= 0.7:
                 self.analysis_cache[cache_key] = result
 
-            logger.info(f"🧠 Question analysis: info_types={result.get('required_information_types')}, regions={brain_regions}")
+            logger.debug(f"🧠 Question analysis: info_types={result.get('required_information_types')}, regions={brain_regions}")
             return result
 
         except Exception as e:

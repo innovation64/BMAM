@@ -121,7 +121,7 @@ class PersonaMemoryAgent(BrainAgent):
 
         if memory_id:
             self.total_persona_memories += 1
-            logger.info("🧬 Persona memory stored %s: %s", memory_id, payload['content'][:60])
+            logger.debug("🧬 Persona memory stored %s: %s", memory_id, payload['content'][:60])
             await self._link_related_persona_memories(memory_id)
             return {
                 'stored': True,
@@ -307,7 +307,7 @@ class PersonaMemoryAgent(BrainAgent):
 
         if updated:
             self.db_manager.save_memory(existing)
-            logger.info(
+            logger.debug(
                 "🔁 Persona memory merged into %s (similarity %.3f, importance %.2f)",
                 memory_id,
                 similarity,

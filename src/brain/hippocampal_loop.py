@@ -80,7 +80,7 @@ class HippocampalPrefrontalLoop:
             if isinstance(mem, dict) and 'id' in mem:
                 all_memory_ids.add(mem['id'])
 
-        logger.info(f"🔄 Starting iterative retrieval (max {max_iter} iterations)")
+        logger.debug(f"🔄 Starting iterative retrieval (max {max_iter} iterations)")
         logger.info(f"📦 Initial memories: {len(initial_memories)}")
 
         for iteration in range(max_iter):
@@ -92,12 +92,12 @@ class HippocampalPrefrontalLoop:
                 current_memories=current_memories
             )
 
-            logger.info(f"🧩 Gap analysis: sufficient={gap_analysis.is_sufficient}, "
+            logger.debug(f"🧩 Gap analysis: sufficient={gap_analysis.is_sufficient}, "
                        f"confidence={gap_analysis.confidence:.2f}")
 
             # 如果已经足够,退出循环
             if gap_analysis.is_sufficient:
-                logger.info(f"✅ Memory complete after {iteration + 1} iterations")
+                logger.debug(f"✅ Memory complete after {iteration + 1} iterations")
                 return {
                     'memories': current_memories,
                     'iterations': iteration + 1,
@@ -107,7 +107,7 @@ class HippocampalPrefrontalLoop:
 
             # 识别缺失信息
             missing_aspects = gap_analysis.missing_aspects
-            logger.info(f"🔍 Missing aspects: {missing_aspects}")
+            logger.debug(f"🔍 Missing aspects: {missing_aspects}")
 
             if not missing_aspects:
                 logger.info(f"⚠️ No specific missing aspects identified, stopping")
@@ -279,7 +279,7 @@ Output JSON:
         # 执行检索
         all_additional = []
         for aspect_query in aspect_queries:
-            logger.info(f"🔎 Retrieving for aspect: {aspect_query[:50]}...")
+            logger.debug(f"🔎 Retrieving for aspect: {aspect_query[:50]}...")
 
             try:
                 # 调用memory_system检索
@@ -299,7 +299,7 @@ Output JSON:
             except Exception as e:
                 logger.error(f"Aspect retrieval failed for '{aspect_query}': {e}")
 
-        logger.info(f"📦 Retrieved {len(all_additional)} additional memories")
+        logger.debug(f"📦 Retrieved {len(all_additional)} additional memories")
         return all_additional
 
     async def enhance_initial_retrieval(

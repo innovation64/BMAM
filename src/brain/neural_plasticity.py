@@ -42,7 +42,7 @@ class NeuralPlasticityEngine:
         self._maintenance_task = None
         self._auto_save_task = None
         
-        logger.info(f"神经可塑性引擎初始化完成，管理 {len(agents)} 个智能体")
+        logger.debug(f"神经可塑性引擎初始化完成，管理 {len(agents)} 个智能体")
     
     async def start_plasticity_engine(self):
         """启动可塑性引擎的后台任务"""

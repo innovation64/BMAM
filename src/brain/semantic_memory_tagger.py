@@ -101,7 +101,7 @@ Important: Focus on what INFORMATION the memory contains, not on specific keywor
             brain_hints = self._infer_brain_regions(result.get('information_types', []))
             result['brain_region_hints'] = brain_hints
 
-            logger.info(f"📊 Semantic analysis: {result.get('semantic_type')}, types={result.get('information_types')}")
+            logger.debug(f"📊 Semantic analysis: {result.get('semantic_type')}, types={result.get('information_types')}")
             return result
 
         except Exception as e:

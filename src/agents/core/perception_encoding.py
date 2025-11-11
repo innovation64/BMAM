@@ -34,7 +34,8 @@ Your role is to:
         # Initialize tokenizer for accurate token counting
         try:
             self.encoding = tiktoken.encoding_for_model("gpt-4")
-        except:
+        except (KeyError, ValueError) as e:
+            logger.warning(f"Failed to load gpt-4 encoding: {e}, using cl100k_base")
             self.encoding = tiktoken.get_encoding("cl100k_base")
 
     async def process_message(self, message: AgentMessage) -> Dict[str, Any]:
@@ -112,7 +113,7 @@ Your role is to:
 
         if token_count > self.settings.max_chunk_tokens:
             # Process as long text
-            logger.info(f"Long text detected ({token_count} tokens), initiating chunked processing")
+            logger.debug(f"Long text detected ({token_count} tokens), initiating chunked processing")
             segments = await self._process_long_text(content)
 
             # Generate global overview
@@ -150,7 +151,8 @@ Your role is to:
         """Count tokens using tiktoken"""
         try:
             return len(self.encoding.encode(text))
-        except:
+        except (ValueError, TypeError, AttributeError) as e:
+            logger.debug(f"Token counting failed: {e}, using fallback estimation")
             # Fallback estimation: ~4 chars per token
             return len(text) // 4
 
@@ -163,7 +165,8 @@ Your role is to:
 
             truncated_tokens = tokens[:max_tokens]
             return self.encoding.decode(truncated_tokens)
-        except:
+        except (ValueError, TypeError, AttributeError) as e:
+            logger.debug(f"Token truncation failed: {e}, using character-based fallback")
             # Fallback to character-based truncation
             chars_to_keep = max_tokens * 4  # Estimate
             return text[:chars_to_keep]
@@ -373,7 +376,8 @@ Your role is to:
                 return self.encoding.decode(overlap_tokens_list)
             else:
                 return text
-        except:
+        except (ValueError, TypeError, AttributeError) as e:
+            logger.debug(f"Token extraction failed: {e}, using character-based fallback")
             # Fallback to character-based
             chars_to_extract = overlap_tokens * 4
             return text[-chars_to_extract:] if len(text) > chars_to_extract else text
@@ -426,7 +430,8 @@ Format as JSON."""
         import json
         try:
             return json.loads(response)
-        except:
+        except (json.JSONDecodeError, ValueError) as e:
+            logger.debug(f"JSON parsing failed in LLM summary: {e}, using fallback")
             return {
                 "summary": response[:150],
                 "keywords": self._extract_keywords(chunk),
@@ -522,7 +527,8 @@ Format as JSON."""
             import json
             try:
                 overview = json.loads(response)
-            except:
+            except (json.JSONDecodeError, ValueError) as e:
+                logger.debug(f"JSON parsing failed in overview generation: {e}, using fallback")
                 overview = {
                     "theme": combined_summary[:100],
                     "takeaways": ["Content processed in segments"],

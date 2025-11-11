@@ -148,7 +148,7 @@ class ConversationAgent(BrainAgent):
 
             import logging
             logger = logging.getLogger(__name__)
-            logger.info(f"🧠 Using Reasoning Validator result (confidence={confidence:.2f})")
+            logger.debug(f"🧠 Using Reasoning Validator result (confidence={confidence:.2f})")
 
             # 根据置信度调整回答方式
             if confidence >= 0.9:
@@ -183,15 +183,15 @@ class ConversationAgent(BrainAgent):
                     # ✅ DEBUG: Log detection results
                     import logging
                     logger = logging.getLogger(__name__)
-                    logger.info(f"🔍 Identity detection: is_identity={is_identity_question}, has_lgbtq={has_lgbtq_context}")
+                    logger.debug(f"🔍 Identity detection: is_identity={is_identity_question}, has_lgbtq={has_lgbtq_context}")
                     if has_lgbtq_context:
-                        logger.info(f"🔍 LGBTQ keywords found in memories!")
+                        logger.debug(f"🔍 LGBTQ keywords found in memories!")
 
                     # ✅ P0-Q4: Detect research-related questions
                     is_research_question = any(word in user_input.lower() for word in ['research', 'studied', 'investigated', 'looked into'])
                     has_research_context = any(word in memory_context.lower() for word in ['research', 'researching', 'adoption', 'agencies'])
                     if is_research_question:
-                        logger.info(f"🔍 Research question detected, has_research_context={has_research_context}")
+                        logger.debug(f"🔍 Research question detected, has_research_context={has_research_context}")
 
                     if is_research_question and has_research_context:
                         # Special handling for research questions
@@ -387,7 +387,8 @@ WRONG Answer: "8 May 2023" ❌"""
         try:
             WEIGHTS = asyncio.create_task(self._get_adaptive_weights_async(user_input, query_intent))
             WEIGHTS = asyncio.get_event_loop().run_until_complete(WEIGHTS) if not WEIGHTS.done() else WEIGHTS.result()
-        except:
+        except Exception as e:
+            logger.debug(f"Failed to get adaptive weights: {e}, using default weights")
             # ✅ P1修复: 提高语义相似度权重，降低关键词匹配权重
             # 原因: Q4检索失败是因为"research"没匹配到"researching"
             # 解决: 依赖语义embedding而非精确关键词
@@ -421,7 +422,10 @@ WRONG Answer: "8 May 2023" ❌"""
             score = 0.0
 
             # 1. 向量相似度（最核心的指标）
-            similarity = mem.get('similarity_score') or mem.get('retrieval_confidence') or mem.get('similarity', 0)
+            # ✅ 修复：使用hippocampus返回的字段名 (relevance/semantic_score)
+            similarity = (mem.get('relevance') or mem.get('semantic_score') or
+                         mem.get('similarity_score') or mem.get('retrieval_confidence') or
+                         mem.get('similarity', 0))
             score += similarity * WEIGHTS['similarity_base']
             max_similarity = max(max_similarity, similarity)
 
@@ -485,7 +489,7 @@ WRONG Answer: "8 May 2023" ❌"""
                 if any(kw in content_lower for kw in lgbtq_keywords):
                     if item not in relevant:
                         relevant.append(item)
-                        logger.info(f"🔍 Forcibly included LGBTQ-related memory for identity question: {item['content'][:60]}...")
+                        logger.debug(f"🔍 Forcibly included LGBTQ-related memory for identity question: {item['content'][:60]}...")
 
         # 🔥 NEW: For temporal questions, use query intent matching to boost/demote memories
         if query_intent == 'temporal':

@@ -1,0 +1,169 @@
+MBTI Personality Package Architecture
+MBTI人格包架构图
+
+═══════════════════════════════════════════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        PACKAGE: mbti_personality                             │
+│                    Entry: __init__.py (49 lines)                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      │ exports
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     MBTIPersonalityAgent (Alias)                             │
+│                              │                                               │
+│                              │ references                                    │
+│                              ▼                                               │
+│                     MBTIPersonalityCore                                      │
+│                         (core.py, 121 lines)                                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                    ┌─────────────────┼─────────────────┐
+                    │                 │                 │
+                    ▼                 ▼                 ▼
+        ┌────────────────┐  ┌────────────────┐  ┌────────────────┐
+        │   BrainAgent   │  │  Type System   │  │    Factory     │
+        │   (inherited)  │  │   types.py     │  │  factory.py    │
+        └────────────────┘  │   (59 lines)   │  │   (49 lines)   │
+                            └────────────────┘  └────────────────┘
+                                      │                 │
+                                      │                 │
+                                      ▼                 ▼
+                            ┌────────────────┐  ┌────────────────┐
+                            │  MBTIType      │  │  MBTIProfile   │
+                            │  Cognitive     │  │  profile.py    │
+                            │  FunctionType  │  │   (64 lines)   │
+                            └────────────────┘  └────────────────┘
+
+═══════════════════════════════════════════════════════════════════════════════
+
+                           MIXIN COMPOSITION
+                           混入类组合
+
+MBTIPersonalityCore inherits from 6 mixins in this order:
+MBTIPersonalityCore 按此顺序继承 6 个混入类：
+
+1. BrainAgent (base from BMAM framework)
+   ↓
+2. SystemPromptMixin (system_prompt.py, 61 lines)
+   │  └─> Builds personality system prompts
+   │      构建人格系统提示
+   ↓
+3. CognitiveFunctionMixin (cognitive.py, 139 lines)
+   │  └─> Analyzes input through cognitive functions
+   │      通过认知功能分析输入
+   ↓
+4. ResponseGenerationMixin (response.py, 139 lines)
+   │  │  └─> Generates personality-consistent responses
+   │  │      生成人格一致的响应
+   │  │
+   │  └─> inherits from: PromptBuilderMixin (prompt_builder.py, 72 lines)
+   │       └─> Builds MBTI-specific prompts
+   │           构建MBTI特定提示
+   ↓
+5. InteractionTrackingMixin (interaction.py, 114 lines)
+   │  │  └─> Tracks and adjusts interactions
+   │  │      跟踪和调整交互
+   │  │
+   │  └─> inherits from: InteractionAnalysisMixin (analysis.py, 91 lines)
+   │       └─> Analyzes consistency and patterns
+   │           分析一致性和模式
+   ↓
+6. PersonalityManagementMixin (personality_management.py, 102 lines)
+   └─> Handles personality switching and info
+       处理人格切换和信息
+
+═══════════════════════════════════════════════════════════════════════════════
+
+                        PROFILE DATA MODULES
+                        档案数据模块
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          MBTIPersonalityFactory                              │
+│                          uses profile constants from:                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                    ┌─────────────────┼─────────────────┐
+                    │                 │                 │
+                    ▼                 ▼                 ▼
+        ┌────────────────┐  ┌────────────────┐  ┌────────────────┐
+        │  profiles_nt   │  │  profiles_nf   │  │  profiles_sp   │
+        │  (116 lines)   │  │  (116 lines)   │  │   (63 lines)   │
+        │                │  │                │  │                │
+        │ INTJ, ENTP     │  │ ENFP, INFJ     │  │     ISTP       │
+        │   (Analysts)   │  │  (Diplomats)   │  │   (Explorers)  │
+        └────────────────┘  └────────────────┘  └────────────────┘
+                                      │
+                                      │
+                                      ▼
+                            ┌────────────────┐
+                            │  profiles_sj   │
+                            │   (63 lines)   │
+                            │                │
+                            │     ESFJ       │
+                            │  (Sentinels)   │
+                            └────────────────┘
+
+═══════════════════════════════════════════════════════════════════════════════
+
+                         METHOD FLOW EXAMPLE
+                         方法流程示例
+
+User Request → process_message() [core.py]
+                        │
+                        ├─> action: 'generate_response'
+                        │        ↓
+                        │   _generate_mbti_response() [response.py]
+                        │        │
+                        │        ├─> _analyze_through_cognitive_functions() [cognitive.py]
+                        │        ├─> _determine_response_approach() [cognitive.py]
+                        │        ├─> _build_mbti_response_prompt() [prompt_builder.py]
+                        │        ├─> llm_service.call_llm()
+                        │        ├─> _ensure_personality_consistency() [response.py]
+                        │        └─> _track_interaction() [interaction.py]
+                        │
+                        ├─> action: 'switch_personality'
+                        │        ↓
+                        │   _switch_personality() [personality_management.py]
+                        │
+                        ├─> action: 'get_personality_info'
+                        │        ↓
+                        │   _get_personality_info() [personality_management.py]
+                        │
+                        ├─> action: 'analyze_interaction'
+                        │        ↓
+                        │   _analyze_interaction() [interaction.py]
+                        │        └─> _calculate_consistency() [analysis.py]
+                        │        └─> _analyze_engagement_patterns() [analysis.py]
+                        │
+                        └─> action: 'adjust_communication'
+                                 ↓
+                            _adjust_communication_style() [interaction.py]
+
+═══════════════════════════════════════════════════════════════════════════════
+
+                         KEY DESIGN PATTERNS
+                         关键设计模式
+
+1. Mixin Pattern (混入模式)
+   - Multiple inheritance for composition
+   - Clean separation of concerns
+   - Easy to extend and test
+
+2. Factory Pattern (工厂模式)
+   - MBTIPersonalityFactory creates profiles
+   - Centralized profile creation logic
+   - Easy to add new personality types
+
+3. Strategy Pattern (策略模式)
+   - Different cognitive function strategies
+   - Personality-specific response approaches
+   - Runtime personality switching
+
+4. Template Method (模板方法)
+   - _generate_mbti_response() defines flow
+   - Subcomponents handle specific steps
+   - Consistent processing pipeline
+
+═══════════════════════════════════════════════════════════════════════════════

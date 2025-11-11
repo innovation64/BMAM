@@ -77,9 +77,9 @@ class BrainNetwork:
         self.hippocampal_loop = None  # 延迟初始化 (需要memory_system)
         self.collaborative_output = CollaborativeOutput(brain_agents=agents)
 
-        logger.info(f"🧠 Initialized BrainNetwork with {self.n_agents} regions")
-        logger.info(f"🔗 Total connections: {len(self.connections)}")
-        logger.info(f"💾 Distributed Memory System active")
+        logger.debug(f"🧠 Initialized BrainNetwork with {self.n_agents} regions")
+        logger.debug(f"🔗 Total connections: {len(self.connections)}")
+        logger.debug(f"💾 Distributed Memory System active")
         logger.info(f"🔥 Brain-region collaboration modules activated")
 
 
@@ -160,7 +160,7 @@ class BrainNetwork:
         self.hippocampal_loop = HippocampalPrefrontalLoop(
             memory_system=memory_system
         )
-        logger.info("🧠 HippocampalPrefrontalLoop initialized with memory system")
+        logger.debug("🧠 HippocampalPrefrontalLoop initialized with memory system")
 
     async def process(
         self,
@@ -195,7 +195,7 @@ class BrainNetwork:
         start_time = datetime.now()
         context = context or {}
 
-        logger.info(f"🧠 BrainNetwork processing: {stimulus[:50]}...")
+        logger.debug(f"🧠 BrainNetwork processing: {stimulus[:50]}...")
 
         # 重置状态
         self.activation = {aid: 0.0 for aid in self.agent_ids}
@@ -217,7 +217,7 @@ class BrainNetwork:
         convergence_iteration = -1
 
         for iteration in range(max_iterations):
-            logger.info(f"🔄 Iteration {iteration + 1}/{max_iterations}")
+            logger.debug(f"🔄 Iteration {iteration + 1}/{max_iterations}")
 
             # 单步扩散激活
             await self._spreading_activation_step(stimulus, context)
@@ -234,7 +234,7 @@ class BrainNetwork:
             if self._is_converged(convergence_threshold):
                 converged = True
                 convergence_iteration = iteration
-                logger.info(f"✅ Converged at iteration {iteration + 1}")
+                logger.debug(f"✅ Converged at iteration {iteration + 1}")
                 break
 
             # 短暂等待(模拟神经传递延迟)
@@ -247,7 +247,7 @@ class BrainNetwork:
         result = await self._extract_consensus()
 
         processing_time = (datetime.now() - start_time).total_seconds()
-        logger.info(f"🎯 BrainNetwork completed in {processing_time:.2f}s")
+        logger.debug(f"🎯 BrainNetwork completed in {processing_time:.2f}s")
 
         return {
             'response': result['response'],

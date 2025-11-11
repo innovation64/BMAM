@@ -180,12 +180,30 @@ class KnowledgeGraphBuilder:
             )
 
         # Add relations to persistent graph
+        # First, collect all entity names mentioned in relations
+        entity_names = {e.get('name', '') for e in entities}
+
         for relation in relations:
             source = relation.get('source', '')
             target = relation.get('target', '')
             rel_type = relation.get('relation', 'related_to')
 
             if source and target:
+                # Ensure both source and target nodes exist (create implicit nodes if needed)
+                for node_id in [source, target]:
+                    if node_id not in entity_names and not self.kg.get_node(node_id):
+                        # Create implicit entity node for relation endpoints
+                        self.kg.add_node(
+                            node_id=node_id,
+                            entity_type='concept',  # Default type for implicit nodes
+                            content=node_id,
+                            properties={
+                                'mentions': 1,
+                                'extraction_method': 'implicit_from_relation'
+                            }
+                        )
+
+                # Now add the edge
                 self.kg.add_edge(
                     source_id=source,
                     target_id=target,

@@ -1,0 +1,1060 @@
+{
+  "statistics": {
+    "total_entities": 75,
+    "entity_count": 75,
+    "total_relations": 128,
+    "relation_count": 128,
+    "triple_count": 128,
+    "entities_by_type": {
+      "Person": 2,
+      "Unknown": 73
+    },
+    "top_entities": [
+      [
+        "Melanie",
+        119
+      ],
+      [
+        "Caroline",
+        113
+      ],
+      [
+        "July",
+        13
+      ],
+      [
+        "August",
+        8
+      ],
+      [
+        "October",
+        7
+      ]
+    ]
+  },
+  "graph": {
+    "entities": [
+      {
+        "name": "Caroline",
+        "type": "Person",
+        "mentions": 113
+      },
+      {
+        "name": "Melanie",
+        "type": "Person",
+        "mentions": 119
+      },
+      {
+        "name": "Grand Canyon",
+        "type": "Unknown",
+        "mentions": 3
+      },
+      {
+        "name": "Psychology",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "Adoption",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "Transgender",
+        "type": "Unknown",
+        "mentions": 2
+      },
+      {
+        "name": "June",
+        "type": "Unknown",
+        "mentions": 5
+      },
+      {
+        "name": "Single",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "Sweden",
+        "type": "Unknown",
+        "mentions": 2
+      },
+      {
+        "name": "Would Caroline",
+        "type": "Unknown",
+        "mentions": 5
+      },
+      {
+        "name": "Likely",
+        "type": "Unknown",
+        "mentions": 3
+      },
+      {
+        "name": "July",
+        "type": "Unknown",
+        "mentions": 13
+      },
+      {
+        "name": "Dr",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "Seuss",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "Yes",
+        "type": "Unknown",
+        "mentions": 4
+      },
+      {
+        "name": "Nothing",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "Impossible",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "Charlotte",
+        "type": "Unknown",
+        "mentions": 2
+      },
+      {
+        "name": "Web",
+        "type": "Unknown",
+        "mentions": 2
+      },
+      {
+        "name": "Running",
+        "type": "Unknown",
+        "mentions": 2
+      },
+      {
+        "name": "The Friday",
+        "type": "Unknown",
+        "mentions": 3
+      },
+      {
+        "name": "Would Melanie",
+        "type": "Unknown",
+        "mentions": 5
+      },
+      {
+        "name": "Pride",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "Mentoring",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "Pottery",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "In",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "Joining",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "The Tuesday",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "National",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "August",
+        "type": "Unknown",
+        "mentions": 8
+      },
+      {
+        "name": "Liberal",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "Horse",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "Oliver",
+        "type": "Unknown",
+        "mentions": 2
+      },
+      {
+        "name": "Luna",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "Bailey",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "Sunsets",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "Rainbow",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "Somewhat",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "Summer Sounds",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "Matt Patterson",
+        "type": "Unknown",
+        "mentions": 2
+      },
+      {
+        "name": "September",
+        "type": "Unknown",
+        "mentions": 3
+      },
+      {
+        "name": "The Four Seasons",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "Vivaldi",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "Changes",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "Roast",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "Since",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "Thoughtful",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "Poetry",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "Becoming Nicole",
+        "type": "Unknown",
+        "mentions": 3
+      },
+      {
+        "name": "October",
+        "type": "Unknown",
+        "mentions": 7
+      },
+      {
+        "name": "Figurines",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "No",
+        "type": "Unknown",
+        "mentions": 3
+      },
+      {
+        "name": "Did Melanie",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "Lessons",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "To",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "Perseid",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "Whose",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "Two",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "In Melanie",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "Horseback",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "Which",
+        "type": "Unknown",
+        "mentions": 4
+      },
+      {
+        "name": "Brave",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "Sara Bareilles",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "Bach",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "Mozart",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "Ed Sheeran",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "Read",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "Trans Lives Matter",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "Freedom",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "Grateful",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "Strength",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "Went",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "Did Caroline",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "Is Oscar Melanie",
+        "type": "Unknown",
+        "mentions": 1
+      },
+      {
+        "name": "Oscar",
+        "type": "Unknown",
+        "mentions": 1
+      }
+    ],
+    "relations": [
+      {
+        "source": "Caroline",
+        "relation": "is_a",
+        "target": "inspired by"
+      },
+      {
+        "source": "Group",
+        "relation": "is_a",
+        "target": "7 may"
+      },
+      {
+        "source": "Research",
+        "relation": "is_a",
+        "target": "adoption agencies"
+      },
+      {
+        "source": "Identity",
+        "relation": "is_a",
+        "target": "transgender woman"
+      },
+      {
+        "source": "Race",
+        "relation": "is_a",
+        "target": "the sunday"
+      },
+      {
+        "source": "When",
+        "relation": "is_a",
+        "target": "melanie planning"
+      },
+      {
+        "source": "Camping",
+        "relation": "is_a",
+        "target": "june 2023"
+      },
+      {
+        "source": "Status",
+        "relation": "relationship_status",
+        "target": "single"
+      },
+      {
+        "source": "School",
+        "relation": "is_a",
+        "target": "the week"
+      },
+      {
+        "source": "Mentors",
+        "relation": "is_a",
+        "target": "the week"
+      },
+      {
+        "source": "For",
+        "relation": "is_a",
+        "target": "4 years"
+      },
+      {
+        "source": "Long",
+        "relation": "has_relationship",
+        "target": "caroline had her current group of friends"
+      },
+      {
+        "source": "Birthday",
+        "relation": "is_a",
+        "target": "10 years"
+      },
+      {
+        "source": "Persue",
+        "relation": "is_a",
+        "target": "counseling or"
+      },
+      {
+        "source": "Up",
+        "relation": "is_a",
+        "target": "likely no"
+      },
+      {
+        "source": "Class",
+        "relation": "is_a",
+        "target": "2 july"
+      },
+      {
+        "source": "When",
+        "relation": "is_a",
+        "target": "caroline going"
+      },
+      {
+        "source": "Conference",
+        "relation": "is_a",
+        "target": "july 2023"
+      },
+      {
+        "source": "Kids",
+        "relation": "likes",
+        "target": "is dinosaurs"
+      },
+      {
+        "source": "Museum",
+        "relation": "is_a",
+        "target": "5 july"
+      },
+      {
+        "source": "Picnic",
+        "relation": "is_a",
+        "target": "the week"
+      },
+      {
+        "source": "Conference",
+        "relation": "is_a",
+        "target": "10 july"
+      },
+      {
+        "source": "Option",
+        "relation": "is_a",
+        "target": "likely no"
+      },
+      {
+        "source": "She",
+        "relation": "likes",
+        "target": "reading"
+      },
+      {
+        "source": "Meeting",
+        "relation": "is_a",
+        "target": "the friday"
+      },
+      {
+        "source": "Workshop",
+        "relation": "is_a",
+        "target": "the friday"
+      },
+      {
+        "source": "Community",
+        "relation": "is_a",
+        "target": "likely no"
+      },
+      {
+        "source": "June",
+        "relation": "is_a",
+        "target": "the week"
+      },
+      {
+        "source": "In",
+        "relation": "is_a",
+        "target": "pride parade"
+      },
+      {
+        "source": "Summer",
+        "relation": "is_a",
+        "target": "the week"
+      },
+      {
+        "source": "Children",
+        "relation": "is_a",
+        "target": "mentoring program"
+      },
+      {
+        "source": "July",
+        "relation": "is_a",
+        "target": "two weekends"
+      },
+      {
+        "source": "Program",
+        "relation": "is_a",
+        "target": "the weekend"
+      },
+      {
+        "source": "Activities",
+        "relation": "has_relationship",
+        "target": "melanie done with her family"
+      },
+      {
+        "source": "Ways",
+        "relation": "is_a",
+        "target": "caroline participating"
+      },
+      {
+        "source": "Community",
+        "relation": "is_a",
+        "target": "joining activist"
+      },
+      {
+        "source": "Group",
+        "relation": "is_a",
+        "target": "the tuesday"
+      },
+      {
+        "source": "Park",
+        "relation": "is_a",
+        "target": "national park"
+      },
+      {
+        "source": "Make",
+        "relation": "is_a",
+        "target": "abstract art"
+      },
+      {
+        "source": "Birthday",
+        "relation": "is_a",
+        "target": "13 august"
+      },
+      {
+        "source": "August",
+        "relation": "is_a",
+        "target": "the friday"
+      },
+      {
+        "source": "Experience",
+        "relation": "is_a",
+        "target": "her mentors"
+      },
+      {
+        "source": "She",
+        "relation": "has_relationship",
+        "target": "a negative experience is her mentors"
+      },
+      {
+        "source": "Melanie",
+        "relation": "painted",
+        "target": "is horse"
+      },
+      {
+        "source": "Agencies",
+        "relation": "is_a",
+        "target": "the week"
+      },
+      {
+        "source": "Portrait",
+        "relation": "is_a",
+        "target": "the week"
+      },
+      {
+        "source": "Caroline",
+        "relation": "is_a",
+        "target": "rainbow flag"
+      },
+      {
+        "source": "Experience",
+        "relation": "is_a",
+        "target": "the week"
+      },
+      {
+        "source": "Class",
+        "relation": "is_a",
+        "target": "24 august"
+      },
+      {
+        "source": "Play",
+        "relation": "is_a",
+        "target": "clarinet and"
+      },
+      {
+        "source": "Seen",
+        "relation": "is_a",
+        "target": "summer sounds"
+      },
+      {
+        "source": "Park",
+        "relation": "is_a",
+        "target": "27 august"
+      },
+      {
+        "source": "Show",
+        "relation": "is_a",
+        "target": "september 2023"
+      },
+      {
+        "source": "Journey",
+        "relation": "is_a",
+        "target": "changes to"
+      },
+      {
+        "source": "Hikes",
+        "relation": "is_a",
+        "target": "roast marshmallows"
+      },
+      {
+        "source": "Friends",
+        "relation": "is_a",
+        "target": "the weekend"
+      },
+      {
+        "source": "Art",
+        "relation": "is_a",
+        "target": "since 2016"
+      },
+      {
+        "source": "Attended",
+        "relation": "is_a",
+        "target": "poetry reading"
+      },
+      {
+        "source": "Caroline",
+        "relation": "attended",
+        "target": "is poetry reading"
+      },
+      {
+        "source": "Hurt",
+        "relation": "is_a",
+        "target": "september 2023"
+      },
+      {
+        "source": "Roadtrip",
+        "relation": "is_a",
+        "target": "the weekend"
+      },
+      {
+        "source": "Roadtrip",
+        "relation": "is_a",
+        "target": "19 october"
+      },
+      {
+        "source": "Soon",
+        "relation": "is_a",
+        "target": "likely no"
+      },
+      {
+        "source": "Interview",
+        "relation": "is_a",
+        "target": "the friday"
+      },
+      {
+        "source": "Figurines",
+        "relation": "is_a",
+        "target": "21 october"
+      },
+      {
+        "source": "For",
+        "relation": "is_a",
+        "target": "mental health"
+      },
+      {
+        "source": "Care",
+        "relation": "is_a",
+        "target": "by carving"
+      },
+      {
+        "source": "Activities",
+        "relation": "likes",
+        "target": "running"
+      },
+      {
+        "source": "Summer",
+        "relation": "is_a",
+        "target": "researching adoption"
+      },
+      {
+        "source": "Caroline",
+        "relation": "is_a",
+        "target": "considering support"
+      },
+      {
+        "source": "Agency",
+        "relation": "is_a",
+        "target": "because of"
+      },
+      {
+        "source": "Process",
+        "relation": "is_a",
+        "target": "creating a"
+      },
+      {
+        "source": "Adopt",
+        "relation": "is_a",
+        "target": "she thinks"
+      },
+      {
+        "source": "Caroline",
+        "relation": "is_a",
+        "target": "doing something"
+      },
+      {
+        "source": "Married",
+        "relation": "is_a",
+        "target": "mel and"
+      },
+      {
+        "source": "Of",
+        "relation": "is_a",
+        "target": "art and"
+      },
+      {
+        "source": "Camping",
+        "relation": "is_a",
+        "target": "explored nature"
+      },
+      {
+        "source": "Services",
+        "relation": "is_a",
+        "target": "caroline interested"
+      },
+      {
+        "source": "Pursuing",
+        "relation": "is_a",
+        "target": "working with"
+      },
+      {
+        "source": "Caroline",
+        "relation": "interested_in",
+        "target": "pursuing is working with trans people"
+      },
+      {
+        "source": "What",
+        "relation": "is_a",
+        "target": "discussed in"
+      },
+      {
+        "source": "Workshop",
+        "relation": "is_a",
+        "target": "therapeutic methods"
+      },
+      {
+        "source": "Counseling",
+        "relation": "is_a",
+        "target": "her own"
+      },
+      {
+        "source": "People",
+        "relation": "is_a",
+        "target": "safe and"
+      },
+      {
+        "source": "Running",
+        "relation": "is_a",
+        "target": "to de"
+      },
+      {
+        "source": "For",
+        "relation": "is_a",
+        "target": "her mental"
+      },
+      {
+        "source": "Clay",
+        "relation": "is_a",
+        "target": "cup with"
+      },
+      {
+        "source": "Adoption",
+        "relation": "is_a",
+        "target": "many people"
+      },
+      {
+        "source": "Caroline",
+        "relation": "is_a",
+        "target": "warmth and"
+      },
+      {
+        "source": "Melanie",
+        "relation": "is_a",
+        "target": "they remind"
+      },
+      {
+        "source": "Show",
+        "relation": "is_a",
+        "target": "visiting an"
+      },
+      {
+        "source": "Kids",
+        "relation": "is_a",
+        "target": "once or"
+      },
+      {
+        "source": "Year",
+        "relation": "is_a",
+        "target": "perseid meteor"
+      },
+      {
+        "source": "Shower",
+        "relation": "is_a",
+        "target": "in awe"
+      },
+      {
+        "source": "Birthday",
+        "relation": "is_a",
+        "target": "matt patterson"
+      },
+      {
+        "source": "Project",
+        "relation": "is_a",
+        "target": "she wanted"
+      },
+      {
+        "source": "Have",
+        "relation": "is_a",
+        "target": "guinea pig"
+      },
+      {
+        "source": "Have",
+        "relation": "is_a",
+        "target": "two cats"
+      },
+      {
+        "source": "Once",
+        "relation": "is_a",
+        "target": "in melanie"
+      },
+      {
+        "source": "Dad",
+        "relation": "is_a",
+        "target": "horseback riding"
+      },
+      {
+        "source": "Church",
+        "relation": "is_a",
+        "target": "stained glass"
+      },
+      {
+        "source": "Walk",
+        "relation": "is_a",
+        "target": "rainbow sidewalk"
+      },
+      {
+        "source": "Courageous",
+        "relation": "is_a",
+        "target": "brave by"
+      },
+      {
+        "source": "To",
+        "relation": "is_a",
+        "target": "bach and"
+      },
+      {
+        "source": "Who",
+        "relation": "is_a",
+        "target": "melanie a"
+      },
+      {
+        "source": "Music",
+        "relation": "is_a",
+        "target": "ed sheeran"
+      },
+      {
+        "source": "Art",
+        "relation": "is_a",
+        "target": "7 years"
+      },
+      {
+        "source": "Caf\u00e9",
+        "relation": "is_a",
+        "target": "sign stating"
+      },
+      {
+        "source": "Someone",
+        "relation": "is_a",
+        "target": "not being"
+      },
+      {
+        "source": "Adoption",
+        "relation": "is_a",
+        "target": "do research"
+      },
+      {
+        "source": "Break",
+        "relation": "is_a",
+        "target": "read a"
+      },
+      {
+        "source": "What",
+        "relation": "is_a",
+        "target": "the poetry"
+      },
+      {
+        "source": "About",
+        "relation": "is_a",
+        "target": "it was"
+      },
+      {
+        "source": "Caroline",
+        "relation": "attended",
+        "target": "about is it was a transgender poetry reading where transgender people shared their stories"
+      },
+      {
+        "source": "Her",
+        "relation": "is_a",
+        "target": "freedom and"
+      },
+      {
+        "source": "Together",
+        "relation": "is_a",
+        "target": "an ongoing"
+      },
+      {
+        "source": "Trip",
+        "relation": "is_a",
+        "target": "he got"
+      },
+      {
+        "source": "Accident",
+        "relation": "is_a",
+        "target": "he was"
+      },
+      {
+        "source": "Accident",
+        "relation": "is_a",
+        "target": "they are"
+      },
+      {
+        "source": "Accident",
+        "relation": "is_a",
+        "target": "they were"
+      },
+      {
+        "source": "Accident",
+        "relation": "is_a",
+        "target": "grateful and"
+      },
+      {
+        "source": "Canyon",
+        "relation": "is_a",
+        "target": "she was"
+      },
+      {
+        "source": "Her",
+        "relation": "is_a",
+        "target": "strength and"
+      },
+      {
+        "source": "Her",
+        "relation": "is_a",
+        "target": "she appreciated"
+      },
+      {
+        "source": "Relax",
+        "relation": "is_a",
+        "target": "went on"
+      },
+      {
+        "source": "Melanie",
+        "relation": "is_a",
+        "target": "considering support"
+      },
+      {
+        "source": "Services",
+        "relation": "is_a",
+        "target": "melanie interested"
+      },
+      {
+        "source": "Who",
+        "relation": "is_a",
+        "target": "caroline a"
+      }
+    ]
+  },
+  "summary": {
+    "total_triples": 128,
+    "target_achieved": true
+  }
+}

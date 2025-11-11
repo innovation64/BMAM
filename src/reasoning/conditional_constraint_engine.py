@@ -186,7 +186,7 @@ Output only the JSON array, no explanation.
 
             constraints_json = json_lib.loads(content)
 
-            logger.info(f"🔍 LLM analyzed {len(constraints_json)} constraints for {len(capabilities)} capabilities")
+            logger.debug(f"🔍 LLM analyzed {len(constraints_json)} constraints for {len(capabilities)} capabilities")
 
             return constraints_json
 
@@ -278,7 +278,7 @@ Output only the JSON array, no explanation.
 
         # 检查是否已经存在
         if any(c['name'] == new_cap['name'] for c in capabilities):
-            logger.info(f"  ⏭️ Capability {new_cap['name']} already exists, skipping insert")
+            logger.debug(f"  ⏭️ Capability {new_cap['name']} already exists, skipping insert")
             return capabilities
 
         # 确定插入位置
@@ -287,7 +287,7 @@ Output only the JSON array, no explanation.
             for i, cap in enumerate(capabilities):
                 if cap['name'] == target:
                     capabilities.insert(i, new_cap)
-                    logger.info(f"  ✅ Inserted {new_cap['name']} before {target}")
+                    logger.debug(f"  ✅ Inserted {new_cap['name']} before {target}")
                     return capabilities
 
         elif 'insert_after' in params:
@@ -295,12 +295,12 @@ Output only the JSON array, no explanation.
             for i, cap in enumerate(capabilities):
                 if cap['name'] == target:
                     capabilities.insert(i + 1, new_cap)
-                    logger.info(f"  ✅ Inserted {new_cap['name']} after {target}")
+                    logger.debug(f"  ✅ Inserted {new_cap['name']} after {target}")
                     return capabilities
 
         # 默认插入到开头
         capabilities.insert(0, new_cap)
-        logger.info(f"  ✅ Inserted {new_cap['name']} at beginning")
+        logger.debug(f"  ✅ Inserted {new_cap['name']} at beginning")
         return capabilities
 
     def _skip_capability(
@@ -311,7 +311,7 @@ Output only the JSON array, no explanation.
         """跳过某个能力"""
         cap_name = params['capability']
         capabilities = [c for c in capabilities if c['name'] != cap_name]
-        logger.info(f"  ⏭️ Skipped {cap_name}: {params.get('reason', 'No reason')}")
+        logger.debug(f"  ⏭️ Skipped {cap_name}: {params.get('reason', 'No reason')}")
         return capabilities
 
     def _activate_alternative(
@@ -324,7 +324,7 @@ Output only the JSON array, no explanation.
 
         # 检查是否已经存在
         if any(c['name'] == alt_cap for c in capabilities):
-            logger.info(f"  ⏭️ Alternative {alt_cap} already exists")
+            logger.debug(f"  ⏭️ Alternative {alt_cap} already exists")
             return capabilities
 
         # 添加备选能力
@@ -333,7 +333,7 @@ Output only the JSON array, no explanation.
             'priority': 10,  # 较低优先级
             'reason': params.get('reason', 'Alternative path')
         })
-        logger.info(f"  ✅ Activated alternative: {alt_cap}")
+        logger.debug(f"  ✅ Activated alternative: {alt_cap}")
         return capabilities
 
     def _adjust_priority(
@@ -349,7 +349,7 @@ Output only the JSON array, no explanation.
             if cap['name'] == cap_name:
                 old_priority = cap.get('priority', 99)
                 cap['priority'] = new_priority
-                logger.info(f"  ✅ Adjusted {cap_name} priority: {old_priority} → {new_priority}")
+                logger.debug(f"  ✅ Adjusted {cap_name} priority: {old_priority} → {new_priority}")
                 break
 
         return capabilities

@@ -97,11 +97,11 @@ class RegionActivationDynamics:
         """
         # Step 1: Query语义分析 → 初始激活
         semantic_activation = await self._analyze_query_semantics(query)
-        logger.info(f"🔍 Query semantic activation: {semantic_activation}")
+        logger.debug(f"🔍 Query semantic activation: {semantic_activation}")
 
         # Step 2: 记忆内容分析 → 调制激活
         memory_activation = await self._analyze_memory_relevance(query, memories)
-        logger.info(f"💾 Memory-based activation: {memory_activation}")
+        logger.debug(f"💾 Memory-based activation: {memory_activation}")
 
         # Step 3: 融合激活信号
         combined_activation = self._combine_activations(
@@ -112,7 +112,7 @@ class RegionActivationDynamics:
 
         # Step 4: Lateral inhibition - 赢家抑制其他区域
         final_activation = self._apply_lateral_inhibition(combined_activation)
-        logger.info(f"🧠 Final activation (after lateral inhibition): {final_activation}")
+        logger.debug(f"🧠 Final activation (after lateral inhibition): {final_activation}")
 
         return final_activation
 
@@ -232,13 +232,13 @@ Output JSON with activation scores (0.0-1.0):
         try:
             llm_scores = await self._llm_memory_distribution(query, memories)
             if llm_scores:
-                logger.info(f"🧬 Memory distribution (LLM): {llm_scores}")
+                logger.debug(f"🧬 Memory distribution (LLM): {llm_scores}")
                 return llm_scores
         except Exception as exc:
             logger.warning(f"⚠️ Memory distribution analysis failed, fallback to keyword profile: {exc}")
 
         fallback_scores = self._keyword_memory_profile(memories)
-        logger.info(f"📝 Memory distribution (keyword fallback): {fallback_scores}")
+        logger.debug(f"📝 Memory distribution (keyword fallback): {fallback_scores}")
         return fallback_scores
 
     async def _llm_memory_distribution(

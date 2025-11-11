@@ -1,0 +1,18 @@
+{
+  "temporal_keywords": {
+    "en": ["when", "date", "time", "yesterday", "today", "tomorrow", "last", "next", "ago", "before", "after", "recent", "past", "future"],
+    "zh": ["什么时候", "时间", "日期", "昨天", "今天", "明天", "上次", "下次", "之前", "之后", "最近", "过去", "将来"]
+  },
+  "memory_keywords": {
+    "en": ["remember", "recall", "forgot", "memory", "mentioned", "said", "told"],
+    "zh": ["记得", "回忆", "忘记", "记忆", "提到", "说过", "告诉"]
+  },
+  "search_keywords": {
+    "en": ["find", "search", "look for", "where", "what", "who", "how"],
+    "zh": ["查找", "搜索", "寻找", "哪里", "什么", "谁", "怎么"]
+  },
+  "reasoning_keywords": {
+    "en": ["why", "because", "reason", "analyze", "explain", "understand"],
+    "zh": ["为什么", "因为", "原因", "分析", "解释", "理解"]
+  }
+}

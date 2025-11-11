@@ -1,0 +1,22 @@
+{
+  "movement_predicates": {
+    "en": ["go to", "went to", "move to", "travel to", "visit", "arrive at", "leave from"],
+    "zh": ["去", "前往", "移动到", "旅行到", "访问", "到达", "离开"]
+  },
+  "location_predicates": {
+    "en": ["at", "in", "near", "located at", "based in", "situated in"],
+    "zh": ["在", "位于", "附近", "基于", "坐落于"]
+  },
+  "activity_predicates": {
+    "en": ["do", "did", "doing", "work on", "study", "play", "eat", "drink"],
+    "zh": ["做", "工作", "学习", "玩", "吃", "喝", "进行"]
+  },
+  "relation_predicates": {
+    "en": ["is", "has", "owns", "knows", "likes", "loves", "works with", "friend of"],
+    "zh": ["是", "有", "拥有", "知道", "喜欢", "爱", "与...工作", "...的朋友"]
+  },
+  "temporal_predicates": {
+    "en": ["before", "after", "during", "while", "since", "until", "at time"],
+    "zh": ["之前", "之后", "期间", "当...时", "自从", "直到", "在...时间"]
+  }
+}
