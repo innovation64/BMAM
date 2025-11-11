@@ -52,17 +52,25 @@ class KnowledgeGraphBuilder:
     - 完整版: 可以集成SpaCy NER, OpenIE等工具
     """
 
-    def __init__(self, llm_client=None, use_spacy: bool = True):
+    def __init__(self, llm_client=None, use_spacy: bool = True,
+                 kg_instance=None):
         """
         初始化知识图谱构建器
 
         Args:
             llm_client: LLM客户端 (用于复杂的实体关系提取)
             use_spacy: 是否使用spaCy进行NER (更准确)
+            kg_instance: LightweightKnowledgeGraph 实例 (用于持久化)
+                        如果为 None，则只提取不持久化（向后兼容）
         """
         self.llm_client = llm_client
         self.use_spacy = use_spacy and SPACY_AVAILABLE and nlp is not None
 
+        # Unified knowledge graph (new architecture)
+        self.kg = kg_instance
+
+        # Legacy storage (deprecated, kept for backward compatibility)
+        # TODO: Remove in next major version
         self.knowledge_graph = {
             'entities': {},  # {entity_name: {type, mentions, aliases, ...}}
             'relations': []  # [(source, relation, target), ...]
@@ -75,7 +83,8 @@ class KnowledgeGraphBuilder:
         self.known_persons: Set[str] = set()
 
         mode = "spaCy+Rules+LLM" if self.use_spacy else "Rules+LLM"
-        logger.info(f"🔧 KnowledgeGraphBuilder initialized (mode: {mode})")
+        persistence = "with persistent KG" if self.kg else "memory only (legacy)"
+        logger.debug(f"🔧 KnowledgeGraphBuilder initialized (mode: {mode}, {persistence})")
 
     async def extract_from_text(
         self,
@@ -126,7 +135,66 @@ class KnowledgeGraphBuilder:
         entities = self._merge_entities(entities_all)
         relations = self._deduplicate_relations(relations_all)
 
+        # NEW: Persist to unified knowledge graph if available
+        if self.kg:
+            self._persist_to_kg(entities, relations)
+
         return entities, relations
+
+    def _persist_to_kg(self, entities: List[Dict], relations: List[Dict]) -> None:
+        """
+        Persist extracted entities and relations to unified KG
+
+        This eliminates the duplication between builder and persistent graph.
+        """
+        if not self.kg:
+            return
+
+        # Add entities to persistent graph
+        for entity in entities:
+            entity_name = entity.get('name', '')
+            entity_type = entity.get('type', 'Concept')
+
+            # Map builder types to KG types
+            type_mapping = {
+                'Person': 'person',
+                'Location': 'location',
+                'Organization': 'concept',
+                'Date': 'time',
+                'Time': 'time',
+                'Event': 'event',
+                'Concept': 'concept',
+                'Group': 'concept'
+            }
+            kg_type = type_mapping.get(entity_type, 'concept')
+
+            # Add node to KG
+            self.kg.add_node(
+                node_id=entity_name,
+                entity_type=kg_type,
+                content=entity_name,
+                properties={
+                    'mentions': entity.get('mentions', 1),
+                    'extraction_method': entity.get('source', 'unknown')
+                }
+            )
+
+        # Add relations to persistent graph
+        for relation in relations:
+            source = relation.get('source', '')
+            target = relation.get('target', '')
+            rel_type = relation.get('relation', 'related_to')
+
+            if source and target:
+                self.kg.add_edge(
+                    source_id=source,
+                    target_id=target,
+                    relation_type=rel_type,
+                    strength=relation.get('confidence', 0.5),
+                    properties={
+                        'extraction_method': relation.get('source', 'unknown')
+                    }
+                )
 
     async def _extract_with_spacy(self, text: str) -> Tuple[List[Dict], List[Dict]]:
         """使用spaCy NER提取实体"""
@@ -287,7 +355,7 @@ Only output valid JSON, no explanation.
                 entities = result.get('entities', [])
                 relations = result.get('relations', [])
 
-                logger.info(f"🔍 LLM extracted {len(entities)} entities, {len(relations)} relations")
+                logger.debug(f"🔍 LLM extracted {len(entities)} entities, {len(relations)} relations")
 
                 return entities, relations
             else:
@@ -495,8 +563,15 @@ Only output valid JSON, no explanation.
         return results
 
     def add_to_graph(self, entities: List[Dict], relations: List[Dict]):
-        """将实体和关系添加到知识图谱"""
-        # 添加实体
+        """
+        将实体和关系添加到知识图谱（同步到统一KG）
+        Add entities and relations to knowledge graph (syncs to unified KG)
+
+        This method now syncs to both:
+        1. Legacy memory dict (for backward compatibility)
+        2. Unified NetworkX KG (if kg_instance was provided)
+        """
+        # 添加实体到内存字典 (Legacy storage for backward compatibility)
         for entity in entities:
             name = entity['name']
             if name not in self.knowledge_graph['entities']:
@@ -507,13 +582,32 @@ Only output valid JSON, no explanation.
                     self.knowledge_graph['entities'][name].get('mentions', 0) + \
                     entity.get('mentions', 0)
 
-        # 添加关系
+        # 添加关系到内存字典 (Legacy storage for backward compatibility)
         for relation in relations:
             triple = (relation['source'], relation['relation'], relation['target'])
             if triple not in self.knowledge_graph['relations']:
                 self.knowledge_graph['relations'].append(triple)
 
-        logger.info(f"📊 KG stats: {len(self.knowledge_graph['entities'])} entities, "
+        # ✅ NEW: Sync to unified NetworkX KG
+        if self.kg:
+            try:
+                before_stats = self.kg.get_statistics()
+                self._persist_to_kg(entities, relations)
+                after_stats = self.kg.get_statistics()
+
+                logger.info(
+                    f"✅ KG Sync: {before_stats.get('total_nodes', 0)} → {after_stats.get('total_nodes', 0)} nodes, "
+                    f"{before_stats.get('total_edges', 0)} → {after_stats.get('total_edges', 0)} edges"
+                )
+            except Exception as e:
+                logger.error(f"❌ Failed to sync to unified KG: {e}", exc_info=True)
+        else:
+            logger.warning(
+                f"⚠️ No unified KG instance - {len(entities)} entities and {len(relations)} relations "
+                f"stored in memory dict only (not persistent)"
+            )
+
+        logger.debug(f"📊 Memory Dict KG stats: {len(self.knowledge_graph['entities'])} entities, "
                    f"{len(self.knowledge_graph['relations'])} relations")
 
     def get_statistics(self) -> Dict[str, Any]:
@@ -568,4 +662,4 @@ Only output valid JSON, no explanation.
             'entities': {},
             'relations': []
         }
-        logger.info("🗑️ Knowledge graph cleared")
+        logger.debug("🗑️ Knowledge graph cleared")
