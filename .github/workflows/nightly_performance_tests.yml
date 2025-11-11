@@ -1,0 +1,260 @@
+name: Nightly Performance & Robustness Tests
+
+on:
+  # 每天凌晨2点运行
+  schedule:
+    - cron: '0 2 * * *'
+
+  # 允许手动触发
+  workflow_dispatch:
+    inputs:
+      full_benchmark:
+        description: 'Run full benchmark (including LoCoMo)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+jobs:
+  performance-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180  # 3小时超时
+
+    strategy:
+      matrix:
+        python-version: ["3.11"]  # 使用稳定版本
+      fail-fast: false  # 不因一个失败而停止所有任务
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Cache pip packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-asyncio pytest-timeout
+        pip install -r requirements.txt || echo "No requirements.txt found"
+        pip install openai faiss-cpu scikit-learn numpy
+
+    - name: Create benchmark directories
+      run: |
+        mkdir -p benchmark_reports
+        mkdir -p test_results
+
+    # ====================================
+    # 阶段1: 快速功能验证
+    # ====================================
+    - name: Phase 1 - Fast Functional Tests
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      run: |
+        echo "======================================"
+        echo "Phase 1: Fast Functional Verification"
+        echo "======================================"
+        pytest tests/test_memory_system_suite.py -v -m "not slow" --tb=short --timeout=300
+      continue-on-error: false
+
+    # ====================================
+    # 阶段2: 压力测试
+    # ====================================
+    - name: Phase 2.1 - Batch Consolidation Stress Test
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      run: |
+        echo "======================================"
+        echo "Phase 2.1: Batch Consolidation Stress"
+        echo "======================================"
+        pytest tests/test_batch_consolidation_stress.py::TestBatchConsolidationStress -v -s --timeout=1800 || echo "Stress test completed with issues"
+      continue-on-error: true
+
+    - name: Phase 2.2 - Long Session Stress Test
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      run: |
+        echo "======================================"
+        echo "Phase 2.2: Long Session Stress"
+        echo "======================================"
+        pytest tests/test_batch_consolidation_stress.py::TestLongSessionStress -v -s --timeout=1800 || echo "Long session test completed with issues"
+      continue-on-error: true
+
+    - name: Phase 2.3 - Memory Capacity Limits Test
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      run: |
+        echo "======================================"
+        echo "Phase 2.3: Memory Capacity Limits"
+        echo "======================================"
+        pytest tests/test_batch_consolidation_stress.py::TestMemoryCapacityLimits -v -s --timeout=2400 || echo "Capacity test completed with issues"
+      continue-on-error: true
+
+    # ====================================
+    # 阶段3: 故障注入测试
+    # ====================================
+    - name: Phase 3.1 - Database Fault Injection
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      run: |
+        echo "======================================"
+        echo "Phase 3.1: Database Fault Injection"
+        echo "======================================"
+        pytest tests/test_fault_injection.py::TestDatabaseFaultInjection -v -s --timeout=600 || echo "DB fault injection completed with issues"
+      continue-on-error: true
+
+    - name: Phase 3.2 - API Fault Injection
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      run: |
+        echo "======================================"
+        echo "Phase 3.2: API Fault Injection"
+        echo "======================================"
+        pytest tests/test_fault_injection.py::TestAPIFaultInjection -v -s --timeout=600 || echo "API fault injection completed with issues"
+      continue-on-error: true
+
+    - name: Phase 3.3 - Concurrency Fault Tests
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      run: |
+        echo "======================================"
+        echo "Phase 3.3: Concurrency Fault Tests"
+        echo "======================================"
+        pytest tests/test_fault_injection.py::TestConcurrencyFaults -v -s --timeout=600 || echo "Concurrency tests completed with issues"
+      continue-on-error: true
+
+    - name: Phase 3.4 - Recovery Mechanism Tests
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      run: |
+        echo "======================================"
+        echo "Phase 3.4: Recovery Mechanisms"
+        echo "======================================"
+        pytest tests/test_fault_injection.py::TestRecoveryMechanisms -v -s --timeout=600 || echo "Recovery tests completed with issues"
+      continue-on-error: true
+
+    # ====================================
+    # 阶段4: LoCoMo 基准 (可选)
+    # ====================================
+    - name: Phase 4 - LoCoMo Benchmark (Optional)
+      if: github.event.inputs.full_benchmark == 'true'
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      run: |
+        echo "======================================"
+        echo "Phase 4: LoCoMo 5Q Benchmark"
+        echo "======================================"
+        pytest tests/test_memory_system_suite.py::TestLoCoMoBenchmark -v -s --timeout=3600 || echo "LoCoMo benchmark completed with issues"
+      continue-on-error: true
+
+    # ====================================
+    # 生成报告
+    # ====================================
+    - name: Generate Performance Report
+      if: always()
+      run: |
+        echo "======================================"
+        echo "Generating Performance Report"
+        echo "======================================"
+
+        TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+        REPORT_FILE="benchmark_reports/nightly_report_${TIMESTAMP}.md"
+
+        cat > "$REPORT_FILE" <<'EOF'
+        # BMAM Nightly Performance & Robustness Report
+
+        ## Test Information
+        - **Date**: $(date)
+        - **Workflow Run**: ${{ github.run_number }}
+        - **Commit**: ${{ github.sha }}
+        - **Branch**: ${{ github.ref }}
+        - **Python Version**: ${{ matrix.python-version }}
+
+        ## Test Summary
+        See detailed logs in the workflow run.
+
+        ## Performance Metrics
+        - Batch Consolidation: See Phase 2.1
+        - Long Session: See Phase 2.2
+        - Memory Capacity: See Phase 2.3
+
+        ## Robustness Tests
+        - Database Faults: See Phase 3.1
+        - API Faults: See Phase 3.2
+        - Concurrency: See Phase 3.3
+        - Recovery: See Phase 3.4
+
+        ## Status
+        Check workflow conclusion for overall status.
+        EOF
+
+        echo "Report generated: $REPORT_FILE"
+
+    - name: Upload benchmark reports
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: nightly-benchmark-reports-${{ matrix.python-version }}
+        path: |
+          benchmark_reports/
+          test_results/
+          *.json
+          *.log
+        retention-days: 30
+
+    # ====================================
+    # 通知 (可选)
+    # ====================================
+    - name: Check test status and prepare summary
+      if: always()
+      id: test_summary
+      run: |
+        echo "Preparing test summary..."
+        echo "status=completed" >> $GITHUB_OUTPUT
+
+    # 如果需要，可以添加 Slack/Email 通知
+    # - name: Notify on failure
+    #   if: failure()
+    #   uses: ...
+
+  # ====================================
+  # 趋势分析任务 (可选)
+  # ====================================
+  trend-analysis:
+    runs-on: ubuntu-latest
+    needs: performance-tests
+    if: always()
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Download artifacts
+      uses: actions/download-artifact@v3
+      with:
+        path: artifacts/
+
+    - name: Analyze trends
+      run: |
+        echo "======================================"
+        echo "Performance Trend Analysis"
+        echo "======================================"
+
+        # 这里可以添加趋势分析脚本
+        # 比较历史数据，检测性能退化
+
+        ls -la artifacts/
+
+        echo "Trend analysis placeholder - implement custom analysis here"

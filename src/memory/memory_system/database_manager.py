@@ -194,3 +194,64 @@ class DatabaseManager(DatabaseQueryMixin):
             metadata=record.memory_metadata or {},
             embedding_id=record.embedding_id
         )
+
+    def get_all_memories(self, limit: int = None) -> List[Dict[str, Any]]:
+        """
+        Get All Active Memories (for testing and validation)
+        获取所有活跃记忆（用于测试和验证）
+
+        Returns all active memories from the database as dictionaries.
+        Useful for verifying consolidation and storage mechanisms.
+
+        Args:
+            limit: Optional maximum number of memories to return
+
+        Returns:
+            List of memory dicts with fields:
+            - id: str
+            - content: str
+            - memory_type: str
+            - importance: float
+            - timestamp: str (ISO format)
+            - consolidation_level: int
+            - brain_region: str
+            - metadata: dict
+            - source: str = 'memory_system'
+        """
+        memories = []
+        try:
+            session = self.get_session()
+            try:
+                query = session.query(MemoryRecord).filter_by(is_active=True)
+
+                if limit:
+                    query = query.limit(limit)
+
+                records = query.all()
+
+                for record in records:
+                    # Convert to dict format (similar to TemporalLobe format)
+                    memory_dict = {
+                        'id': record.id,
+                        'content': record.content,
+                        'memory_type': record.memory_type,
+                        'importance': record.importance,
+                        'timestamp': record.timestamp.isoformat() if record.timestamp else None,
+                        'consolidation_level': record.consolidation_level,
+                        'brain_region': record.brain_region,
+                        'metadata': record.memory_metadata or {},
+                        'source': 'memory_system',  # Add source label
+                        'access_frequency': record.access_frequency,
+                        'emotion_tags': record.emotion_tags or [],
+                        'context_tags': record.context_tags or []
+                    }
+                    memories.append(memory_dict)
+
+                logger.debug(f"Retrieved {len(memories)} memories from database")
+
+            finally:
+                session.close()
+        except Exception as e:
+            logger.error(f"Failed to get all memories: {e}")
+
+        return memories

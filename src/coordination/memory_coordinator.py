@@ -304,9 +304,15 @@ class MemoryCoordinator:
             if strategy == 'episodic':
                 result = await self.hippocampus.search_memories(query, k=k)
                 memories = result.get('memories', []) if isinstance(result, dict) else result
+                # Add source label
+                for mem in memories:
+                    mem['source'] = 'hippocampus'
             elif strategy == 'semantic':
                 result = await self.temporal_lobe.search_memories(query, k=k)
                 memories = result.get('memories', []) if isinstance(result, dict) else result
+                # Add source label
+                for mem in memories:
+                    mem['source'] = 'temporal_lobe'
             elif strategy == 'hybrid':
                 # Combine hippocampus and temporal lobe
                 episodic_result = await self.hippocampus.search_memories(query, k=k//2)
@@ -315,6 +321,12 @@ class MemoryCoordinator:
                 # Extract memories from results (handle Dict return type)
                 episodic_memories = episodic_result.get('memories', []) if isinstance(episodic_result, dict) else episodic_result
                 semantic_memories = semantic_result.get('memories', []) if isinstance(semantic_result, dict) else semantic_result
+
+                # Add source labels
+                for mem in episodic_memories:
+                    mem['source'] = 'hippocampus'
+                for mem in semantic_memories:
+                    mem['source'] = 'temporal_lobe'
 
                 # Combine memory lists
                 memories = episodic_memories + semantic_memories
@@ -325,6 +337,9 @@ class MemoryCoordinator:
                 # Default to hippocampus
                 result = await self.hippocampus.search_memories(query, k=k)
                 memories = result.get('memories', []) if isinstance(result, dict) else result
+                # Add source label
+                for mem in memories:
+                    mem['source'] = 'hippocampus'
 
             return memories
 

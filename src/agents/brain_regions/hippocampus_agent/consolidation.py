@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 from .core import EpisodicMemory, HippocampusAgentCore
+from ...base import AgentMessage
 import asyncio
 from sklearn.cluster import DBSCAN
 import numpy as np
@@ -273,6 +274,25 @@ class ConsolidationMixin:
                             }
                         }
                     ))
+
+                    # 🔥 NEW: 并行存储到 MemorySystem (向量数据库)
+                    if self.memory_system:
+                        try:
+                            await self.memory_system.store_memory(
+                                content=f"[{date_key}] {pattern}",
+                                metadata={
+                                    'type': 'consolidated',
+                                    'source': 'hippocampus_consolidation',
+                                    'consolidated_from': [m.id for m in memories],
+                                    'consolidation_date': datetime.now().isoformat(),
+                                    'date_key': date_key,
+                                    'entities': all_entities,
+                                    'importance': 0.8
+                                }
+                            )
+                            logger.info(f"✅ Consolidated memory stored in MemorySystem for {date_key}")
+                        except Exception as e:
+                            logger.error(f"Failed to store consolidated memory in MemorySystem: {e}")
 
                     consolidated_count += 1
 
