@@ -1,0 +1,237 @@
+# Memory System Alerting Configuration Example
+# 记忆系统告警配置示例
+#
+# This configuration can be used with monitoring systems like:
+# - Prometheus Alertmanager
+# - Grafana Alerts
+# - Custom monitoring scripts
+
+alerting_rules:
+  # Critical Alerts - Immediate Action Required
+  critical:
+    - name: long_term_storage_inactive
+      description: "Long-term storage (TemporalLobe/MemorySystem) is not receiving memories"
+      condition: "health_indicators.long_term_storage_active == false"
+      threshold:
+        duration: "5m"  # Alert if condition persists for 5 minutes
+      severity: critical
+      action: |
+        Verify:
+        1. Consolidation triggers are configured
+        2. TemporalLobe/MemorySystem APIs are accessible
+        3. Check logs for consolidation errors
+      notification_channels:
+        - email
+        - slack
+        - pagerduty
+
+    - name: zero_consolidations
+      description: "No consolidation events despite heavy query load"
+      condition: "retrieval_summary.total_queries > 50 AND consolidation_summary.total_events == 0"
+      threshold:
+        duration: "10m"
+      severity: critical
+      action: |
+        Immediate actions:
+        1. Trigger manual consolidation
+        2. Check HippocampusAgent.consolidate_memories()
+        3. Verify memory importance scoring
+      notification_channels:
+        - email
+        - slack
+
+  # Warning Alerts - Requires Attention
+  warnings:
+    - name: low_retrieval_diversity
+      description: "Over-reliance on single memory source"
+      condition: "health_indicators.retrieval_diversity_score < 0.3"
+      threshold:
+        duration: "15m"
+        consecutive_violations: 3
+      severity: warning
+      action: |
+        Investigation steps:
+        1. Check retrieval source distribution
+        2. Verify long-term storage is populated
+        3. Review consolidation effectiveness
+      notification_channels:
+        - slack
+
+    - name: hippocampus_dominance
+      description: "Over 95% of retrievals from Hippocampus only"
+      condition: "retrieval_summary.source_percentages.hippocampus > 95"
+      threshold:
+        duration: "10m"
+        min_queries: 20  # Only alert after sufficient data
+      severity: warning
+      action: |
+        Possible causes:
+        1. TemporalLobe storage is empty
+        2. Consolidation is not running
+        3. smart_retrieve() may not be querying all sources
+      notification_channels:
+        - slack
+
+    - name: consolidation_failure_rate
+      description: "High consolidation failure rate"
+      condition: "consolidation_summary.success_rate < 0.8"
+      threshold:
+        duration: "5m"
+      severity: warning
+      action: |
+        Check:
+        1. LLM API availability
+        2. Memory extraction quality
+        3. Storage adapter errors
+      notification_channels:
+        - email
+        - slack
+
+  # Info Alerts - Informational
+  info:
+    - name: high_query_rate
+      description: "Unusually high query rate"
+      condition: "retrieval_summary.rate_per_minute > 10"
+      threshold:
+        duration: "5m"
+      severity: info
+      action: "Monitor for performance degradation, consider caching"
+      notification_channels:
+        - slack
+
+    - name: memory_system_growth
+      description: "MemorySystem storage growing rapidly"
+      condition: "storage_distribution.memory_system > 10000"
+      threshold:
+        growth_rate: "> 1000 per hour"
+      severity: info
+      action: "Monitor storage capacity and consider archival strategy"
+      notification_channels:
+        - slack
+
+# Notification Channels Configuration
+notification_channels:
+  email:
+    enabled: true
+    recipients:
+      - devops@example.com
+      - brain-ai-team@example.com
+    smtp_server: smtp.example.com
+    from: alerts@brain-ai.example.com
+
+  slack:
+    enabled: true
+    webhook_url: "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+    channel: "#brain-ai-alerts"
+    username: "Memory System Monitor"
+    icon_emoji: ":brain:"
+
+  pagerduty:
+    enabled: false  # Enable for production
+    integration_key: "YOUR_PAGERDUTY_KEY"
+    severity_mapping:
+      critical: "critical"
+      warning: "warning"
+      info: "info"
+
+# Dashboard Configuration
+dashboard:
+  refresh_interval: "30s"
+  retention_period: "30d"  # Keep metrics for 30 days
+
+  panels:
+    - name: "Health Status"
+      type: "stat"
+      metric: "health_indicators.status"
+      thresholds:
+        healthy: "green"
+        warning: "yellow"
+        critical: "red"
+
+    - name: "Storage Distribution"
+      type: "pie"
+      metrics:
+        - "storage_distribution.hippocampus"
+        - "storage_distribution.temporal_lobe"
+        - "storage_distribution.memory_system"
+
+    - name: "Retrieval Source Distribution"
+      type: "pie"
+      metrics: "retrieval_summary.source_percentages"
+
+    - name: "Diversity Score"
+      type: "gauge"
+      metric: "health_indicators.retrieval_diversity_score"
+      min: 0
+      max: 1
+      thresholds:
+        good: "> 0.5"
+        warning: "0.3 - 0.5"
+        critical: "< 0.3"
+
+    - name: "Brain Region Activity"
+      type: "bar"
+      metric: "brain_region_activation"
+      stacked: false
+
+    - name: "Consolidation Rate"
+      type: "graph"
+      metric: "consolidation_summary.rate_per_minute"
+      time_range: "1h"
+
+    - name: "Query Rate"
+      type: "graph"
+      metric: "retrieval_summary.rate_per_minute"
+      time_range: "1h"
+
+    - name: "Recent Warnings"
+      type: "table"
+      metric: "health_indicators.warnings"
+      max_rows: 10
+
+# Metric Export Configuration
+metric_export:
+  prometheus:
+    enabled: true
+    port: 9090
+    path: "/metrics"
+    format: "prometheus"
+
+  json:
+    enabled: true
+    output_dir: "metrics/"
+    filename_pattern: "memory_system_metrics_{timestamp}.json"
+
+  csv:
+    enabled: false
+    output_dir: "metrics/csv/"
+
+# Health Check Endpoints
+health_checks:
+  - endpoint: "/health/memory_system"
+    checks:
+      - long_term_storage_active
+      - diversity_score > 0.2
+      - consolidation_working
+    response:
+      healthy: {"status": "healthy", "checks": "all_passed"}
+      unhealthy: {"status": "unhealthy", "checks": "failed_checks_list"}
+
+  - endpoint: "/health/ready"
+    checks:
+      - hippocampus_initialized
+      - temporal_lobe_initialized
+      - memory_system_initialized
+    response:
+      ready: {"status": "ready"}
+      not_ready: {"status": "not_ready", "reason": "component_not_initialized"}
+
+# Monitoring Best Practices
+best_practices:
+  - "Monitor diversity_score continuously - values below 0.3 indicate single-source dependency"
+  - "Set up alerts for long_term_storage_active == false immediately"
+  - "Track consolidation success rate - should be > 80%"
+  - "Review retrieval source distribution daily"
+  - "Archive old metrics data after retention_period"
+  - "Test alerting channels regularly (weekly test alerts)"
+  - "Document incident response procedures for each alert type"

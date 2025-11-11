@@ -81,7 +81,23 @@ if run_test "Multi-Brain Region Observability" "python3 test_multi_brain_region_
     passed_tests=$((passed_tests + 1))
 fi
 
-# 测试 6: LoCoMo 5Q 基准 (慢速，可选)
+# 测试 6: 批量巩固快速测试 (新增)
+if [ "$1" == "--stress" ] || [ "$1" == "--full" ]; then
+    echo ""
+    echo "运行压力测试..."
+    total_tests=$((total_tests + 1))
+    if run_test "Batch Consolidation Stress (Quick)" "pytest tests/test_batch_consolidation_stress.py::TestBatchConsolidationStress::test_consolidation_queue_management -v --timeout=600" "optional"; then
+        passed_tests=$((passed_tests + 1))
+    fi
+
+    # 测试 7: 故障注入快速测试 (新增)
+    total_tests=$((total_tests + 1))
+    if run_test "Fault Injection (Quick)" "pytest tests/test_fault_injection.py::TestDatabaseFaultInjection::test_database_connection_failure -v --timeout=300" "optional"; then
+        passed_tests=$((passed_tests + 1))
+    fi
+fi
+
+# 测试 8: LoCoMo 5Q 基准 (慢速，可选)
 if [ "$1" == "--full" ]; then
     echo ""
     echo "运行完整测试套件 (包括 LoCoMo 基准)..."
@@ -90,14 +106,27 @@ if [ "$1" == "--full" ]; then
         passed_tests=$((passed_tests + 1))
     fi
 
-    # 测试 7: 巩固周期 (慢速)
+    # 测试 9: 巩固周期 (慢速)
     total_tests=$((total_tests + 1))
     if run_test "Consolidation Full Cycle" "python3 test_consolidation_full_cycle.py" "optional"; then
         passed_tests=$((passed_tests + 1))
     fi
+
+    # 测试 10: 完整批量巩固压力测试
+    total_tests=$((total_tests + 1))
+    if run_test "Batch Consolidation Stress (Full)" "pytest tests/test_batch_consolidation_stress.py -v -s --timeout=1800" "optional"; then
+        passed_tests=$((passed_tests + 1))
+    fi
+
+    # 测试 11: 完整故障注入测试
+    total_tests=$((total_tests + 1))
+    if run_test "Fault Injection (Full)" "pytest tests/test_fault_injection.py -v -s --timeout=1200" "optional"; then
+        passed_tests=$((passed_tests + 1))
+    fi
 else
     echo ""
-    echo "提示: 使用 ./run_memory_tests.sh --full 运行完整测试（包括慢速测试）"
+    echo "提示: 使用 ./run_memory_tests.sh --stress 运行压力测试"
+    echo "      使用 ./run_memory_tests.sh --full 运行完整测试（包括慢速测试）"
 fi
 
 # 总结

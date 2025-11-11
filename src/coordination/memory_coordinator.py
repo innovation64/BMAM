@@ -10,6 +10,7 @@ from datetime import datetime
 from .clean_agent_system import AgentMessage
 from ..memory.memory_system import memory_system
 from ..utils.config import get_logger
+from ..monitoring.memory_metrics import get_metrics_collector
 
 logger = get_logger(__name__)
 
@@ -18,7 +19,7 @@ class MemoryCoordinator:
     """Coordinates memory operations across brain regions"""
 
     def __init__(self, hippocampus, temporal_lobe, consolidation_agent,
-                 forgetting_agent, agent_lifecycle_manager):
+                 forgetting_agent, agent_lifecycle_manager, memory_system=None):
         """
         Initialize Memory Coordinator
 
@@ -28,12 +29,14 @@ class MemoryCoordinator:
             consolidation_agent: Consolidation agent instance
             forgetting_agent: Forgetting agent instance
             agent_lifecycle_manager: Agent lifecycle manager for activation
+            memory_system: MemorySystem instance for persistent storage (optional)
         """
         self.hippocampus = hippocampus
         self.temporal_lobe = temporal_lobe
         self.consolidation_agent = consolidation_agent
         self.forgetting_agent = forgetting_agent
         self.agent_lifecycle = agent_lifecycle_manager
+        self.memory_system = memory_system  # 🔥 NEW: Store memory_system reference
 
 
     async def store_memory_with_timestamp(
@@ -314,9 +317,9 @@ class MemoryCoordinator:
                 for mem in memories:
                     mem['source'] = 'temporal_lobe'
             elif strategy == 'hybrid':
-                # Combine hippocampus and temporal lobe
-                episodic_result = await self.hippocampus.search_memories(query, k=k//2)
-                semantic_result = await self.temporal_lobe.search_memories(query, k=k//2)
+                # Combine hippocampus, temporal lobe, AND memory_system
+                episodic_result = await self.hippocampus.search_memories(query, k=k//3)
+                semantic_result = await self.temporal_lobe.search_memories(query, k=k//3)
 
                 # Extract memories from results (handle Dict return type)
                 episodic_memories = episodic_result.get('memories', []) if isinstance(episodic_result, dict) else episodic_result
@@ -328,8 +331,28 @@ class MemoryCoordinator:
                 for mem in semantic_memories:
                     mem['source'] = 'temporal_lobe'
 
-                # Combine memory lists
-                memories = episodic_memories + semantic_memories
+                # 🔥 NEW: Query MemorySystem (persistent vector DB)
+                memory_system_memories = []
+                if hasattr(self, 'memory_system') and self.memory_system:
+                    try:
+                        # Use memory_system.search_memories if available
+                        if hasattr(self.memory_system, 'search_memories'):
+                            ms_result = await self.memory_system.search_memories(query, k=k//3)
+                            memory_system_memories = ms_result.get('memories', []) if isinstance(ms_result, dict) else ms_result
+                        # Fallback: use retrieve_memories
+                        elif hasattr(self.memory_system, 'retrieve_memories'):
+                            ms_result = await self.memory_system.retrieve_memories(query, k=k//3)
+                            memory_system_memories = ms_result if isinstance(ms_result, list) else []
+
+                        # Add source labels
+                        for mem in memory_system_memories:
+                            if isinstance(mem, dict):
+                                mem['source'] = 'memory_system'
+                    except Exception as e:
+                        logger.warning(f"Failed to query MemorySystem: {e}")
+
+                # Combine memory lists from all three sources
+                memories = episodic_memories + semantic_memories + memory_system_memories
                 # Sort by score/relevance
                 memories.sort(key=lambda x: x.get('relevance', x.get('score', 0)), reverse=True)
                 memories = memories[:k]
@@ -340,6 +363,35 @@ class MemoryCoordinator:
                 # Add source label
                 for mem in memories:
                     mem['source'] = 'hippocampus'
+
+            # 📊 Record retrieval metrics for observability
+            try:
+                metrics = get_metrics_collector()
+
+                # Count sources
+                source_counts = {}
+                for mem in memories:
+                    source = mem.get('source', 'unknown')
+                    source_counts[source] = source_counts.get(source, 0) + 1
+
+                metrics.record_retrieval_event(
+                    query=query,
+                    sources=source_counts,
+                    total_retrieved=len(memories),
+                    strategy=strategy,
+                    metadata={'k': k}
+                )
+
+                # Record brain region activations
+                for source in source_counts:
+                    if source == 'hippocampus':
+                        metrics.record_brain_region_activation('hippocampus', 'queried')
+                    elif source == 'temporal_lobe':
+                        metrics.record_brain_region_activation('temporal_lobe', 'queried')
+                    elif source == 'memory_system':
+                        metrics.record_brain_region_activation('memory_system', 'queried')
+            except Exception as e:
+                logger.warning(f"Failed to record retrieval metrics: {e}")
 
             return memories
 
