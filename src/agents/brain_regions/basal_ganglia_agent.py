@@ -59,6 +59,10 @@ class BasalGangliaAgent(BrainAgent):
         self.capacity = capacity
         self.skills: Dict[str, ProceduralMemory] = {}  # {skill_name: memory}
 
+        # 🔥 策略缓存 (strategy_cache) - 用于存储行为模式和策略
+        # References self.skills for procedural patterns
+        self.strategy_cache = self.skills  # Alias for functional brain regions test
+
         # 统计信息
         self.total_stored = 0
 

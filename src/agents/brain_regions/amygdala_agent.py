@@ -68,6 +68,10 @@ class AmygdalaAgent(BrainAgent):
         # 情绪索引
         self.emotion_index: Dict[str, List[str]] = {}  # {emotion_tag: [memory_ids]}
 
+        # 🔥 情绪缓冲区 (emotional_buffer) - 用于存储当前活跃的情绪状态
+        # References self.memories for active emotional memories
+        self.emotional_buffer = self.memories  # Alias for functional brain regions test
+
         # 🧠 Plan C: 集成情绪调节功能
         self.hippocampus = hippocampus_agent  # 用于影响记忆编码
         self.temporal_lobe = temporal_lobe_agent  # 用于影响语义记忆
