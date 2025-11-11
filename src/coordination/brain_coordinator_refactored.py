@@ -194,7 +194,8 @@ class BrainInspiredCoordinator:
             temporal_lobe=self.temporal_lobe,
             consolidation_agent=self.consolidation,
             forgetting_agent=self.forgetting,
-            agent_lifecycle_manager=self.agent_lifecycle_manager
+            agent_lifecycle_manager=self.agent_lifecycle_manager,
+            memory_system=self.memory_system  # 🔥 CRITICAL FIX: Pass MemorySystem reference
         )
         logger.info("✅ [5/10] MemoryCoordinator initialized")
 
@@ -417,7 +418,8 @@ class BrainInspiredCoordinator:
             capacity=20000,
             temporal_lobe_agent=self.temporal_lobe,
             embedding_service=embedding_service,
-            kg_builder=self.knowledge_graph_builder
+            kg_builder=self.knowledge_graph_builder,
+            memory_system=self.memory_system  # 🔥 Pass MemorySystem for consolidation
         )
 
         self.amygdala = AmygdalaAgent(

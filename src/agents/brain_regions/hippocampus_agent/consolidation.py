@@ -13,6 +13,9 @@ import uuid
 
 logger = logging.getLogger(__name__)
 
+# Import metrics collector for observability
+from src.monitoring.memory_metrics import get_metrics_collector
+
 
 from .core import EpisodicMemory, HippocampusAgentCore
 from ...base import AgentMessage
@@ -215,10 +218,11 @@ class ConsolidationMixin:
 
         # 找到重要但访问较少的记忆 (候选巩固对象)
         # ✅ 移除硬编码 consolidation_threshold,使用动态筛选
+        # 🔧 P1 FIX: 降低阈值以支持LoCoMo等真实场景 (0.5→0.3, 0.6→0.4)
         consolidation_candidates = [
             mem for mem in self.memories
-            if (mem.importance > 0.5 or mem.emotion_intensity > 0.6)  # 动态标准
-            and mem.access_count < 3  # 避免重复巩固
+            if (mem.importance > 0.3 or mem.emotion_intensity > 0.4)  # 动态标准 (降低阈值)
+            and mem.access_count < 5  # 避免重复巩固 (放宽限制)
         ]
 
         consolidated_count = 0
@@ -230,15 +234,28 @@ class ConsolidationMixin:
             time_groups[date_key].append(mem)
 
         # 对每一天的记忆进行巩固
+        # 🔧 P1 FIX: 支持单条记忆巩固 (移除 len(memories) > 1 限制)
         for date_key, memories in time_groups.items():
-            if len(memories) > 1:
-                # 合并同一天的多个记忆
+            if len(memories) >= 1:
+                # 合并同一天的一个或多个记忆
                 combined_content = "\n".join([f"- {m.content}" for m in memories])
                 all_entities = list(set(sum([m.entities for m in memories], [])))
 
                 try:
                     # 提取日摘要和模式
-                    prompt = f"""从以下{len(memories)}条情节记忆中提取关键模式和知识:
+                    if len(memories) == 1:
+                        prompt = f"""从以下情节记忆中提取核心知识和语义:
+
+{combined_content}
+
+请提取:
+1. 核心事实和知识点
+2. 实体及其关系
+3. 可复用的经验或模式
+
+以结构化的语义知识输出。"""
+                    else:
+                        prompt = f"""从以下{len(memories)}条情节记忆中提取关键模式和知识:
 
 {combined_content}
 
@@ -276,9 +293,9 @@ class ConsolidationMixin:
                     ))
 
                     # 🔥 NEW: 并行存储到 MemorySystem (向量数据库)
-                    if self.memory_system:
+                    if hasattr(self, 'storage_adapter') and self.storage_adapter and hasattr(self.storage_adapter, 'memory_system') and self.storage_adapter.memory_system:
                         try:
-                            await self.memory_system.store_memory(
+                            await self.storage_adapter.memory_system.store_memory(
                                 content=f"[{date_key}] {pattern}",
                                 metadata={
                                     'type': 'consolidated',
@@ -300,6 +317,23 @@ class ConsolidationMixin:
                     logger.error(f"Failed to consolidate memories for {date_key}: {e}")
 
         self.total_consolidated += consolidated_count
+
+        # 📊 Record consolidation metrics for observability
+        try:
+            metrics = get_metrics_collector()
+            metrics.record_consolidation_event(
+                trigger='automatic',
+                memories_processed=len(consolidation_candidates),
+                patterns_extracted=consolidated_count,
+                success=consolidated_count > 0,
+                metadata={
+                    'date_keys': list(time_groups.keys()),
+                    'consolidation_timestamp': datetime.now().isoformat()
+                }
+            )
+            metrics.record_brain_region_activation('hippocampus', 'consolidated')
+        except Exception as e:
+            logger.warning(f"Failed to record consolidation metrics: {e}")
 
         return {
             'consolidated': consolidated_count,
