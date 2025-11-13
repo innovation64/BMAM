@@ -34,7 +34,7 @@ from .clean_agent_system import (
 from ..agents.environment import EnvironmentAgent
 from ..agents.core.reasoning_validator import ReasoningValidatorAgent
 from ..memory.memory_system import memory_system
-from ..agents.agent_buffer_system import agent_buffer_system
+# Removed: agent_buffer_system (early design flaw - removed 2025-11-12)
 # Removed: NeuralPlasticityEngine (Hebbian learning - no longer used)
 
 from ..agents.brain_regions import (
@@ -238,20 +238,32 @@ class BrainInspiredCoordinator:
                     run_on_startup=False
                 )
             else:
+                # 混合触发模式: 后台定时 + AdaptiveShaping事件触发
+                # 后台提供兜底机制，AdaptiveShaping提供即时响应
                 background_config = BackgroundProcessConfig(
                     test_mode=False,
-                    consolidation_interval_seconds=3600,
-                    forgetting_interval_seconds=7200,
-                    reconsolidation_interval_seconds=1800,
-                    enabled=True,
-                    run_on_startup=False
+                    consolidation_interval_seconds=1800,  # 30分钟兜底巩固
+                    forgetting_interval_seconds=3600,     # 1小时遗忘检查
+                    reconsolidation_interval_seconds=900, # 15分钟重巩固
+                    enabled=True,  # ✅ 启用后台定时触发（兜底机制）
+                    run_on_startup=True,  # ✅ 启动时立即开始
+                    # 降低巩固过滤阈值，让新记忆也能被巩固
+                    min_hit_count_for_consolidation=1,    # 从3降到1（访问1次就可以）
+                    min_confidence_for_consolidation=0.3,  # 从0.6降到0.3
+                    min_coverage_for_consolidation=0.0     # 从0.5降到0.0（不过滤coverage）
                 )
 
             self.background_processes = BackgroundMemoryProcessManager(self, background_config)
-            logger.info("✅ [6/10] BackgroundMemoryProcesses initialized")
-        except ImportError:
-            logger.warning("⚠️ Background memory processes module not found")
+
+            # Initialize adaptive memory shaping manager
+            from ..memory.adaptive_memory_shaping import AdaptiveMemoryShapingManager
+            self.adaptive_shaping = AdaptiveMemoryShapingManager(self)
+
+            logger.info("✅ [6/10] BackgroundMemoryProcesses + AdaptiveShaping initialized")
+        except ImportError as e:
+            logger.warning(f"⚠️ Background memory processes module not found: {e}")
             self.background_processes = None
+            self.adaptive_shaping = None
             logger.info("✅ [6/10] BackgroundMemoryProcesses skipped (not found)")
 
         # Initialize learning manager
@@ -618,6 +630,340 @@ class BrainInspiredCoordinator:
         """Delegate to MemoryCoordinator"""
         return await self.memory_coordinator.smart_retrieve(query, k, strategy, context)
 
+    # ============================================================================
+    # Memory Archive Management (BMA Format)
+    # ============================================================================
+
+    def export_memory_archive(
+        self,
+        archive_name: str,
+        output_dir: Path = Path("archives/"),
+        description: str = "",
+        tags: Optional[List[str]] = None,
+        include_faiss: bool = True,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Export current memory state to BMA (BMAM Memory Archive) format.
+
+        Creates a standardized, portable memory archive that can be:
+        - Loaded into any BMAM instance
+        - Shared across different environments
+        - Used for testing and benchmarking
+        - Version controlled and backed up
+
+        Args:
+            archive_name: Name for the archive (will create {name}.bma directory)
+            output_dir: Directory where archive will be created (default: archives/)
+            description: Human-readable description of memory contents
+            tags: List of tags for categorization (e.g., ["baseline", "test", "locomo"])
+            include_faiss: Whether to include FAISS vector index (default: True)
+            metadata: Additional custom metadata to include in manifest
+
+        Returns:
+            Dict with export results:
+            {
+                'success': bool,
+                'archive_path': Path,
+                'statistics': Dict,
+                'size_bytes': int,
+                'files_created': List[str]
+            }
+
+        Example:
+            result = coordinator.export_memory_archive(
+                archive_name="locomo_baseline",
+                description="LoCoMo conversation memory after 500 turns",
+                tags=["baseline", "test"],
+                include_faiss=True
+            )
+        """
+        try:
+            from ..memory.memory_archive import MemoryArchive
+
+            # Get current memory database path from environment or use default
+            import os
+            database_url = os.getenv('DATABASE_URL', 'data/brain_memory.db')
+            # Remove sqlite:/// prefix if present
+            if database_url.startswith('sqlite:///'):
+                database_url = database_url.replace('sqlite:///', '')
+
+            db_path = Path(database_url)
+            if not db_path.exists():
+                return {
+                    'success': False,
+                    'error': f'Memory database not found: {db_path}',
+                    'archive_path': None
+                }
+
+            # Get FAISS index path if requested
+            faiss_path = None
+            if include_faiss:
+                faiss_path = Path("data/faiss_index")
+                if not faiss_path.exists():
+                    logger.warning(f"⚠️  FAISS index not found at {faiss_path}, skipping vector index")
+                    faiss_path = None
+
+            # Create archive v2.0.0 with multi-region support
+            logger.info(f"📦 Exporting multi-region memory archive: {archive_name}")
+            archive = MemoryArchive.create_from_coordinator(
+                name=archive_name,
+                coordinator=self,
+                output_dir=output_dir,
+                description=description,
+                tags=tags,
+                metadata=metadata
+            )
+
+            # Get archive info
+            info = archive.get_info()
+
+            result = {
+                'success': True,
+                'archive_path': archive.archive_path,
+                'statistics': info['statistics'],
+                'info': info
+            }
+
+            # Add format-specific fields
+            if 'total_size_bytes' in info:
+                result['size_bytes'] = info['total_size_bytes']
+            if 'files' in info:
+                result['files_created'] = info['files']
+            if 'brain_regions' in info:
+                result['brain_regions'] = info['brain_regions']
+                result['total_regions'] = info.get('total_regions', len(info['brain_regions']))
+
+            return result
+
+        except Exception as e:
+            logger.error(f"❌ Failed to export memory archive: {e}", exc_info=True)
+            return {
+                'success': False,
+                'error': str(e),
+                'archive_path': None
+            }
+
+    def load_memory_archive(
+        self,
+        archive_path: Path,
+        target_dir: Path = Path("data/"),
+        validate: bool = True,
+        force: bool = False
+    ) -> Dict[str, Any]:
+        """
+        Load memory archive in BMA format to current instance.
+
+        Replaces current memory state with archived memories. This is useful for:
+        - Restoring from snapshots
+        - Loading test memories
+        - Switching between different memory contexts
+        - Testing with baseline memories
+
+        WARNING: This will replace current memory database and FAISS index.
+                 Make sure to backup current state before loading if needed.
+
+        Args:
+            archive_path: Path to .bma archive directory
+            target_dir: Target directory for loading (default: data/)
+            validate: Whether to validate archive before loading (default: True)
+            force: Force loading even if validation fails (default: False)
+
+        Returns:
+            Dict with load results:
+            {
+                'success': bool,
+                'loaded_files': List[str],
+                'validation': Dict,
+                'statistics': Dict
+            }
+
+        Example:
+            # Load baseline memory
+            result = coordinator.load_memory_archive(
+                archive_path=Path("archives/locomo_baseline.bma"),
+                validate=True
+            )
+
+            # Force load without validation (not recommended)
+            result = coordinator.load_memory_archive(
+                archive_path=Path("archives/test.bma"),
+                validate=False,
+                force=True
+            )
+        """
+        try:
+            from ..memory.memory_archive import MemoryArchive
+
+            archive_path = Path(archive_path)
+
+            if not archive_path.exists():
+                return {
+                    'success': False,
+                    'error': f'Archive not found: {archive_path}',
+                    'loaded_files': []
+                }
+
+            logger.info(f"📥 Loading memory archive: {archive_path}")
+
+            # Create archive instance
+            archive = MemoryArchive(archive_path)
+
+            # Load archive
+            result = archive.load(
+                target_dir=target_dir,
+                validate=validate,
+                force=force
+            )
+
+            # Get archive statistics
+            info = archive.get_info()
+
+            result['statistics'] = info.get('statistics', {})
+            result['archive_name'] = info.get('name', archive_path.name)
+
+            if result['success']:
+                logger.info(f"✅ Successfully loaded memory archive: {info.get('name')}")
+                logger.info(f"   Total memories: {info['statistics'].get('total_memories', 0):,}")
+
+                # Load brain region states if v2.0.0
+                brain_regions_data = result.get('brain_regions_data', {})
+                if brain_regions_data:
+                    logger.info(f"🧠 Loading brain region states...")
+
+                    # Load Hippocampus state
+                    if 'hippocampus' in brain_regions_data and hasattr(self, 'hippocampus'):
+                        try:
+                            success = self.hippocampus.load_state(brain_regions_data['hippocampus'])
+                            if success:
+                                logger.info(f"   ✓ Hippocampus state restored")
+                            else:
+                                logger.warning(f"   ⚠️ Hippocampus state load failed")
+                        except Exception as e:
+                            logger.error(f"   ❌ Hippocampus load error: {e}")
+
+                    # Load Prefrontal state
+                    prefrontal_agent = getattr(self, 'prefrontal_storage', None) or getattr(self, 'prefrontal_agent', None)
+                    if 'prefrontal' in brain_regions_data and prefrontal_agent:
+                        try:
+                            success = prefrontal_agent.load_state(brain_regions_data['prefrontal'])
+                            if success:
+                                logger.info(f"   ✓ PrefrontalCortex state restored")
+                            else:
+                                logger.warning(f"   ⚠️ PrefrontalCortex state load failed")
+                        except Exception as e:
+                            logger.error(f"   ❌ PrefrontalCortex load error: {e}")
+
+                    # Load Amygdala state
+                    if 'amygdala' in brain_regions_data and hasattr(self, 'amygdala'):
+                        try:
+                            success = self.amygdala.load_state(brain_regions_data['amygdala'])
+                            if success:
+                                logger.info(f"   ✓ Amygdala state restored")
+                            else:
+                                logger.warning(f"   ⚠️ Amygdala state load failed")
+                        except Exception as e:
+                            logger.error(f"   ❌ Amygdala load error: {e}")
+
+                    # Load BasalGanglia state
+                    if 'basal_ganglia' in brain_regions_data and hasattr(self, 'basal_ganglia'):
+                        try:
+                            success = self.basal_ganglia.load_state(brain_regions_data['basal_ganglia'])
+                            if success:
+                                logger.info(f"   ✓ BasalGanglia state restored")
+                            else:
+                                logger.warning(f"   ⚠️ BasalGanglia state load failed")
+                        except Exception as e:
+                            logger.error(f"   ❌ BasalGanglia load error: {e}")
+
+                    logger.info(f"🎉 All brain regions loaded successfully")
+
+                # Reinitialize memory system to pick up new database
+                # (Memory system will reconnect on next query)
+                logger.info(f"🔄 Memory system will reload on next operation")
+
+            return result
+
+        except Exception as e:
+            logger.error(f"❌ Failed to load memory archive: {e}", exc_info=True)
+            return {
+                'success': False,
+                'error': str(e),
+                'loaded_files': []
+            }
+
+    def validate_memory_archive(
+        self,
+        archive_path: Path,
+        check_checksums: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Validate memory archive integrity and compatibility.
+
+        Checks:
+        - Archive structure (manifest, database, etc.)
+        - File integrity via checksums
+        - Format version compatibility
+        - Required features availability
+
+        Args:
+            archive_path: Path to .bma archive directory
+            check_checksums: Whether to verify file checksums (slower but thorough)
+
+        Returns:
+            Dict with validation results:
+            {
+                'valid': bool,
+                'errors': List[str],
+                'warnings': List[str],
+                'manifest_valid': bool,
+                'files_valid': bool,
+                'checksums_valid': bool,
+                'compatibility': Dict
+            }
+
+        Example:
+            validation = coordinator.validate_memory_archive(
+                archive_path=Path("archives/locomo_baseline.bma"),
+                check_checksums=True
+            )
+
+            if validation['valid']:
+                print("✅ Archive is valid")
+            else:
+                print(f"❌ Validation errors: {validation['errors']}")
+        """
+        try:
+            from ..memory.memory_archive import MemoryArchive
+
+            archive_path = Path(archive_path)
+
+            if not archive_path.exists():
+                return {
+                    'valid': False,
+                    'errors': [f'Archive not found: {archive_path}'],
+                    'warnings': [],
+                    'manifest_valid': False,
+                    'files_valid': False,
+                    'checksums_valid': False
+                }
+
+            archive = MemoryArchive(archive_path)
+            validation = archive.validate(check_checksums=check_checksums)
+
+            return validation
+
+        except Exception as e:
+            logger.error(f"❌ Failed to validate archive: {e}", exc_info=True)
+            return {
+                'valid': False,
+                'errors': [f'Validation failed: {str(e)}'],
+                'warnings': [],
+                'manifest_valid': False,
+                'files_valid': False,
+                'checksums_valid': False
+            }
+
     def get_system_status(self) -> Dict[str, Any]:
         """Delegate to MetricsCollector"""
         return self.metrics_collector.get_system_status(self.agents, self.is_running)
@@ -769,6 +1115,153 @@ class BrainInspiredCoordinator:
                 user_input, response, context
             )
 
+            # 🔥 6. Write to functional brain regions (for Pillar #2 validation)
+            # PrefrontalCortex: Store reasoning chain summary in working_memory (使用正确API触发auto-persistence)
+            if use_reasoning_chain and reasoning_chain_result and hasattr(self, 'prefrontal_agent'):
+                try:
+                    # 🔥 使用正确的API调用,触发auto-persistence
+                    result = await self.prefrontal_agent.store_item(
+                        content=f"Reasoning for: {user_input[:50]}... → {response[:100]}...",
+                        task_type='reasoning_chain',
+                        priority=8,  # 高优先级
+                        metadata={
+                            'memory_count': reasoning_chain_result.get('memory_count', 0),
+                            'causal_links': reasoning_chain_result.get('causal_links_count', 0),
+                            'confidence': reasoning_chain_result.get('confidence', 0.0)
+                        }
+                    )
+                    if result.get('stored'):
+                        logger.info(f"🧠 PrefrontalCortex stored reasoning (memory_id={result.get('memory_id')[:8]})")
+                except Exception as e:
+                    logger.warning(f"⚠️ Failed to store in PrefrontalCortex: {e}")
+
+            # Amygdala: Store emotional tags in emotional_buffer (使用正确API触发auto-persistence)
+            if hasattr(self, 'amygdala') and memory_stored:
+                try:
+                    # Simple emotion detection based on keywords
+                    emotion_keywords = {
+                        'happy': ['happy', 'joy', 'excited', 'wonderful', 'great', 'love', 'lottery', 'win', 'celebration', 'amazing'],
+                        'sad': ['sad', 'heartbroken', 'cry', 'death', 'passed away', 'miss', 'depressed', 'lonely'],
+                        'stress': ['stress', 'worried', 'deadline', 'pressure', 'anxious', 'overwhelming', 'busy'],
+                        'anger': ['angry', 'frustrated', 'upset', 'mad', 'annoyed', 'irritated'],
+                        'fear': ['fear', 'scared', 'afraid', 'worried', 'nervous', 'anxious']
+                    }
+
+                    detected_emotions = []
+                    emotion_intensity = 0.0
+                    input_lower = user_input.lower()
+
+                    for emotion, keywords in emotion_keywords.items():
+                        matches = [kw for kw in keywords if kw in input_lower]
+                        if matches:
+                            detected_emotions.append(emotion)
+                            # 降低阈值,捕捉更多情绪
+                            emotion_intensity = max(emotion_intensity, 0.3 + 0.05 * len(matches))
+
+                    # 降低触发阈值从0.5到0.3,捕捉更多情绪
+                    if detected_emotions and emotion_intensity > 0.3:
+                        # 🔥 使用正确的API调用,触发auto-persistence
+                        # 修复: memory_stored是bool，需要从hippocampus获取最新memory_id
+                        latest_memory_id = 'unknown'
+                        if hasattr(self, 'hippocampus') and hasattr(self.hippocampus, 'memories'):
+                            if len(self.hippocampus.memories) > 0:
+                                latest_memory_id = self.hippocampus.memories[-1].id
+
+                        result = await self.amygdala.tag_emotion(
+                            reference_id=latest_memory_id,
+                            content_summary=user_input[:100],
+                            emotion_tags=detected_emotions,
+                            emotion_intensity=min(emotion_intensity, 1.0),
+                            metadata={'source': 'user_input', 'auto_tagged': True}
+                        )
+                        if result.get('tagged'):
+                            logger.info(f"🎭 Amygdala tagged emotion: {detected_emotions} (intensity={emotion_intensity:.2f})")
+                except Exception as e:
+                    logger.warning(f"⚠️ Failed to tag emotion in Amygdala: {e}")
+
+            # BasalGanglia: Store behavioral patterns in strategy_cache (使用正确API触发auto-persistence)
+            if hasattr(self, 'basal_ganglia'):
+                try:
+                    # Simple pattern detection based on keywords
+                    action_keywords = {
+                        'click': ['clicked', 'click', 'press', 'button'],
+                        'open': ['opened', 'open', 'launch', 'start'],
+                        'save': ['save', 'saved', 'saving'],
+                        'search': ['search', 'searched', 'find', 'query'],
+                        'create': ['create', 'created', 'make', 'new']
+                    }
+
+                    detected_actions = []
+                    input_lower = user_input.lower()
+
+                    for action, keywords in action_keywords.items():
+                        if any(kw in input_lower for kw in keywords):
+                            detected_actions.append(action)
+
+                    if detected_actions:
+                        for action in detected_actions:
+                            skill_name = f"{action}_pattern"
+                            # Check if skill already exists
+                            if skill_name in self.basal_ganglia.skills:
+                                # 🔥 使用正确的API调用practice_skill,触发auto-persistence
+                                result = await self.basal_ganglia.practice_skill(skill_name)
+                                if result.get('practiced'):
+                                    logger.info(f"🎯 BasalGanglia practiced: {skill_name} (proficiency={result.get('proficiency_level', 0):.2f})")
+                            else:
+                                # 🔥 使用正确的API调用store_skill,触发auto-persistence
+                                result = await self.basal_ganglia.store_skill(
+                                    skill_name=skill_name,
+                                    content=f"Pattern: {action} action detected",
+                                    steps=[user_input[:100]],
+                                    metadata={'source': 'user_input', 'action': action, 'auto_detected': True}
+                                )
+                                if result.get('stored'):
+                                    logger.info(f"🎯 BasalGanglia learned new skill: {skill_name}")
+                except Exception as e:
+                    logger.warning(f"⚠️ Failed to store in BasalGanglia: {e}")
+
+            # 🔄 Phase 2: Action → Environment Feedback Loop (Pillar #3)
+            # Feed action result back to environment to close the loop
+            if hasattr(self, 'environment'):
+                try:
+                    from src.agents.environment.environment_agent.data_models import StateType
+                    await self.environment.update_state(
+                        state_type=StateType.TASK_EXECUTION,
+                        context={
+                            'action': 'response_generated',
+                            'user_input': user_input[:200],
+                            'response': response[:200],
+                            'timestamp': datetime.now(),
+                            'memories_retrieved': len(memories)
+                        }
+                    )
+                    logger.debug(f"🔄 Action fed back to environment (response length: {len(response)})")
+                except Exception as e:
+                    logger.warning(f"⚠️ Failed to update environment: {e}")
+
+            # 🧠 自适应记忆塑造机制
+            # 基于记忆系统状态自动触发巩固/反思/遗忘
+            if memory_stored and hasattr(self, 'adaptive_shaping'):
+                try:
+                    # 获取最新记忆数据
+                    memory_data = {}
+                    if hasattr(self, 'hippocampus') and len(self.hippocampus.memories) > 0:
+                        latest_memory = self.hippocampus.memories[-1]
+                        memory_data = {
+                            'memory_id': latest_memory.id,
+                            'importance': getattr(latest_memory, 'importance', 0.5),
+                            'emotion_tags': getattr(latest_memory, 'emotion_tags', []),
+                            'entities': getattr(latest_memory, 'entities', [])
+                        }
+
+                        # 触发自适应塑造检查
+                        await self.adaptive_shaping.on_new_memory_stored(
+                            latest_memory.id,
+                            memory_data
+                        )
+                except Exception as e:
+                    logger.warning(f"⚠️ Adaptive memory shaping failed: {e}")
+
             processing_time = (datetime.now() - start_time).total_seconds()
             self.metrics_collector.record_request(success=True, processing_time=processing_time)
 
@@ -807,7 +1300,146 @@ class BrainInspiredCoordinator:
         result = await self.process_user_input(user_input, context)
         return result.response
 
+    async def process_environment_event(
+        self,
+        event_type: str,  # 'observation', 'reward', 'feedback'
+        event_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Process environment events and integrate into memory system
+
+        Pillar #3: Environment Memory Flywheel
+
+        This method closes the loop: Environment → Memory → Reasoning → Action → Environment
+
+        Args:
+            event_type: Type of event ('observation', 'reward', 'feedback')
+            event_data: Event data including 'content', 'source', 'timestamp', etc.
+
+        Returns:
+            Dict with status, stored flag, and event processing details
+        """
+        try:
+            from src.agents.environment.environment_agent.data_models import StateType, RewardType
+
+            logger.info(f"🌍 Processing environment event: {event_type}")
+
+            # 1. Update environment state
+            if hasattr(self, 'environment'):
+                try:
+                    # Determine state type based on event
+                    state_type = StateType.CONVERSATION  # Default
+                    if event_type == 'observation':
+                        state_type = StateType.CONVERSATION
+                    elif event_type == 'reward':
+                        state_type = StateType.TASK_EXECUTION
+                    elif event_type == 'feedback':
+                        state_type = StateType.LEARNING
+
+                    # Update environment state
+                    await self.environment.update_state(
+                        state_type=state_type,
+                        context={
+                            'event_type': event_type,
+                            'event_data': event_data,
+                            'timestamp': event_data.get('timestamp', datetime.now())
+                        }
+                    )
+                    logger.debug(f"✅ Environment state updated: {state_type.value}")
+                except Exception as e:
+                    logger.warning(f"⚠️ Failed to update environment state: {e}")
+
+            # 2. Store observation in Hippocampus (via process_input pipeline)
+            if event_type == 'observation':
+                content = event_data.get('content', '')
+                source = event_data.get('source', 'environment')
+
+                if content:
+                    # Use existing process_input to store in Hippocampus
+                    # This ensures observation goes through full memory pipeline
+                    logger.debug(f"📝 Storing environment observation in memory: {content[:50]}...")
+                    await self.process_input(f"[Environment Observation from {source}] {content}")
+
+                    return {
+                        'status': 'success',
+                        'stored': True,
+                        'event_type': event_type,
+                        'content_length': len(content),
+                        'source': source
+                    }
+                else:
+                    logger.warning("⚠️ Empty observation content, skipping storage")
+                    return {'status': 'skipped', 'stored': False, 'reason': 'empty_content'}
+
+            # 3. Issue reward signal if needed
+            elif event_type == 'reward':
+                if hasattr(self, 'environment'):
+                    try:
+                        reward_value = event_data.get('reward_value', 0.0)
+                        reason = event_data.get('reason', 'environment_reward')
+                        reward_type_str = event_data.get('reward_type', 'neutral')
+
+                        # Map string to RewardType enum
+                        reward_type = RewardType.NEUTRAL
+                        if reward_type_str == 'positive':
+                            reward_type = RewardType.POSITIVE
+                        elif reward_type_str == 'negative':
+                            reward_type = RewardType.NEGATIVE
+
+                        await self.environment.issue_reward(
+                            reward_type=reward_type,
+                            reward_value=reward_value,
+                            reason=reason,
+                            associated_memory_id=event_data.get('associated_memory_id')
+                        )
+                        logger.debug(f"✅ Reward signal issued: {reward_type.value} ({reward_value})")
+
+                        return {
+                            'status': 'success',
+                            'stored': True,
+                            'event_type': event_type,
+                            'reward_value': reward_value,
+                            'reward_type': reward_type_str
+                        }
+                    except Exception as e:
+                        logger.warning(f"⚠️ Failed to issue reward: {e}")
+                        return {'status': 'error', 'stored': False, 'error': str(e)}
+
+            # 4. Provide feedback if needed
+            elif event_type == 'feedback':
+                if hasattr(self, 'environment'):
+                    try:
+                        feedback_type = event_data.get('feedback_type', 'info')
+                        content = event_data.get('content', '')
+                        target_agent = event_data.get('target_agent')
+                        severity = event_data.get('severity', 'info')
+
+                        await self.environment.provide_feedback(
+                            feedback_type=feedback_type,
+                            content=content,
+                            target_agent=target_agent,
+                            severity=severity
+                        )
+                        logger.debug(f"✅ Feedback provided: {feedback_type}")
+
+                        return {
+                            'status': 'success',
+                            'stored': True,
+                            'event_type': event_type,
+                            'feedback_type': feedback_type
+                        }
+                    except Exception as e:
+                        logger.warning(f"⚠️ Failed to provide feedback: {e}")
+                        return {'status': 'error', 'stored': False, 'error': str(e)}
+
+            else:
+                logger.warning(f"⚠️ Unknown event type: {event_type}")
+                return {'status': 'error', 'stored': False, 'reason': 'unknown_event_type'}
+
+        except Exception as e:
+            logger.error(f"❌ Environment event processing failed: {e}", exc_info=True)
+            return {'status': 'error', 'stored': False, 'error': str(e)}
+
 
 # Backward compatibility alias
 BrainCoordinator = BrainInspiredCoordinator
-

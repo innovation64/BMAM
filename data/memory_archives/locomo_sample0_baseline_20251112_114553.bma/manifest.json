@@ -1,0 +1,66 @@
+{
+  "format_version": "2.0.0",
+  "archive_type": "bmam_memory_archive",
+  "created_at": "2025-11-12T03:45:53.898602Z",
+  "memory_info": {
+    "name": "locomo_sample0_baseline_20251112_114553",
+    "description": "LoCoMo Sample 0 - Baseline Memory State (500+ turns)",
+    "tags": [
+      "locomo",
+      "sample_0",
+      "baseline",
+      "v2.0.0"
+    ],
+    "language": "en",
+    "metadata": {}
+  },
+  "brain_regions": {
+    "temporal_lobe": {
+      "file": "brain_regions/temporal_lobe.db",
+      "format": "sqlite",
+      "required": true,
+      "memory_count": 0
+    },
+    "hippocampus": {
+      "file": "brain_regions/hippocampus.json",
+      "format": "json",
+      "required": false,
+      "memory_count": 0
+    },
+    "prefrontal": {
+      "file": "brain_regions/prefrontal.json",
+      "format": "json",
+      "required": false,
+      "working_memory_slots": 0
+    },
+    "amygdala": {
+      "file": "brain_regions/amygdala.json",
+      "format": "json",
+      "required": false,
+      "emotional_memories": 0
+    },
+    "basal_ganglia": {
+      "file": "brain_regions/basal_ganglia.json",
+      "format": "json",
+      "required": false,
+      "skills_count": 0
+    }
+  },
+  "statistics": {
+    "total_memories": 0,
+    "brain_regions_exported": [
+      "temporal_lobe",
+      "hippocampus",
+      "prefrontal",
+      "amygdala",
+      "basal_ganglia"
+    ]
+  },
+  "compatibility": {
+    "min_bmam_version": "1.0.0",
+    "required_features": [
+      "sqlite3",
+      "faiss"
+    ]
+  }
+}

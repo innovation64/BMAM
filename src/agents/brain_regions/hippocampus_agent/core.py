@@ -5,6 +5,8 @@ Hippocampus Agent - 海马体智能体
 """
 
 import logging
+import json
+from pathlib import Path
 from typing import Dict, List, Any, Optional
 from datetime import datetime, timedelta
 from collections import defaultdict
@@ -105,6 +107,10 @@ class HippocampusAgentCore(BrainAgent):
 
         self._shared_kg_builder = kg_builder is not None
 
+        # 🔥 Auto-persistence setup
+        self.state_file = Path("data/hippocampus_state.json")
+        self._load_state_from_file()
+
         logger.info(
             f"✅ HippocampusAgent initialized (capacity={capacity}, "
             f"consolidation={'enabled' if temporal_lobe_agent else 'disabled'}, "
@@ -185,4 +191,151 @@ class HippocampusAgentCore(BrainAgent):
             )
 
         return {'error': f'Unknown action: {action}'}
+
+    def export_state(self) -> Dict[str, Any]:
+        """
+        Export hippocampus state to JSON-serializable format for BMA archive.
+
+        Returns:
+            Dict containing all episodic memories and indices
+        """
+        # Serialize episodic memories
+        memories_data = []
+        for mem in self.memories:
+            memories_data.append({
+                'id': mem.id,
+                'content': mem.content,
+                'timestamp': mem.timestamp.isoformat() if mem.timestamp else None,
+                'entities': mem.entities,
+                'importance': mem.importance,
+                'access_count': mem.access_count,
+                'last_accessed': mem.last_accessed.isoformat() if mem.last_accessed else None,
+                'emotion_tags': mem.emotion_tags,
+                'emotion_intensity': mem.emotion_intensity,
+                'metadata': mem.metadata,
+                'embedding': mem.embedding,  # May be None
+                'event_id': mem.event_id,
+                'speaker': mem.speaker
+            })
+
+        # Export state
+        state = {
+            'format_version': '1.0.0',
+            'agent_id': self.agent_id,
+            'brain_region': 'hippocampus',
+            'capacity': self.capacity,
+            'current_event_id': self.current_event_id,
+            'memories': memories_data,
+            'entity_index': dict(self.entity_index),
+            'time_index': dict(self.time_index),
+            'event_index': dict(self.event_index),
+            'entity_action_index': dict(self.entity_action_index),
+            'statistics': {
+                'total_stored': self.total_stored,
+                'total_forgotten': self.total_forgotten,
+                'total_consolidated': self.total_consolidated,
+                'current_count': len(self.memories)
+            }
+        }
+
+        logger.info(f"✅ Exported HippocampusAgent state: {len(memories_data)} memories")
+        return state
+
+    def load_state(self, state: Dict[str, Any]) -> bool:
+        """
+        Load hippocampus state from exported data.
+
+        Args:
+            state: State dictionary from export_state()
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            # Validate format
+            if state.get('brain_region') != 'hippocampus':
+                logger.error(f"❌ Invalid brain region: {state.get('brain_region')}")
+                return False
+
+            # Clear current state
+            self.memories.clear()
+            self.memory_dict.clear()
+            self.entity_index.clear()
+            self.time_index.clear()
+            self.event_index.clear()
+            self.entity_action_index.clear()
+
+            # Restore configuration
+            self.capacity = state.get('capacity', self.capacity)
+            self.current_event_id = state.get('current_event_id')
+
+            # Restore memories
+            for mem_data in state.get('memories', []):
+                memory = EpisodicMemory(
+                    id=mem_data['id'],
+                    content=mem_data['content'],
+                    timestamp=datetime.fromisoformat(mem_data['timestamp']) if mem_data['timestamp'] else datetime.now(),
+                    entities=mem_data.get('entities', []),
+                    importance=mem_data.get('importance', 0.5),
+                    access_count=mem_data.get('access_count', 0),
+                    last_accessed=datetime.fromisoformat(mem_data['last_accessed']) if mem_data.get('last_accessed') else None,
+                    emotion_tags=mem_data.get('emotion_tags', []),
+                    emotion_intensity=mem_data.get('emotion_intensity', 0.0),
+                    metadata=mem_data.get('metadata', {}),
+                    embedding=mem_data.get('embedding'),
+                    event_id=mem_data.get('event_id'),
+                    speaker=mem_data.get('speaker')
+                )
+
+                self.memories.append(memory)
+                self.memory_dict[memory.id] = memory
+
+            # Restore indices
+            self.entity_index = defaultdict(list, state.get('entity_index', {}))
+            self.time_index = defaultdict(list, state.get('time_index', {}))
+            self.event_index = defaultdict(list, state.get('event_index', {}))
+            self.entity_action_index = defaultdict(list, state.get('entity_action_index', {}))
+
+            # Restore statistics
+            stats = state.get('statistics', {})
+            self.total_stored = stats.get('total_stored', 0)
+            self.total_forgotten = stats.get('total_forgotten', 0)
+            self.total_consolidated = stats.get('total_consolidated', 0)
+
+            logger.info(f"✅ Loaded HippocampusAgent state: {len(self.memories)} memories")
+            return True
+
+        except Exception as e:
+            logger.error(f"❌ Failed to load HippocampusAgent state: {e}")
+            return False
+
+    def _load_state_from_file(self):
+        """Auto-load state from JSON file on startup"""
+        if not self.state_file.exists():
+            logger.info(f"📂 No existing state file found at {self.state_file}, starting fresh")
+            return
+
+        try:
+            with open(self.state_file, 'r') as f:
+                state = json.load(f)
+                success = self.load_state(state)
+                if success:
+                    logger.info(f"✅ Auto-loaded Hippocampus state from {self.state_file}")
+                else:
+                    logger.warning(f"⚠️  Failed to load Hippocampus state from {self.state_file}")
+        except Exception as e:
+            logger.error(f"❌ Error loading Hippocampus state from {self.state_file}: {e}")
+
+    def _save_state_to_file(self):
+        """Auto-save current state to JSON file"""
+        try:
+            # Ensure data directory exists
+            self.state_file.parent.mkdir(parents=True, exist_ok=True)
+
+            state = self.export_state()
+            with open(self.state_file, 'w') as f:
+                json.dump(state, f, indent=2)
+
+        except Exception as e:
+            logger.error(f"❌ Error saving Hippocampus state to {self.state_file}: {e}")
 

@@ -1,0 +1,8 @@
+{
+  "manifest.json": "482db7593498a7e3d61e931bd3d82a5d7634de65700a5a7ba936c3d72a94473e",
+  "brain_regions/basal_ganglia.json": "9a840c7e9237ae10818d53cfa92984ab7b990d593a5c9e6485e85700c55e6c83",
+  "brain_regions/prefrontal.json": "4e01c9b00c72f041e04858a99f3b1926362a23800ee45d905289f832f5113dcd",
+  "brain_regions/hippocampus.json": "4a8a4b6eb9697292b4954927538f94d4b693b681890be1152c9cc6410281fc49",
+  "brain_regions/amygdala.json": "1b0845f156bdc39201aebefb15dab7b7007bb95d3f1308bd1dbe1afa04f52e4b",
+  "brain_regions/temporal_lobe.db": "140a73c00a24a2e530194c281d63760a789fea5f39c5031787b143fd2cf27057"
+}

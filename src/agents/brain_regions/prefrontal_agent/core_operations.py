@@ -63,6 +63,8 @@ class CoreOperationsMixin:
 
         self.total_stored += 1
 
+        # 🔥 Auto-persist to JSON file
+        self._save_state_to_file()
 
         return {
             'memory_id': item.id,
@@ -114,6 +116,8 @@ class CoreOperationsMixin:
         self.working_memory.clear()
         self.memory_dict.clear()
 
+        # 🔥 Auto-persist to JSON file
+        self._save_state_to_file()
 
         return {
             'cleared': count,
@@ -204,6 +208,9 @@ class CoreOperationsMixin:
 
             self.total_tasks_coordinated += 1
 
+            # 🔥 Auto-persist (store_item already saves, but task_stack was modified)
+            # Note: store_item() above already called _save_state_to_file()
+
             return {
                 'task_id': task_id,
                 'plan': plan_str,
@@ -280,6 +287,9 @@ class CoreOperationsMixin:
                 self.reflection_history = self.reflection_history[-50:]
 
             self.total_reflections += 1
+
+            # 🔥 Auto-persist to JSON file
+            self._save_state_to_file()
 
             return {
                 'reflection_id': reflection_id,

@@ -140,3 +140,43 @@ class MemoryStorageMixin:
         """
         memory = self.db_manager.load_memory(memory_id)
         return memory.to_dict() if memory else None
+
+    async def update_memory(
+        self,
+        memory_id: str,
+        updates: Dict[str, Any]
+    ) -> bool:
+        """
+        Update Existing Memory (in-place, no duplication)
+        更新现有记忆（原地更新，不重复）
+
+        Args:
+            memory_id: Memory ID to update
+            updates: Fields to update (content, importance, emotion_tags, etc.)
+
+        Returns:
+            True if updated successfully, False if not found
+        """
+        # Load existing memory
+        existing = self.db_manager.load_memory(memory_id)
+        if not existing:
+            logger.warning(f"Memory {memory_id} not found for update")
+            return False
+
+        # Update fields
+        for key, value in updates.items():
+            if hasattr(existing, key):
+                setattr(existing, key, value)
+
+        # Re-generate embedding if content changed
+        if 'content' in updates:
+            embedding = await self.embedding_service.get_embedding(updates['content'])
+            # Update vector in FAISS
+            idx = self.vector_db.get_index_for_id(memory_id)
+            if idx is not None:
+                self.vector_db.update_vector(idx, embedding)
+
+        # Save to DB
+        self.db_manager.save_memory(existing)
+        logger.debug(f"Updated memory {memory_id}")
+        return True

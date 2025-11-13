@@ -86,6 +86,9 @@ class TemporalLobeAgent(
         self.total_stored = 0
         self.total_forgotten = 0
 
+        # 🔥 Initialize auto-persistence (SQLite database)
+        self._init_persistence()
+
         logger.info(
             f"✅ TemporalLobeAgent initialized (capacity={capacity}, embedding_enabled={embedding_service is not None}, "
             f"kg_shared={'yes' if knowledge_graph_builder else 'no'})"

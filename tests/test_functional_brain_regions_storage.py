@@ -51,13 +51,18 @@ async def test_prefrontal_working_memory():
     for mem in reasoning_memories:
         await coordinator.process_input(mem)
 
-    # Trigger reasoning chain
-    print("\n[2/3] Triggering reasoning chain...")
-    query = "Did it rain this morning?"
+    # Trigger reasoning chain via process_input (triggers functional brain region writes)
+    print("\n[2/3] Triggering reasoning chain via process_input...")
+    query = "What is Caroline's identity?"  # Inference question that triggers reasoning chain
 
+    # Use process_input to trigger full pipeline including brain region writes
+    response = await coordinator.process_input(query)
+    print(f"  → Response: {response[:100]}...")
+
+    # Also check if reasoning chain was used
     if hasattr(coordinator, 'memory_reasoning_chain') and coordinator.memory_reasoning_chain:
         result = await coordinator.memory_reasoning_chain.retrieve_with_reasoning_chain(query)
-        print(f"  → Reasoning chain result:")
+        print(f"  → Reasoning chain verification:")
         print(f"     - Memories: {len(result.memories)}")
         print(f"     - Causal links: {len(result.causal_links)}")
         print(f"     - Confidence: {result.confidence:.2f}")

@@ -318,30 +318,42 @@ class MemoryCoordinator:
                     mem['source'] = 'temporal_lobe'
             elif strategy == 'hybrid':
                 # Combine hippocampus, temporal lobe, AND memory_system
-                episodic_result = await self.hippocampus.search_memories(query, k=k//3)
-                semantic_result = await self.temporal_lobe.search_memories(query, k=k//3)
+                def _allocate_slots(total: int, parts: int) -> List[int]:
+                    if total <= 0:
+                        return [0] * parts
+                    slots = [0] * parts
+                    for idx in range(total):
+                        slots[idx % parts] += 1
+                    return slots
 
-                # Extract memories from results (handle Dict return type)
-                episodic_memories = episodic_result.get('memories', []) if isinstance(episodic_result, dict) else episodic_result
-                semantic_memories = semantic_result.get('memories', []) if isinstance(semantic_result, dict) else semantic_result
+                hippo_k, temporal_k, memory_system_k = _allocate_slots(k, 3)
 
-                # Add source labels
-                for mem in episodic_memories:
-                    mem['source'] = 'hippocampus'
-                for mem in semantic_memories:
-                    mem['source'] = 'temporal_lobe'
+                episodic_memories: List[Dict[str, Any]] = []
+                semantic_memories: List[Dict[str, Any]] = []
+                memory_system_memories: List[Dict[str, Any]] = []
+
+                if hippo_k > 0:
+                    episodic_result = await self.hippocampus.search_memories(query, k=hippo_k)
+                    episodic_memories = episodic_result.get('memories', []) if isinstance(episodic_result, dict) else episodic_result
+                    for mem in episodic_memories:
+                        mem['source'] = 'hippocampus'
+
+                if temporal_k > 0:
+                    semantic_result = await self.temporal_lobe.search_memories(query, k=temporal_k)
+                    semantic_memories = semantic_result.get('memories', []) if isinstance(semantic_result, dict) else semantic_result
+                    for mem in semantic_memories:
+                        mem['source'] = 'temporal_lobe'
 
                 # 🔥 NEW: Query MemorySystem (persistent vector DB)
-                memory_system_memories = []
-                if hasattr(self, 'memory_system') and self.memory_system:
+                if memory_system_k > 0 and hasattr(self, 'memory_system') and self.memory_system:
                     try:
                         # Use memory_system.search_memories if available
                         if hasattr(self.memory_system, 'search_memories'):
-                            ms_result = await self.memory_system.search_memories(query, k=k//3)
+                            ms_result = await self.memory_system.search_memories(query, k=memory_system_k)
                             memory_system_memories = ms_result.get('memories', []) if isinstance(ms_result, dict) else ms_result
                         # Fallback: use retrieve_memories
                         elif hasattr(self.memory_system, 'retrieve_memories'):
-                            ms_result = await self.memory_system.retrieve_memories(query, k=k//3)
+                            ms_result = await self.memory_system.retrieve_memories(query, k=memory_system_k)
                             memory_system_memories = ms_result if isinstance(ms_result, list) else []
 
                         # Add source labels

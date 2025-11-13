@@ -53,13 +53,11 @@ class BatchProcessingMixin:
 
     async def _process_chunked_text_queue(self) -> Dict[str, Any]:
         """Process queued chunked text segments for consolidation - now handles ALL segments"""
-        from ...agent_buffer_system import agent_buffer_system
         from ....memory.memory_system import memory_system
 
         try:
-            # Read buffer content
-            buffer_content = await agent_buffer_system.read_buffer('consolidation')
-            chunked_queue = buffer_content.get('chunked_text_queue', [])
+            # Use class variable instead of buffer system
+            chunked_queue = self.chunked_text_queue
 
             if not chunked_queue:
                 return {'processed': 0, 'message': 'No chunked text in queue'}
@@ -131,12 +129,8 @@ class BatchProcessingMixin:
                     logger.warning(f"Failed to process chunked text entry: {entry_error}")
                     continue
 
-            # Clear the processed queue
-            await agent_buffer_system.write_buffer(
-                'consolidation',
-                'chunked_text_queue',
-                []
-            )
+            # Clear the processed queue (use class variable)
+            self.chunked_text_queue = []
 
             logger.debug(f"Processed {processed_batches} batches ({processed_segments} segments total), stored {stored_segments} segments")
 

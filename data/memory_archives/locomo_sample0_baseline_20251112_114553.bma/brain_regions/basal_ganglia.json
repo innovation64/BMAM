@@ -1,0 +1,11 @@
+{
+  "format_version": "1.0.0",
+  "agent_id": "basal_ganglia",
+  "brain_region": "basal_ganglia",
+  "capacity": 500,
+  "skills": [],
+  "statistics": {
+    "total_stored": 0,
+    "current_count": 0
+  }
+}
