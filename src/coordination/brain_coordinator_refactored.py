@@ -418,12 +418,22 @@ class BrainInspiredCoordinator:
 
 
         embedding_service = self.memory_system.embedding_service if self.memory_system else None
-        self.knowledge_graph_builder = KnowledgeGraphBuilder(llm_client=None)
+
+        # 🔥 FIX: 创建统一的知识图谱实例，供所有脑区共享
+        from ..memory.knowledge_graph import LightweightKnowledgeGraph
+        self.unified_kg = LightweightKnowledgeGraph()
+
+        # 🔥 FIX: 将统一KG实例传给KnowledgeGraphBuilder
+        self.knowledge_graph_builder = KnowledgeGraphBuilder(
+            llm_client=None,
+            kg_instance=self.unified_kg
+        )
 
         self.temporal_lobe = TemporalLobeAgent(
             capacity=70000,
             embedding_service=embedding_service,
-            knowledge_graph_builder=self.knowledge_graph_builder
+            knowledge_graph_builder=self.knowledge_graph_builder,
+            unified_kg=self.unified_kg  # 🔥 FIX: 传递统一KG实例
         )
 
         self.hippocampus = HippocampusAgent(

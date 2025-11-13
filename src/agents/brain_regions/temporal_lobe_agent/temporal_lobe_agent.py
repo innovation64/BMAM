@@ -56,7 +56,8 @@ class TemporalLobeAgent(
         capacity: int = 70000,
         client=None,
         embedding_service=None,
-        knowledge_graph_builder: Optional[KnowledgeGraphBuilder] = None
+        knowledge_graph_builder: Optional[KnowledgeGraphBuilder] = None,
+        unified_kg=None  # 🔥 FIX: 接受统一KG实例
     ):
         super().__init__(
             agent_id="temporal_lobe",
@@ -72,9 +73,11 @@ class TemporalLobeAgent(
         self.memories: List[SemanticMemory] = []
         self.memory_dict: Dict[str, SemanticMemory] = {}
 
-        # 🔥 知识图谱
-        self.kg = SimpleKnowledgeGraph()
+        # 🔥 FIX: 优先使用统一KG，若无则创建本地SimpleKnowledgeGraph (向后兼容)
+        self.kg = unified_kg if unified_kg is not None else SimpleKnowledgeGraph()
         self.kg_builder = knowledge_graph_builder
+
+        logger.info(f"TemporalLobeAgent initialized with {'unified' if unified_kg else 'local'} KG")
 
         # 🔥 BM25索引 (简化版: 倒排索引)
         self.inverted_index: Dict[str, List[str]] = defaultdict(list)  # {word: [memory_ids]}
