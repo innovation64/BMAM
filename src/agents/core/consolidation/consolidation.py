@@ -58,6 +58,9 @@ class ConsolidationAgent(
         self.replay_buffer = []
         self.replay_capacity = CONSOLIDATION_CONFIG['consolidation']['replay_capacity']
 
+        # Chunked text queue (replaced buffer system)
+        self.chunked_text_queue: List[Dict[str, Any]] = []
+
         # Consolidation strategies
         self.strategies = {
             'immediate': self._immediate_consolidation,

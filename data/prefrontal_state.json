@@ -1,0 +1,137 @@
+{
+  "format_version": "1.0.0",
+  "agent_id": "prefrontal",
+  "brain_region": "prefrontal",
+  "capacity": 10,
+  "working_memory": [
+    {
+      "id": "e18bea1a35bc4ad7a4c65534c967a43c",
+      "content": "Reasoning for: What is Caroline's identity?... \u2192 Based on the evidence provided, Caroline is likely part of the LGBTQ community. Her involvement in t...",
+      "task_type": "reasoning_chain",
+      "priority": 8,
+      "timestamp": "2025-11-12T16:46:34.989309",
+      "metadata": {
+        "memory_count": 10,
+        "causal_links": 15,
+        "confidence": 0.8300000000000001
+      }
+    },
+    {
+      "id": "b34f82d47dbd41f4a16dde9575ca0ddb",
+      "content": "Reasoning for: What is Caroline's relationship status?... \u2192 The provided memories and relationships do not contain any specific information regarding Caroline's...",
+      "task_type": "reasoning_chain",
+      "priority": 8,
+      "timestamp": "2025-11-12T16:47:04.105615",
+      "metadata": {
+        "memory_count": 14,
+        "causal_links": 15,
+        "confidence": 0.8300000000000001
+      }
+    },
+    {
+      "id": "33cdb09bb1f7445695f1bf751de91790",
+      "content": "Reasoning for: What fields would Caroline be likely to pursue in ... \u2192 Caroline would likely pursue fields related to social work, psychology, counseling, or advocacy, par...",
+      "task_type": "reasoning_chain",
+      "priority": 8,
+      "timestamp": "2025-11-12T16:47:55.007932",
+      "metadata": {
+        "memory_count": 14,
+        "causal_links": 15,
+        "confidence": 0.7957142857142857
+      }
+    },
+    {
+      "id": "5c6211f77ede423f9b9bf13a499d1e08",
+      "content": "Reasoning for: What did Caroline research?... \u2192 Based on the evidence provided, Caroline likely researched topics related to LGBTQ rights, mental he...",
+      "task_type": "reasoning_chain",
+      "priority": 8,
+      "timestamp": "2025-11-12T16:48:02.889174",
+      "metadata": {
+        "memory_count": 14,
+        "causal_links": 15,
+        "confidence": 0.8121428571428572
+      }
+    },
+    {
+      "id": "0e40487aad684ef6ad117c8db3147b50",
+      "content": "Reasoning for: What is Caroline's identity?... \u2192 Caroline is likely part of the LGBTQ community. Her involvement in the LGBTQ support group indicates...",
+      "task_type": "reasoning_chain",
+      "priority": 8,
+      "timestamp": "2025-11-12T16:48:12.415866",
+      "metadata": {
+        "memory_count": 14,
+        "causal_links": 15,
+        "confidence": 0.8214285714285714
+      }
+    },
+    {
+      "id": "c779cb44c48b48f39d1abec640149f38",
+      "content": "Reasoning for: What is Caroline's relationship status?... \u2192 Based on the evidence provided, I cannot determine Caroline's relationship status. The memories do n...",
+      "task_type": "reasoning_chain",
+      "priority": 8,
+      "timestamp": "2025-11-12T16:48:42.997510",
+      "metadata": {
+        "memory_count": 14,
+        "causal_links": 15,
+        "confidence": 0.8257142857142857
+      }
+    },
+    {
+      "id": "41369bc057a74cd19802473b0ac789bf",
+      "content": "Reasoning for: Thanks, Mel! Your backing really means a lot. I fe... \u2192 It sounds like you had an incredibly impactful experience sharing your journey and advocating for th...",
+      "task_type": "reasoning_chain",
+      "priority": 8,
+      "timestamp": "2025-11-12T16:56:36.142325",
+      "metadata": {
+        "memory_count": 14,
+        "causal_links": 15,
+        "confidence": 0.8128571428571428
+      }
+    },
+    {
+      "id": "bd43d244c46d4481b352d9d5470afa74",
+      "content": "Reasoning for: It was an awesome time, Caroline! We explored natu... \u2192 That sounds like a wonderful experience! Exploring nature, roasting marshmallows, and hiking are all...",
+      "task_type": "reasoning_chain",
+      "priority": 8,
+      "timestamp": "2025-11-12T17:01:42.006432",
+      "metadata": {
+        "memory_count": 14,
+        "causal_links": 15,
+        "confidence": 0.8085714285714286
+      }
+    },
+    {
+      "id": "1066fff3b3e3405da6d195123e3ea5a7",
+      "content": "Reasoning for: What do I love?... \u2192 Based on the evidence provided, you love contemporary art, science fiction novels, and exploring lib...",
+      "task_type": "reasoning_chain",
+      "priority": 8,
+      "timestamp": "2025-11-13T09:01:20.691503",
+      "metadata": {
+        "memory_count": 15,
+        "causal_links": 15,
+        "confidence": 0.7888
+      }
+    },
+    {
+      "id": "a3b800c91e214e47835b724d31fb257a",
+      "content": "Reasoning for: What car did I buy?... \u2192 You bought a purple Tesla Model S. This information is directly stated in the identified relationshi...",
+      "task_type": "reasoning_chain",
+      "priority": 8,
+      "timestamp": "2025-11-13T09:08:13.060332",
+      "metadata": {
+        "memory_count": 15,
+        "causal_links": 15,
+        "confidence": 0.8028
+      }
+    }
+  ],
+  "task_stack": [],
+  "reflection_history": [],
+  "statistics": {
+    "total_stored": 24,
+    "total_evicted": 14,
+    "total_tasks_coordinated": 0,
+    "total_reflections": 0,
+    "current_count": 10
+  }
+}

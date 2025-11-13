@@ -1,0 +1,17 @@
+{
+  "format_version": "1.0.0",
+  "agent_id": "amygdala",
+  "brain_region": "amygdala",
+  "capacity": 1000,
+  "current_stress_level": 0.0,
+  "memories": [],
+  "emotion_index": {},
+  "emotion_modulation_history": [],
+  "statistics": {
+    "total_stored": 0,
+    "total_forgotten": 0,
+    "total_modulations": 0,
+    "total_stress_responses": 0,
+    "current_count": 0
+  }
+}

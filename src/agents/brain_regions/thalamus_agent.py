@@ -128,6 +128,83 @@ class ThalamusAgent(IAgent):
 
         logger.info(f"ThalamusAgent initialized with {len(brain_regions)} brain regions")
 
+    def register_brain_region(
+        self,
+        region_name: str,
+        region_agent: IAgent,
+        timescale: Optional[int] = None
+    ) -> bool:
+        """
+        Dynamically register a new brain region
+        动态注册新脑区
+
+        Args:
+            region_name: Name of the brain region
+            region_agent: Brain region agent instance
+            timescale: Optional custom timescale (auto-detected if None)
+
+        Returns:
+            True if registration successful, False otherwise
+        """
+        if region_name in self.brain_regions:
+            logger.warning(f"Brain region '{region_name}' already registered")
+            return False
+
+        # Register the region
+        self.brain_regions[region_name] = region_agent
+
+        # Determine timescale
+        if timescale is not None:
+            detected_timescale = timescale
+        elif 'prefrontal' in region_name.lower():
+            detected_timescale = Timescale.PREFRONTAL
+        elif 'basal_ganglia' in region_name.lower():
+            detected_timescale = Timescale.BASAL_GANGLIA
+        elif 'hippocampus' in region_name.lower():
+            detected_timescale = Timescale.HIPPOCAMPUS
+        elif 'amygdala' in region_name.lower():
+            detected_timescale = Timescale.AMYGDALA
+        elif 'temporal' in region_name.lower():
+            detected_timescale = Timescale.PREFRONTAL  # Temporal Lobe is slow (H module)
+        else:
+            detected_timescale = 1  # Default fast
+
+        self.timescales[region_name] = detected_timescale
+
+        # Create state tracking
+        self.region_states[region_name] = RegionState(
+            name=region_name,
+            timescale=detected_timescale,
+            last_update_step=-1,
+            is_converged=False
+        )
+
+        logger.info(f"✅ Registered brain region '{region_name}' with timescale={detected_timescale}")
+        return True
+
+    def unregister_brain_region(self, region_name: str) -> bool:
+        """
+        Dynamically unregister a brain region
+        动态注销脑区
+
+        Args:
+            region_name: Name of the brain region to remove
+
+        Returns:
+            True if unregistration successful, False otherwise
+        """
+        if region_name not in self.brain_regions:
+            logger.warning(f"Brain region '{region_name}' not found")
+            return False
+
+        # Remove from all tracking dictionaries
+        del self.brain_regions[region_name]
+        del self.timescales[region_name]
+        del self.region_states[region_name]
+
+        logger.info(f"✅ Unregistered brain region '{region_name}'")
+        return True
+
     def _initialize_timescales(self) -> Dict[str, int]:
         """
         Initialize timescales for each brain region
@@ -239,7 +316,7 @@ class ThalamusAgent(IAgent):
             'context': {}
         }
 
-        # Step 2: Execute slow region updates first (H module)
+        # Step 2: Execute slow region updates first (H module, τ>=10)
         slow_regions = [r for r in active_regions if self.timescales[r] >= Timescale.PREFRONTAL]
 
         for region_name in slow_regions:
@@ -257,11 +334,22 @@ class ThalamusAgent(IAgent):
             except Exception as e:
                 logger.error(f"Error updating slow region '{region_name}': {e}")
 
-        # Step 3: Apply reset signals to fast regions
+        # Step 3: Execute medium-band region updates (M module, 2<=τ<10)
+        medium_regions = [r for r in active_regions if 2 <= self.timescales[r] < Timescale.PREFRONTAL]
+
+        for region_name in medium_regions:
+            try:
+                region_output = await self._update_region(region_name, input_data)
+                results['region_outputs'][region_name] = region_output
+                logger.debug(f"Medium-band region '{region_name}' (τ={self.timescales[region_name]}) updated")
+            except Exception as e:
+                logger.error(f"Error updating medium region '{region_name}': {e}")
+
+        # Step 4: Apply reset signals to fast regions
         if results['reset_signals']:
             await self._apply_reset_signals(results['reset_signals'])
 
-        # Step 4: Execute fast region updates (L module)
+        # Step 5: Execute fast region updates (L module, τ=1)
         fast_regions = [r for r in active_regions if self.timescales[r] == 1]
 
         for region_name in fast_regions:

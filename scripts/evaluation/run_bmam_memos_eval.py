@@ -17,9 +17,8 @@ from typing import Dict, Any, Optional
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from src.coordination.brain_coordinator import BrainInspiredCoordinator
+from src.coordination import BrainInspiredCoordinator
 from src.coordination.kg_merge_config import KGMergeConfig, set_kg_merge_config
-from src.utils.config import Config
 
 # Configure logging
 logging.basicConfig(

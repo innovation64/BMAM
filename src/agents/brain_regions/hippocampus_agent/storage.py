@@ -164,6 +164,9 @@ class StorageMixin:
 
         await self._update_knowledge_graph(memory, kg_entity_payload, extracted_relations)
 
+        # 🔥 Auto-persist to JSON file
+        self._save_state_to_file()
+
         return {
             'memory_id': memory.id,
             'stored': True,
@@ -431,6 +434,9 @@ class StorageMixin:
                 await self._consolidate_to_temporal_lobe(memory)
 
         await self._update_knowledge_graph(memory, None, None)
+
+        # 🔥 Auto-persist to JSON file
+        self._save_state_to_file()
 
         return {
             'memory_id': memory.id,

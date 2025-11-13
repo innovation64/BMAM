@@ -128,83 +128,112 @@ class BackgroundMemoryProcessManager:
             except (asyncio.CancelledError, asyncio.TimeoutError) as e:
                 logger.error(f"❌ Consolidation loop error: {e}", exc_info=True)
 
-    async def _run_consolidation(self):
+    async def _run_consolidation(self, force_all: bool = False):
         """
         Execute one consolidation cycle
 
         Process:
         1. Scan hippocampus for high-frequency episodic memories
-        2. Filter by coverage/conflict (Phase 2)
-        3. Extract semantic knowledge
+        2. Filter by coverage/conflict (Phase 2) [unless force_all=True]
+        3. Extract semantic knowledge via MemoryConsolidationPipeline
         4. Store in temporal lobe with source tracking
+
+        Args:
+            force_all: If True, consolidate ALL memories without filtering (for testing)
+
+        NEW: Uses MemoryConsolidationPipeline for sophisticated extraction
         """
         if not hasattr(self.coordinator, 'hippocampus') or not self.coordinator.hippocampus:
             logger.warning("⚠️ Hippocampus not available, skipping consolidation")
             return
 
+        if not hasattr(self.coordinator, 'temporal_lobe') or not self.coordinator.temporal_lobe:
+            logger.warning("⚠️ Temporal lobe not available, skipping consolidation")
+            return
+
+        # Get consolidation pipeline with agent proxies
+        from .memory_consolidation_pipeline import MemoryConsolidationPipeline
+        from .agent_storage_proxy import AgentStorageProxy
+
+        pipeline = MemoryConsolidationPipeline()
+
+        # Wrap agents in storage proxies (agents don't have region_store API)
+        hippocampus_proxy = AgentStorageProxy(self.coordinator.hippocampus, 'hippocampus')
+        temporal_lobe_proxy = AgentStorageProxy(self.coordinator.temporal_lobe, 'temporal_lobe')
+
         # Get all episodic memories from hippocampus
         episodic_memories = await self._get_episodic_memories()
 
         if not episodic_memories:
+            logger.info("No episodic memories to consolidate")
             return
 
-        consolidated_count = 0
+        # Filter memories by consolidation criteria (unless force_all=True)
+        candidates = []
         skipped_low_coverage = 0
         skipped_conflicts = 0
 
-        for mem in episodic_memories:
-            mem_id = mem.get('id', 'unknown')
-            metadata = mem.get('metadata', {})
+        if force_all:
+            # Force mode: consolidate ALL memories
+            candidates = [mem.get('id') for mem in episodic_memories]
+            logger.info(f"Force mode: consolidating ALL {len(candidates)} memories")
+        else:
+            # Normal mode: filter by criteria
+            for mem in episodic_memories:
+                mem_id = mem.get('id', 'unknown')
+                metadata = mem.get('metadata', {})
 
-            # Check consolidation criteria
-            hit_count = metadata.get('hit_count', 0)
-            confidence = metadata.get('confidence', 0.5)
+                # Check consolidation criteria
+                hit_count = metadata.get('hit_count', 0)
+                confidence = metadata.get('confidence', 0.5)
 
-            if hit_count < self.config.min_hit_count_for_consolidation:
-                continue
+                if hit_count < self.config.min_hit_count_for_consolidation:
+                    continue
 
-            if confidence < self.config.min_confidence_for_consolidation:
-                continue
+                if confidence < self.config.min_confidence_for_consolidation:
+                    continue
 
-            # Phase 2: Check coverage
-            coverage = metadata.get('keyword_coverage', 0.0)
-            if coverage < self.config.min_coverage_for_consolidation:
-                skipped_low_coverage += 1
-                continue
+                # Phase 2: Check coverage
+                coverage = metadata.get('keyword_coverage', 0.0)
+                if coverage < self.config.min_coverage_for_consolidation:
+                    skipped_low_coverage += 1
+                    continue
 
-            # Phase 2: Check conflicts
-            conflict_count = metadata.get('conflict_count', 0)
-            if conflict_count > 0:
-                skipped_conflicts += 1
-                logger.warning(f"⚠️ Skipping {mem_id[:8]} - has {conflict_count} conflicts")
-                continue
+                # Phase 2: Check conflicts
+                conflict_count = metadata.get('conflict_count', 0)
+                if conflict_count > 0:
+                    skipped_conflicts += 1
+                    logger.warning(f"⚠️ Skipping {mem_id[:8]} - has {conflict_count} conflicts")
+                    continue
 
-            # Extract semantic knowledge
-            try:
-                semantic_content = await self._extract_semantic_knowledge(mem)
+                candidates.append(mem_id)
 
-                if semantic_content:
-                    # Store in temporal lobe
-                    await self._store_semantic_memory(
-                        content=semantic_content,
-                        source_episode_id=mem_id,
-                        metadata={
-                            'consolidation_time': datetime.now().isoformat(),
-                            'source_hit_count': hit_count,
-                            'source_confidence': confidence,
-                            'source_coverage': coverage,  # Phase 2: Track coverage
-                            'memory_type': 'semantic'
-                        }
-                    )
+        if not candidates:
+            logger.info(f"No memories passed consolidation criteria "
+                       f"({skipped_low_coverage} low coverage, {skipped_conflicts} conflicts)")
+            return
 
-                    consolidated_count += 1
+        logger.info(f"Consolidating {len(candidates)} episodic memories to semantic knowledge")
 
-            except (asyncio.CancelledError, asyncio.TimeoutError) as e:
-                logger.error(f"❌ Failed to consolidate {mem_id[:8]}: {e}")
+        # Use pipeline's batch_consolidate with proxies
+        try:
+            results = await pipeline.batch_consolidate(
+                memory_ids=candidates,
+                consolidation_type='episodic_to_semantic',
+                source_storage=hippocampus_proxy,
+                target_storage=temporal_lobe_proxy,
+                priority=0.7
+            )
 
-        logger.info(f"Consolidation complete: {consolidated_count} consolidated, "
-                   f"{skipped_low_coverage} skipped (low coverage), "
-                   f"{skipped_conflicts} skipped (conflicts)")
+            successful = sum(1 for r in results if r.success)
+            logger.info(f"Consolidation complete: {successful}/{len(candidates)} successful, "
+                       f"{skipped_low_coverage} skipped (low coverage), "
+                       f"{skipped_conflicts} skipped (conflicts)")
+
+        except Exception as e:
+            logger.error(f"Batch consolidation failed: {e}")
+            import traceback
+            traceback.print_exc()
 
     async def _get_episodic_memories(self) -> List[Dict]:
         """Get all episodic memories from hippocampus"""
@@ -212,61 +241,12 @@ class BackgroundMemoryProcessManager:
             # Use search_memories with empty query to get all
             result = await self.coordinator.hippocampus.search_memories(
                 query='',
-                k=1000,
-                search_type='combined'
+                k=1000
             )
             return result.get('results', [])
         except (asyncio.CancelledError, asyncio.TimeoutError) as e:
             logger.error(f"Failed to get episodic memories: {e}")
             return []
-
-    async def _extract_semantic_knowledge(self, episodic_memory: Dict) -> Optional[str]:
-        """
-        Extract semantic knowledge from episodic memory
-
-        Example:
-        Episodic: "Caroline went to LGBTQ support group on 7 May 2023"
-        Semantic: "Caroline attends LGBTQ support groups"
-        """
-        content = episodic_memory.get('content', '')
-
-        if not content:
-            return None
-
-        # Simple extraction: Remove temporal markers, generalize
-        # In production, this could use LLM for better abstraction
-        semantic = content
-
-        # Remove specific dates
-        import re
-        semantic = re.sub(r'\b\d{1,2}\s+\w+\s+\d{4}\b', '', semantic)
-        semantic = re.sub(r'\b\d{4}-\d{2}-\d{2}\b', '', semantic)
-
-        # Remove temporal words
-        temporal_words = ['yesterday', 'today', 'last week', 'last year', 'on', 'at']
-        for word in temporal_words:
-            semantic = re.sub(r'\b' + word + r'\b', '', semantic, flags=re.IGNORECASE)
-
-        # Clean up extra spaces
-        semantic = ' '.join(semantic.split())
-
-        return semantic if semantic else None
-
-    async def _store_semantic_memory(self, content: str, source_episode_id: str, metadata: Dict):
-        """Store semantic memory in temporal lobe"""
-        if not hasattr(self.coordinator, 'temporal_lobe') or not self.coordinator.temporal_lobe:
-            logger.warning("⚠️ Temporal lobe not available")
-            return
-
-        try:
-            metadata['source_episode_id'] = source_episode_id
-
-            await self.coordinator.temporal_lobe.store(
-                content=content,
-                metadata=metadata
-            )
-        except (asyncio.CancelledError, asyncio.TimeoutError) as e:
-            logger.error(f"Failed to store semantic memory: {e}")
 
     # ============================================================================
     # Forgetting Loop: Adaptive Memory Cleanup

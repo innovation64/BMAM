@@ -13,6 +13,8 @@ Prefrontal Agent - 前额叶智能体
 """
 
 import logging
+import json
+from pathlib import Path
 from typing import Dict, List, Any
 from collections import deque
 
@@ -75,6 +77,10 @@ class PrefrontalAgent(
         self.total_tasks_coordinated = 0
         self.total_reflections = 0
 
+        # 🔥 Auto-persistence setup
+        self.state_file = Path("data/prefrontal_state.json")
+        self._load_state_from_file()
+
         logger.info(f"✅ PrefrontalAgent initialized (capacity={capacity})")
 
     async def process_message(self, message: AgentMessage) -> Dict[str, Any]:
@@ -131,3 +137,175 @@ class PrefrontalAgent(
             return self.get_statistics()
 
         return {'error': f'Unknown action: {action}'}
+
+    def export_state(self) -> Dict[str, Any]:
+        """
+        Export prefrontal cortex state to JSON-serializable format for BMA archive.
+
+        Returns:
+            Dict containing working memory items and task state
+        """
+        from datetime import datetime
+
+        # Serialize working memory items
+        working_memory_data = []
+        for item in self.working_memory:
+            working_memory_data.append({
+                'id': item.id,
+                'content': item.content,
+                'task_type': item.task_type,
+                'priority': item.priority,
+                'timestamp': item.timestamp.isoformat() if item.timestamp else None,
+                'metadata': item.metadata
+            })
+
+        # Serialize task stack
+        task_stack_data = []
+        for task in self.current_task_stack:
+            # Handle datetime objects in task dict
+            task_copy = task.copy()
+            for key, value in task_copy.items():
+                if isinstance(value, datetime):
+                    task_copy[key] = value.isoformat()
+            task_stack_data.append(task_copy)
+
+        # Serialize reflection history
+        reflection_data = []
+        for reflection in self.reflection_history:
+            # Handle datetime objects in reflection dict
+            refl_copy = reflection.copy()
+            for key, value in refl_copy.items():
+                if isinstance(value, datetime):
+                    refl_copy[key] = value.isoformat()
+            reflection_data.append(refl_copy)
+
+        # Export state
+        state = {
+            'format_version': '1.0.0',
+            'agent_id': self.agent_id,
+            'brain_region': 'prefrontal',
+            'capacity': self.capacity,
+            'working_memory': working_memory_data,
+            'task_stack': task_stack_data,
+            'reflection_history': reflection_data,
+            'statistics': {
+                'total_stored': self.total_stored,
+                'total_evicted': self.total_evicted,
+                'total_tasks_coordinated': self.total_tasks_coordinated,
+                'total_reflections': self.total_reflections,
+                'current_count': len(self.working_memory)
+            }
+        }
+
+        logger.info(f"✅ Exported PrefrontalAgent state: {len(working_memory_data)} items in working memory")
+        return state
+
+    def load_state(self, state: Dict[str, Any]) -> bool:
+        """
+        Load prefrontal cortex state from exported data.
+
+        Args:
+            state: State dictionary from export_state()
+
+        Returns:
+            True if successful, False otherwise
+        """
+        from datetime import datetime
+
+        try:
+            # Validate format
+            if state.get('brain_region') != 'prefrontal':
+                logger.error(f"❌ Invalid brain region: {state.get('brain_region')}")
+                return False
+
+            # Clear current state
+            self.working_memory.clear()
+            self.memory_dict.clear()
+            self.current_task_stack.clear()
+            self.reflection_history.clear()
+
+            # Restore configuration
+            self.capacity = state.get('capacity', self.capacity)
+
+            # Restore working memory items
+            for item_data in state.get('working_memory', []):
+                from .data_models import WorkingMemoryItem
+                item = WorkingMemoryItem(
+                    id=item_data['id'],
+                    content=item_data['content'],
+                    task_type=item_data.get('task_type', 'general'),
+                    priority=item_data.get('priority', 0),
+                    timestamp=datetime.fromisoformat(item_data['timestamp']) if item_data.get('timestamp') else datetime.now(),
+                    metadata=item_data.get('metadata', {})
+                )
+
+                self.working_memory.append(item)
+                self.memory_dict[item.id] = item
+
+            # Restore task stack
+            for task_data in state.get('task_stack', []):
+                # Restore datetime objects
+                task_copy = task_data.copy()
+                for key, value in task_copy.items():
+                    if isinstance(value, str) and 'T' in value:  # ISO format detection
+                        try:
+                            task_copy[key] = datetime.fromisoformat(value)
+                        except:
+                            pass
+                self.current_task_stack.append(task_copy)
+
+            # Restore reflection history
+            for refl_data in state.get('reflection_history', []):
+                # Restore datetime objects
+                refl_copy = refl_data.copy()
+                for key, value in refl_copy.items():
+                    if isinstance(value, str) and 'T' in value:  # ISO format detection
+                        try:
+                            refl_copy[key] = datetime.fromisoformat(value)
+                        except:
+                            pass
+                self.reflection_history.append(refl_copy)
+
+            # Restore statistics
+            stats = state.get('statistics', {})
+            self.total_stored = stats.get('total_stored', 0)
+            self.total_evicted = stats.get('total_evicted', 0)
+            self.total_tasks_coordinated = stats.get('total_tasks_coordinated', 0)
+            self.total_reflections = stats.get('total_reflections', 0)
+
+            logger.info(f"✅ Loaded PrefrontalAgent state: {len(self.working_memory)} items in working memory")
+            return True
+
+        except Exception as e:
+            logger.error(f"❌ Failed to load PrefrontalAgent state: {e}")
+            return False
+
+    def _load_state_from_file(self):
+        """Auto-load state from JSON file on startup"""
+        if not self.state_file.exists():
+            logger.info(f"📂 No existing state file found at {self.state_file}, starting fresh")
+            return
+
+        try:
+            with open(self.state_file, 'r') as f:
+                state = json.load(f)
+                success = self.load_state(state)
+                if success:
+                    logger.info(f"✅ Auto-loaded PrefrontalCortex state from {self.state_file}")
+                else:
+                    logger.warning(f"⚠️  Failed to load PrefrontalCortex state from {self.state_file}")
+        except Exception as e:
+            logger.error(f"❌ Error loading PrefrontalCortex state from {self.state_file}: {e}")
+
+    def _save_state_to_file(self):
+        """Auto-save current state to JSON file"""
+        try:
+            # Ensure data directory exists
+            self.state_file.parent.mkdir(parents=True, exist_ok=True)
+
+            state = self.export_state()
+            with open(self.state_file, 'w') as f:
+                json.dump(state, f, indent=2)
+
+        except Exception as e:
+            logger.error(f"❌ Error saving PrefrontalCortex state to {self.state_file}: {e}")
