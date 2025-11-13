@@ -332,7 +332,8 @@ class MemoryConsolidationPipeline:
             )
 
             # Step 4: Update original memory with emotion tags (in-place, no duplication)
-            if target_storage.memory_system:
+            # 🔥 FIX: Use hasattr() check before accessing memory_system
+            if hasattr(target_storage, 'memory_system') and target_storage.memory_system:
                 updated_tags = list(set(memory.emotion_tags + emotion_tags))  # Merge & deduplicate
                 updated_intensity = max(memory.emotion_intensity, emotion_intensity)
 
@@ -352,7 +353,7 @@ class MemoryConsolidationPipeline:
                 memory.emotion_tags = updated_tags
                 memory.emotion_intensity = updated_intensity
             else:
-                logger.warning("Memory system not available for emotion update")
+                logger.debug("Memory system not available for emotion update (proxy mode)")
 
             # Step 5: Update statistics
             self.stats['total_consolidations'] += 1
@@ -468,12 +469,31 @@ class MemoryConsolidationPipeline:
         Returns:
             Dictionary with extracted knowledge
         """
-        # Extract entities (people, places, concepts)
-        entities = episodic_memory.context_tags or []
-
-        # Extract relations (simple co-occurrence for now)
+        # 🔥 FIX: 优先从 metadata 读取实体/关系，fallback 到 context_tags
+        # Hippocampus 导出的字典有 entities 字段和 metadata['kg_relations']
+        entities = []
         relations = []
-        if len(entities) >= 2:
+
+        # 优先级1: 从 metadata 读取（Hippocampus 自动提取的结果）
+        if episodic_memory.metadata:
+            entities = episodic_memory.metadata.get('entities', [])
+
+            # 读取 KG 关系（Hippocampus 自动提取的三元组）
+            kg_relations = episodic_memory.metadata.get('kg_relations', [])
+            for rel_dict in kg_relations:
+                if isinstance(rel_dict, dict):
+                    source = rel_dict.get('source')
+                    relation = rel_dict.get('relation')
+                    target = rel_dict.get('target')
+                    if source and relation and target:
+                        relations.append((source, relation, target))
+
+        # 优先级2: 如果 metadata 里没有，尝试 context_tags
+        if not entities:
+            entities = episodic_memory.context_tags or []
+
+        # 优先级3: 如果仍然没有关系，用简单的 co-occurrence
+        if not relations and len(entities) >= 2:
             relations.append((entities[0], 'related_to', entities[1]))
 
         # Extract concepts (generalize from content)
@@ -481,6 +501,11 @@ class MemoryConsolidationPipeline:
 
         # Create semantic content
         semantic_content = self._create_semantic_summary(episodic_memory, concepts)
+
+        logger.debug(
+            f"📊 Extracted semantic knowledge: entities={len(entities)}, "
+            f"relations={len(relations)}, concepts={len(concepts)}"
+        )
 
         return {
             'content': semantic_content,

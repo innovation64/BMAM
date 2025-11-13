@@ -1,4 +1,8 @@
 {
+  "relation_keywords": {
+    "en": ["relationship", "relation", "link", "connection", "association", "related to", "connected with"],
+    "zh": ["关系", "链接", "连接", "关联", "相关", "与...相关", "与...连接"]
+  },
   "movement_predicates": {
     "en": ["go to", "went to", "move to", "travel to", "visit", "arrive at", "leave from"],
     "zh": ["去", "前往", "移动到", "旅行到", "访问", "到达", "离开"]

@@ -27,18 +27,25 @@
 
 ## 🎯 最新状态 (2025-11-13)
 
-### ✅ Phase 4 完成: 记忆塑造修复
+### ✅ Phase 4 P1 完成: 关键Bug修复
 
 **修复内容**:
-- ✅ 巩固流程完整性验证 (Hippocampus → TemporalLobe)
-- ✅ AdaptiveShaping阈值优化 (15→5条触发)
-- ✅ BackgroundProcesses过滤条件降低
-- ✅ 五脑区自动持久化验证
-- ✅ 检查点切换机制安全性保障
+- ✅ 实体关系提取逻辑修复 (从metadata正确读取)
+- ✅ AgentStorageProxy属性访问安全性增强
+- ✅ 配置文件补全 (relational_keywords, relation_keywords)
+- ✅ 统一KG架构实现 (LightweightKnowledgeGraph跨脑区共享)
+- ✅ KG API兼容层 (add_triple方法)
+
+**端到端验证**:
+- 批量巩固测试: 20条记忆, 100%成功率 ✅
+- 实体提取: 平均4.0个实体/记忆 ✅
+- KG增长: +17节点, 统一实例工作正常 ✅
+- 回归测试: 9/9通过 ✅
 
 **当前记忆状态**:
 - Hippocampus: 137条情节记忆
-- TemporalLobe: 2条语义记忆 + 2558个KG三元组
+- TemporalLobe: 44条语义记忆 (包含实体和关系)
+- Unified KG: 1045节点, 963边
 - Amygdala: 31条情绪记忆
 - **所有记忆跨重启持久保存** ✅
 
@@ -219,7 +226,7 @@ BMAM/
 - Phase 1-2: 基础架构
 - Phase 3: 记忆闭环
 - Phase 4 P0: LoCoMo 94%准确率
-- **Phase 4 P1: 记忆塑造修复** ← 最新完成
+- **Phase 4 P1: 关键Bug修复与统一KG** ← 最新完成
 
 ### 🔄 进行中
 - Phase 4 P2: 配置优化 (pattern configs)
@@ -263,5 +270,8 @@ BMAM/
 ---
 
 **最后更新**: 2025-11-13
-**版本**: Phase 4 P1 (Memory Consolidation Fixed)
+**版本**: Phase 4 P1 (Critical Bugs Fixed + Unified KG)
 **状态**: ✅ Production Ready
+
+**变更日志**: 详见 [CHANGELOG.md](CHANGELOG.md)
+**技术分析**: 详见 [docs/development/CONSENSUS_FIX_ANALYSIS.md](docs/development/CONSENSUS_FIX_ANALYSIS.md)

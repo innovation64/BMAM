@@ -187,6 +187,37 @@ class LightweightKnowledgeGraph:
         logger.debug(f"添加边: {source_id} -[{relation_type}]-> {target_id}")
         return True
 
+    def add_triple(self, source: str, relation: str, target: str,
+                   source_type: str = 'Entity', target_type: str = 'Entity',
+                   strength: float = 0.5) -> bool:
+        """
+        添加三元组 (source, relation, target)
+
+        兼容层方法，用于适配 SimpleKnowledgeGraph 的 API
+        自动创建节点（如果不存在）并添加边
+
+        Args:
+            source: 源实体
+            relation: 关系类型
+            target: 目标实体
+            source_type: 源实体类型
+            target_type: 目标实体类型
+            strength: 关系强度
+
+        Returns:
+            是否成功添加
+        """
+        # 自动创建源节点（如果不存在）
+        if source not in self.nodes:
+            self.add_node(source, source_type, source, {})
+
+        # 自动创建目标节点（如果不存在）
+        if target not in self.nodes:
+            self.add_node(target, target_type, target, {})
+
+        # 添加边
+        return self.add_edge(source, target, relation, strength)
+
     def remove_node(self, node_id: str) -> bool:
         """删除节点"""
         if node_id not in self.nodes:
