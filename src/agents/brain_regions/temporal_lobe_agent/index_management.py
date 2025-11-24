@@ -10,6 +10,8 @@ from datetime import datetime
 from typing import Dict, Any
 
 from .data_models import SemanticMemory
+from ....utils.config import get_settings
+from ....utils.model_selector import select_model_for_task  # 🔥 消除硬编码
 
 logger = logging.getLogger(__name__)
 
@@ -82,8 +84,11 @@ Respond in JSON format:
 {{"retention_values": [0.8, 0.3, 0.5, ...]}}
 """
 
+                # 🔥 消除硬编码：使用智能模型选择
+                forgetting_model = select_model_for_task('forgetting')
+
                 response = await self.client.chat.completions.create(
-                    model="gpt-4o-mini",
+                    model=forgetting_model,
                     messages=[{"role": "user", "content": prompt}],
                     response_format={"type": "json_object"},
                     max_tokens=200

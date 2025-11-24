@@ -62,15 +62,17 @@ class BrainAgent(ABC):
         self.agent_id = agent_id
         self.brain_region = brain_region
         self.system_prompt = system_prompt
-        
+
+        # 🔥 FIX: Initialize settings FIRST before using it
+        self.settings = get_settings()
+
         # 移除客户端缓存，每次调用时动态获取以避免跨事件循环问题
         # client参数保留用于向后兼容，但不再缓存
-        self.model = get_env("DEFAULT_MODEL", "gpt-4o-mini")
-        
+        self.model = self.settings.default_llm_model
+
         # Agent state
         self.is_active = True
         self.message_queue = asyncio.Queue()
-        self.settings = get_settings()
         self.response_cache: OrderedDict[str, str] = OrderedDict()
         self._fallback_cache_size = self.settings.fallback_cache_size
         self.lock = asyncio.Lock()
@@ -102,10 +104,35 @@ class BrainAgent(ABC):
         raise NotImplementedError
     
     async def call_llm(self, prompt: str, context: Dict[str, Any] = None, max_tokens: int = None, temperature: float = None, quick_fail: bool = False, system_prompt: str = None) -> str:
-        """统一的LLM调用接口 - 集成限流、统一重试策略和错误处理"""
+        """统一的LLM调用接口 - 集成限流、统一重试策略和错误处理 + 语义缓存"""
         # 使用全局信号量进行并发控制，避免连接池竞态
         from ..coordination.clean_agent_system import _global_semaphore
         async with _global_semaphore:
+
+            # P0-1: 尝试从语义缓存获取（需要 embedding 才能真正语义匹配）
+            from ..utils.semantic_cache import get_llm_cache
+            llm_cache = get_llm_cache()
+
+            # 计算 query embedding 用于语义相似度匹配
+            query_embedding = None
+            if llm_cache.enable_cache and llm_cache.similarity_threshold > 0:
+                try:
+                    from ..services.shared_openai_client import shared_client_manager
+                    embedding_client = await shared_client_manager.get_embedding_client()
+                    embed_response = await embedding_client.embeddings.create(
+                        model="text-embedding-3-small",
+                        input=prompt
+                    )
+                    import numpy as np
+                    query_embedding = np.array(embed_response.data[0].embedding)
+                except Exception as e:
+                    logger.debug(f"Failed to compute query embedding for cache: {e}")
+                    query_embedding = None
+
+            cached_response = llm_cache.get(query=prompt, query_embedding=query_embedding, context=context)
+            if cached_response:
+                self.log_execution("LLM cache hit", {"query_length": len(prompt)}, "success")
+                return cached_response
 
             # 统一应用层重试策略（增加重试次数以应对网络波动）
             max_retries = 0 if quick_fail else 4  # 提高到4次重试
@@ -151,7 +178,7 @@ class BrainAgent(ABC):
                     
                     result = response.choices[0].message.content.strip()
                     self.log_execution("LLM call success", {
-                        "response_length": len(result), 
+                        "response_length": len(result),
                         "attempt": attempt + 1
                     }, "success")
 
@@ -159,7 +186,12 @@ class BrainAgent(ABC):
                     from ..services.shared_openai_client import shared_client_manager
                     shared_client_manager.report_connection_success()
 
+                    # 存入旧缓存（向后兼容）
                     self._store_cached_response(cache_key, result)
+
+                    # P0-1: 存入语义缓存（带 embedding 以支持语义匹配）
+                    llm_cache.put(query=prompt, response=result, query_embedding=query_embedding, context=context)
+
                     return result
 
                 except Exception as e:

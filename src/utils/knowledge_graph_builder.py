@@ -20,6 +20,9 @@ import logging
 from typing import List, Dict, Tuple, Any, Optional, Set
 import re
 
+from .config import get_settings
+from .model_selector import select_model_for_task  # 🔥 消除硬编码
+
 logger = logging.getLogger(__name__)
 
 # Optional spaCy support
@@ -350,11 +353,15 @@ Only output valid JSON, no explanation.
 """
 
         try:
-            from ...services.shared_openai_client import shared_client_manager
+            # Fix relative import issue
+            from ..services.shared_openai_client import shared_client_manager
             client = await shared_client_manager.get_chat_client()
 
+            # 🔥 消除硬编码：使用智能模型选择
+            kg_model = select_model_for_task('kg_extraction')
+
             response = await client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=kg_model,
                 messages=[
                     {"role": "system", "content": "You are a knowledge extraction expert. Output only valid JSON."},
                     {"role": "user", "content": prompt}
@@ -613,9 +620,13 @@ Only output valid JSON, no explanation.
                 self._persist_to_kg(entities, relations)
                 after_stats = self.kg.get_statistics()
 
+                # 🔥 FIX: Access basic stats correctly
+                before_basic = before_stats.get('basic', {})
+                after_basic = after_stats.get('basic', {})
+
                 logger.info(
-                    f"✅ KG Sync: {before_stats.get('total_nodes', 0)} → {after_stats.get('total_nodes', 0)} nodes, "
-                    f"{before_stats.get('total_edges', 0)} → {after_stats.get('total_edges', 0)} edges"
+                    f"✅ KG Sync: {before_basic.get('total_nodes', 0)} → {after_basic.get('total_nodes', 0)} nodes, "
+                    f"{before_basic.get('total_edges', 0)} → {after_basic.get('total_edges', 0)} edges"
                 )
             except Exception as e:
                 logger.error(f"❌ Failed to sync to unified KG: {e}", exc_info=True)

@@ -8,6 +8,9 @@ import json
 from typing import Dict, List, Any
 from collections import defaultdict
 
+from ....utils.config import get_settings
+from ....utils.model_selector import select_model_for_task  # 🔥 消除硬编码
+
 logger = logging.getLogger(__name__)
 
 
@@ -163,9 +166,12 @@ Provide:
 3. Importance score (0-1)"""
 
         try:
+            # 🔥 消除硬编码：使用智能模型选择
+            compression_model = select_model_for_task('compression')
+
             # 使用client调用LLM
             response = await self.client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=compression_model,
                 messages=[
                     {"role": "system", "content": "You are a summarization expert."},
                     {"role": "user", "content": prompt}

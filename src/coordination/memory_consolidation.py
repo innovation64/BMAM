@@ -11,6 +11,9 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
+from ..services.shared_openai_client import shared_client_manager
+from ..utils.config import get_settings
+from ..utils.model_selector import select_model_for_task  # 🔥 消除硬编码
 
 
 class MemoryConsolidationEngine:
@@ -364,11 +367,52 @@ class MemoryConsolidationEngine:
     ) -> str:
         """
         从情节记忆提取语义知识
-
-        简化版：移除具体时间/地点，保留核心概念
-        实际实现可以调用 LLM 做更好的抽象
+        
+        🔥 Optimization: 使用LLM进行深度语义抽象
+        将具体的情节 (Episodic) 转化为普适的知识 (Semantic)
         """
+        try:
+            client = await shared_client_manager.get_chat_client()
+            if not client:
+                logger.warning("LLM client not available, falling back to regex")
+                return self._extract_semantic_regex(episodic_content)
 
+            prompt = f"""
+            You are the Hippocampus-Cortex interface of a digital brain.
+            Your task is to consolidate a specific Episodic Memory into Semantic Knowledge.
+            
+            Episodic Memory: "{episodic_content}"
+            Context/Queries: {related_queries}
+            
+            Instructions:
+            1. Extract the core timeless fact, rule, or concept.
+            2. Remove specific timestamps, transient states, or irrelevant details.
+            3. Generalize the information so it applies to future situations.
+            4. Output ONLY the consolidated semantic knowledge statement.
+            """
+
+            # 🔥 消除硬编码：使用智能模型选择
+            consolidation_model = select_model_for_task('consolidation')
+
+            response = await client.chat.completions.create(
+                model=consolidation_model,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.3,
+                max_tokens=100
+            )
+            
+            semantic = response.choices[0].message.content.strip()
+            logger.info(f"🧠 Semantic Consolidation: '{episodic_content}' -> '{semantic}'")
+            return semantic
+
+        except Exception as e:
+            logger.error(f"LLM consolidation failed: {e}")
+            return self._extract_semantic_regex(episodic_content)
+
+    def _extract_semantic_regex(self, episodic_content: str) -> str:
+        """
+        Regex-based fallback for semantic extraction
+        """
         # 移除日期模式
         import re
         semantic = re.sub(r'\b\d{4}[-/]\d{1,2}[-/]\d{1,2}\b', '[DATE]', episodic_content)
@@ -383,7 +427,6 @@ class MemoryConsolidationEngine:
             semantic = semantic.replace(word, '[TIMEREF]')
 
         # 简化为概念性陈述
-        # 例如: "Alice painted a sunrise on 2023-05-15" → "Alice paints sunrises"
         if 'painted' in semantic.lower():
             semantic = re.sub(r'\bon\s+\[DATE\]', '', semantic)
             semantic = re.sub(r'painted', 'paints', semantic)

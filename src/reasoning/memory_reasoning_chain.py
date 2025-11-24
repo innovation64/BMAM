@@ -22,6 +22,9 @@ from collections import defaultdict
 import asyncio
 import logging
 
+from ..utils.config import get_settings
+from ..utils.model_selector import select_model_for_query, select_model_for_task  # 🔥 消除硬编码
+
 logger = logging.getLogger(__name__)
 
 
@@ -157,34 +160,48 @@ class MemoryReasoningChain:
         all_memories = []
 
         if self.memory_coordinator:
-            # Use MemoryCoordinator's smart_retrieve - already handles cross-storage
+            # 🔥 Phase 3 Integration: Use cross_region_retrieval for parallel + resonance
             try:
-                logger.info(f"📊 Using MemoryCoordinator.smart_retrieve() for unified retrieval")
+                logger.info(f"🧠 Using MemoryCoordinator.cross_region_retrieval() for parallel multi-region retrieval")
 
-                # MemoryCoordinator.smart_retrieve() handles:
-                # - Hippocampus retrieval
-                # - MemorySystem semantic search
-                # - TemporalLobe retrieval
-                # - Deduplication and ranking
-                raw_memories = await self.memory_coordinator.smart_retrieve(
+                # cross_region_retrieval() provides:
+                # - Parallel retrieval from 5 brain regions (asyncio.gather)
+                # - Resonance scoring (cross-region memories ranked higher)
+                # - Thalamus dynamic gating integration (selective activation)
+                # - Emotional boost (Amygdala memories weighted)
+                raw_memories = await self.memory_coordinator.cross_region_retrieval(
                     query=query,
-                    k=max_memories * 2,  # Retrieve more for better reasoning
-                    strategy='hybrid'
+                    top_k=max_memories * 2,  # Retrieve more for reasoning chain construction
+                    activation_plan=None  # Use default: activate all regions
                 )
 
-                logger.info(f"📊 Retrieved {len(raw_memories)} memories from MemoryCoordinator")
+                logger.info(f"🧠 Retrieved {len(raw_memories)} memories with resonance scoring")
 
                 # Convert to MemoryFragment format
                 all_memories = [
-                    self._convert_to_fragment(m, source=m.get('source', 'coordinator'))
+                    self._convert_to_fragment(m, source=m.get('_meta', {}).get('regions', ['coordinator'])[0] if '_meta' in m else 'coordinator')
                     for m in raw_memories
                 ]
 
             except Exception as e:
-                logger.warning(f"MemoryCoordinator.smart_retrieve() failed: {e}")
+                logger.warning(f"MemoryCoordinator.cross_region_retrieval() failed: {e}, falling back to smart_retrieve")
                 import traceback
                 logger.warning(f"Traceback: {traceback.format_exc()}")
-                all_memories = []
+
+                # Fallback to smart_retrieve if cross_region_retrieval fails
+                try:
+                    raw_memories = await self.memory_coordinator.smart_retrieve(
+                        query=query,
+                        k=max_memories * 2,
+                        strategy='hybrid'
+                    )
+                    all_memories = [
+                        self._convert_to_fragment(m, source=m.get('source', 'coordinator'))
+                        for m in raw_memories
+                    ]
+                except Exception as e2:
+                    logger.error(f"Both cross_region_retrieval and smart_retrieve failed: {e2}")
+                    all_memories = []
         else:
             logger.warning("No MemoryCoordinator available, cannot retrieve memories")
             all_memories = []
@@ -731,9 +748,12 @@ Answer concisely based on the evidence above. If you need to infer, explain your
                 if self._llm_client is None:
                     self._llm_client = await self.client_manager.get_chat_client()
 
+                # 🔥 消除硬编码：使用智能模型选择（基于查询复杂度）
+                reasoning_model = select_model_for_query(question, task_type='default')
+
                 # OpenAI-style client (cached)
                 response = await self._llm_client.chat.completions.create(
-                    model="gpt-4o-mini",
+                    model=reasoning_model,
                     messages=[
                         {"role": "system", "content": "You are a helpful assistant that answers questions based on provided memories and relationships."},
                         {"role": "user", "content": prompt}

@@ -169,10 +169,28 @@ class SystemSettings:
     max_segments_background: int
     enable_segment_serialization: bool
 
+    # 🔥 P0-1 缓存配置（支持 A/B 测试和快速关闭）
+    enable_llm_cache: bool
+    llm_cache_max_size: int
+    llm_cache_ttl_seconds: int
+    llm_cache_similarity_threshold: float
+    enable_retrieval_cache: bool
+    retrieval_cache_max_size: int
+    retrieval_cache_ttl_seconds: int
+    # 🔧 LLM 模型配置（统一管理，禁止硬编码）
+    default_llm_model: str
+    fast_llm_model: str
+    heavy_llm_model: str
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> SystemSettings:
     """Centralized application settings sourced from env with sane defaults."""
+    # 统一模型配置：默认所有模型都使用同一个，消除模型混乱
+    default_model = get_env("DEFAULT_MODEL", "gpt-4o-mini")
+    fast_model = get_env("FAST_MODEL", default_model)
+    heavy_model = get_env("HEAVY_MODEL", fast_model)
+
     return SystemSettings(
         parallel_phase_timeout=float(get_env("PARALLEL_PHASE_TIMEOUT", "15.0")),
         buffer_exchange_timeout=float(get_env("BUFFER_EXCHANGE_TIMEOUT", "5.0")),
@@ -190,4 +208,16 @@ def get_settings() -> SystemSettings:
         max_segments_immediate=int(get_env("MAX_SEGMENTS_IMMEDIATE", "50")),
         max_segments_background=int(get_env("MAX_SEGMENTS_BACKGROUND", "100")),
         enable_segment_serialization=get_env("ENABLE_SEGMENT_SERIALIZATION", "true").lower() == "true",
+
+        # 🔥 P0-1 缓存配置（默认启用，可通过环境变量关闭）
+        enable_llm_cache=get_env("ENABLE_LLM_CACHE", "true").lower() == "true",
+        llm_cache_max_size=int(get_env("LLM_CACHE_MAX_SIZE", "1000")),
+        llm_cache_ttl_seconds=int(get_env("LLM_CACHE_TTL_SECONDS", "3600")),  # 1 hour
+        llm_cache_similarity_threshold=float(get_env("LLM_CACHE_SIMILARITY_THRESHOLD", "0.95")),
+        enable_retrieval_cache=get_env("ENABLE_RETRIEVAL_CACHE", "true").lower() == "true",
+        retrieval_cache_max_size=int(get_env("RETRIEVAL_CACHE_MAX_SIZE", "2000")),
+        retrieval_cache_ttl_seconds=int(get_env("RETRIEVAL_CACHE_TTL_SECONDS", "300")),  # 5 minutes
+        default_llm_model=default_model,
+        fast_llm_model=fast_model,
+        heavy_llm_model=heavy_model,
     )
