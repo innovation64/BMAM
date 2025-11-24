@@ -923,69 +923,94 @@ class MemoryCoordinator:
 
     def _calculate_kg_coverage(self, memories: List[Dict], query: str) -> float:
         """
-        🔥 P1-4: Calculate KG coverage rate for retrieved memories
+        🔥 P1-4: Calculate KG coverage rate using real KG statistics
 
-        KG coverage measures how well the Knowledge Graph covers the query entities.
-        Low coverage indicates the KG may be incomplete for this query domain.
+        KG coverage measures how well the Knowledge Graph covers the query domain.
+        Uses actual KG node/relation counts instead of string matching.
+
+        Coverage formula:
+        - Entity coverage: (KG中找到的查询实体数) / (查询实体总数)
+        - KG richness: (查询相关的KG三元组数) / (查询实体数 * 预期平均关系数)
+        - Final coverage: (Entity coverage * 0.6) + (KG richness * 0.4)
 
         Args:
-            memories: Retrieved memory list
+            memories: Retrieved memory list (unused, kept for compatibility)
             query: Original query string
 
         Returns:
             Coverage ratio (0.0-1.0)
         """
-        # Extract entities from query (simple keyword extraction)
+        # Extract entities from query
         import re
         query_tokens = set(re.findall(r'\b\w+\b', query.lower()))
-        # Filter out common stop words
-        stop_words = {'the', 'is', 'at', 'which', 'on', 'a', 'an', 'and', 'or', 'but', 'in', 'with', 'to', 'for', 'of', 'as', 'by', 'what', 'how', 'why', 'when', 'where', 'who'}
+        stop_words = {'the', 'is', 'at', 'which', 'on', 'a', 'an', 'and', 'or', 'but', 'in',
+                      'with', 'to', 'for', 'of', 'as', 'by', 'what', 'how', 'why', 'when', 'where', 'who'}
         query_entities = query_tokens - stop_words
 
         if not query_entities:
-            return 1.0  # No entities to cover
+            return 1.0  # No entities to check
 
-        # Real KG Query Implementation
-        covered_entities = set()
-        
-        # Try to use Temporal Lobe's KG if available
-        if self.temporal_lobe and hasattr(self.temporal_lobe, 'kg'):
-            try:
-                for entity in query_entities:
-                    # Check if entity exists in KG (as source or target)
-                    # We can use query_relations to check existence
-                    relations = self.temporal_lobe.kg.query_relations(entity)
-                    if relations:
-                        covered_entities.add(entity)
-                        continue
-                        
-                    # Also check reverse index if available (target role)
-                    if hasattr(self.temporal_lobe.kg, 'reverse_index'):
-                        if entity in self.temporal_lobe.kg.reverse_index:
-                            covered_entities.add(entity)
-            except Exception as e:
-                logger.warning(f"   ⚠️  KG query failed: {e}, falling back to string matching")
-                # Fallback to string matching if KG query fails
-                for mem in memories:
-                    content = mem.get('content', '').lower()
-                    for entity in query_entities:
-                        if entity in content:
-                            covered_entities.add(entity)
-        else:
-            # Fallback: String matching in retrieved memories
-            for mem in memories:
-                content = mem.get('content', '').lower()
-                for entity in query_entities:
-                    if entity in content:
-                        covered_entities.add(entity)
+        # Check if KG is available
+        if not (self.temporal_lobe and hasattr(self.temporal_lobe, 'kg')):
+            logger.warning("   ⚠️  KG not available, coverage set to 0.5 (unknown)")
+            return 0.5  # Unknown KG state
 
+        kg = self.temporal_lobe.kg
 
-        # Coverage = proportion of query entities found in KG (or memories as fallback)
-        coverage = len(covered_entities) / len(query_entities)
+        try:
+            # 1. Get KG statistics
+            kg_stats = kg.get_statistics()
+            total_kg_entities = kg_stats.get('total_entities', 0)
+            total_kg_triples = kg_stats.get('total_triples', 0)
 
-        logger.debug(f"   📊 KG Coverage: {coverage:.2%} ({len(covered_entities)}/{len(query_entities)} entities covered)")
+            if total_kg_entities == 0 or total_kg_triples == 0:
+                logger.debug("   📊 KG Coverage: 0.00% (KG is empty)")
+                return 0.0  # Empty KG
 
-        return coverage
+            # 2. Query KG for each entity and count relations
+            covered_entities = set()
+            query_related_triples = 0
+
+            for entity in query_entities:
+                # Check as source entity
+                relations = kg.query_relations(entity)
+                if relations:
+                    covered_entities.add(entity)
+                    query_related_triples += len(relations)
+                    continue
+
+                # Check as target entity (reverse index)
+                if hasattr(kg, 'reverse_index') and entity in kg.reverse_index:
+                    covered_entities.add(entity)
+                    query_related_triples += len(kg.reverse_index[entity])
+
+            # 3. Calculate entity coverage
+            entity_coverage = len(covered_entities) / len(query_entities)
+
+            # 4. Calculate KG richness (how well-connected the query entities are)
+            # Average relations per entity in full KG
+            avg_relations_per_entity = total_kg_triples / total_kg_entities if total_kg_entities > 0 else 1
+            # Expected triples for query entities
+            expected_triples = len(query_entities) * avg_relations_per_entity
+            # Actual richness
+            kg_richness = min(1.0, query_related_triples / expected_triples) if expected_triples > 0 else 0.0
+
+            # 5. Combined coverage (weighted average)
+            # Entity coverage weighted more (60%) as it's more reliable
+            coverage = (entity_coverage * 0.6) + (kg_richness * 0.4)
+
+            logger.debug(
+                f"   📊 KG Coverage: {coverage:.2%} "
+                f"(entities: {len(covered_entities)}/{len(query_entities)}, "
+                f"triples: {query_related_triples}, "
+                f"KG: {total_kg_entities} entities, {total_kg_triples} triples)"
+            )
+
+            return coverage
+
+        except Exception as e:
+            logger.warning(f"   ⚠️  KG coverage calculation failed: {e}, assuming low coverage")
+            return 0.3  # Conservative fallback
 
     async def _pure_semantic_fallback(
         self,
