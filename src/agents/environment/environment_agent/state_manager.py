@@ -64,9 +64,12 @@ class StateManagerMixin:
         self.current_state = new_state
         self.total_state_transitions += 1
 
-        # Trigger memory encoding for important state transitions
-        if state_type != StateType.IDLE and self.brain_coordinator:
-            await self._encode_state_transition_to_memory(new_state, old_state_type)
+        # 🔥 FIX: 不再将状态转换存储为可检索记忆
+        # 原因: 状态日志会污染检索结果，因为日志内容包含user_input文本
+        # 导致检索时状态日志比实际事件记忆匹配度更高
+        # 如需跟踪状态转换，应使用独立的日志系统而非记忆系统
+        # if state_type != StateType.IDLE and self.brain_coordinator:
+        #     await self._encode_state_transition_to_memory(new_state, old_state_type)
 
         return {
             'state_id': new_state.state_id,

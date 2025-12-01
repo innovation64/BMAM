@@ -504,10 +504,13 @@ class MemoryCoordinator:
             logger.info(f"📦 Auto-chunked into {len(chunks)} chunks (overlap={chunk_overlap} tokens)")
 
             # Store each chunk with metadata linking them
+            # 🔥 修复: 添加时间上下文前缀
+            date_str = timestamp.strftime("%d %B %Y")  # e.g., "08 May 2023"
+
             results = []
             for i, chunk in enumerate(chunks):
-                # Add chunk metadata to content
-                chunk_header = f"[Chunk {i+1}/{len(chunks)} | Group: {chunk_group_id}]\n"
+                # Add chunk metadata and time context to content
+                chunk_header = f"[Context: This conversation is on {date_str}] [Chunk {i+1}/{len(chunks)} | Group: {chunk_group_id}]\n"
                 chunk_with_metadata = chunk_header + chunk
 
                 result = await self.hippocampus.store_memory_with_event_segmentation(
@@ -528,8 +531,13 @@ class MemoryCoordinator:
 
         else:
             # Normal storage for short content
+            # 🔥 修复: 添加时间上下文前缀，供时间推理使用
+            # 时间推理模块需要 "[Context: This conversation is on DATE]" 格式
+            date_str = timestamp.strftime("%d %B %Y")  # e.g., "08 May 2023"
+            content_with_context = f"[Context: This conversation is on {date_str}] {content}"
+
             result = await self.hippocampus.store_memory_with_event_segmentation(
-                content=content,
+                content=content_with_context,
                 timestamp=timestamp,
                 speaker=speaker,
                 importance=importance
@@ -674,13 +682,19 @@ class MemoryCoordinator:
         Args:
             user_input: User input text
             response: Assistant response
-            context: Context dict
+            context: Context dict (supports 'skip_memory_store' to disable storage)
 
         Returns:
             True if memory was stored
         """
         if context is None:
             context = {}
+
+        # 🔥 FIX: 支持 skip_memory_store 参数，用于 QA 测试等场景
+        # 避免 QA 对话污染检索结果
+        if context.get('skip_memory_store', False):
+            logger.debug("Memory storage skipped (skip_memory_store=True)")
+            return False
 
         try:
             # Check if this is a simple Q&A that shouldn't pollute memory
@@ -1332,6 +1346,38 @@ class MemoryCoordinator:
                         metrics.record_brain_region_activation('memory_system', 'queried')
             except Exception as e:
                 logger.warning(f"Failed to record retrieval metrics: {e}")
+
+            # 🧠 类脑检索增强: 当检索结果不足时，尝试激活沉默印迹
+            # 这模拟人脑在检索失败时的"再搜索"机制
+            if len(memories) < k // 2 and self.hippocampus:
+                logger.info(f"   🧠 Low retrieval results ({len(memories)}/{k}), attempting silent engram reactivation...")
+                try:
+                    # 提取查询实体
+                    query_entities = [word for word in query.split() if word[0].isupper() and len(word) > 1]
+
+                    # 尝试激活沉默印迹
+                    if hasattr(self.hippocampus, 'forgetting_manager') and self.hippocampus.forgetting_manager:
+                        reactivated = await self.hippocampus.forgetting_manager.try_reactivate_silent_memories(
+                            query_entities=query_entities if query_entities else None,
+                            max_reactivations=3,
+                            boost_factor=1.2
+                        )
+
+                        if reactivated:
+                            logger.info(f"   ✅ Reactivated {len(reactivated)} silent engrams")
+                            # 将激活的印迹添加到结果中
+                            for engram_info in reactivated:
+                                # 构建记忆格式
+                                reactivated_mem = {
+                                    'id': engram_info.get('memory_id'),
+                                    'content': f"[Reactivated] Entities: {engram_info.get('entities', [])}, Time: {engram_info.get('timestamp', 'unknown')}",
+                                    'source': 'silent_engram',
+                                    'relevance': engram_info.get('activation_score', 0.5),
+                                    'needs_full_restoration': True
+                                }
+                                memories.append(reactivated_mem)
+                except Exception as e:
+                    logger.warning(f"Silent engram reactivation failed: {e}")
 
             # P0-1: 存入检索缓存
             retrieval_cache.put(
