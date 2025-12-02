@@ -112,10 +112,13 @@ class SearchMixin:
                 except (RuntimeError, ValueError) as e:
                     logger.warning(f"Failed to compute cosine similarity: {e}")
 
-            # 🔥 诊断发现：embedding会提升错误记忆(LLM摘要)的排名
-            # 暂时禁用embedding fusion，使用纯BM25验证baseline恢复
-            # TODO: 后续尝试 0.9*BM25 + 0.1*Embedding 或过滤LLM生成的摘要
-            relevance = bm25_score  # 纯BM25模式
+            # 🔧 2025-12-02: 恢复混合模式，使用保守的embedding权重
+            # LLM摘要已在上方降权(bm25_score *= 0.5)，可以安全使用混合模式
+            # 权重: 0.7 * BM25 + 0.3 * Embedding (BM25主导，embedding辅助)
+            if embedding_score > 0:
+                relevance = 0.7 * bm25_score + 0.3 * embedding_score
+            else:
+                relevance = bm25_score  # Fallback to pure BM25 if no embedding
 
             results.append({
                 'memory': mem,

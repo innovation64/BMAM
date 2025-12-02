@@ -1503,11 +1503,28 @@ class MemoryCoordinator:
                     return []
             retrieval_tasks['hippocampus'] = retrieve_hippocampus()
 
-        # Temporal Lobe: Semantic knowledge
+        # Temporal Lobe: Semantic knowledge + KG联合检索
+        # 🔧 2025-12-02: 优先使用KG联合检索，fallback到普通检索
         if activation_plan.get('temporal_lobe') and self.temporal_lobe:
             async def retrieve_temporal():
                 try:
-                    # search_memories returns {'memories': List[Dict], ...}
+                    # 🔧 优先尝试KG联合检索 (search_kg_memory_joint)
+                    if hasattr(self.temporal_lobe, 'search_kg_memory_joint'):
+                        result = await self.temporal_lobe.search_kg_memory_joint(
+                            query=query,
+                            k=top_k * 2,
+                            kg_depth=1,  # 单跳关系
+                            beta=0.6     # KG权重60%
+                        )
+                        memories = result.get('memories', [])
+                        # 标记来源
+                        for mem in memories:
+                            mem['kg_enhanced'] = True
+                        if memories:
+                            logger.debug(f"Temporal Lobe KG-joint retrieval: {len(memories)} memories")
+                            return memories
+
+                    # Fallback: 普通检索
                     result = await self.temporal_lobe.search_memories(query, k=top_k * 2)
                     return result.get('memories', [])
                 except Exception as e:
