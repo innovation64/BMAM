@@ -48,7 +48,7 @@ class RegionActivationDynamics:
         self.region_capabilities = {
             'identity_inference': {
                 'keywords': ['identity', 'who is', 'what is someone', 'person\'s characteristics',
-                           'transgender', 'gender identity', 'sexual orientation'],
+                           'personal identity', 'core identity', 'self-identification'],
                 'description': 'Infer personal identity and characteristics'
             },
             'relationship_inference': {

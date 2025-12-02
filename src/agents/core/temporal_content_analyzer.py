@@ -382,11 +382,11 @@ class TemporalContentAnalyzer:
 if __name__ == '__main__':
     analyzer = TemporalContentAnalyzer()
 
-    # Test 1: LoCoMo session
+    # Test 1: Example session
     content1 = """
 Session 1 - Date: 1:56 pm on 8 May, 2023
-Caroline: I went to a LGBTQ support group yesterday.
-Melanie: That's great!
+PersonA: I went to a support group yesterday.
+PersonB: That's great!
 """
 
     info1 = analyzer.extract_temporal_info(content1)

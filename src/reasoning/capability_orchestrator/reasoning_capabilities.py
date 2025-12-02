@@ -59,26 +59,18 @@ Memories:
 
 Task: Analyze the memories to infer WHO the person IS at their core.
 
-Key Inference Patterns:
+Key Inference Patterns (general rules, apply to any identity type):
 1. Emotional resonance: When someone feels deeply inspired/empowered by stories about a specific group, they likely belong to that group
-   - "transgender stories were inspiring... felt empowered" → likely transgender themselves
-   - "veteran stories moved them deeply" → likely a veteran
-
-2. Personal connection: Research/interest in support services suggests personal relevance
-   - "researched LGBTQ adoption agencies" + "transgender stories empowered them" → transgender person planning family
-
-3. Community affiliation: Attending support groups suggests membership
-   - "attended LGBTQ support group... heard transgender stories" → LGBTQ person, likely transgender
+2. Personal connection: Research/interest in support services suggests personal relevance to that topic
+3. Community affiliation: Attending support groups suggests membership in that community
 
 Focus on the person's CORE IDENTITY (who they ARE), not roles/activities:
-- ✓ Identity: "transgender woman", "transgender man", "veteran", "immigrant", "gay man"
+- ✓ Identity: specific identity characteristics (ethnicity, gender identity, profession, etc.)
 - ✗ NOT roles: "advocate", "ally", "supporter", "volunteer", "researcher"
-
-If the memories show strong emotional connection to transgender stories and LGBTQ community, the person is likely transgender themselves.
 
 Output JSON (extract ONLY the identity, be concise):
 {{
-    "identity": "transgender woman" (or other core identity - be specific and concise),
+    "identity": "inferred core identity - be specific based on evidence",
     "confidence": 0.0-1.0,
     "evidence": ["key memories that reveal identity"],
     "reasoning": "why you inferred this identity"
@@ -189,7 +181,7 @@ Output JSON:
         分配给reflection agent的原因:
         1. Reflection使用Default Mode Network (DMN)
         2. DMN负责价值判断和目标规划
-        3. "What fields would Caroline pursue?" 需要深度思考和意义提取
+        3. "What fields would Person pursue?" 需要深度思考和意义提取
 
         重要: 该能力仅在问题真正询问兴趣/倾向时使用,由LLM判断适用性
         """
@@ -223,13 +215,14 @@ Task:
 3. Map interests to ACADEMIC FIELDS (be specific about disciplines)
 
 Key Semantic Mappings (Interest → Academic Field):
-- "counseling" / "mental health" / "therapy" → **Psychology** (counseling is a subfield of psychology)
+- "counseling" / "mental health" / "therapy" → **Psychology**
 - "social work" / "community services" → **Social Work**
-- "LGBTQ support" / "advocacy" → **LGBTQ Studies** / **Community Advocacy**
-- "adoption agencies" → related to **Social Work** or **Family Studies**
 - "teaching" / "education" → **Education**
+- "law" / "legal" → **Law**
+- "medicine" / "healthcare" → **Medicine**
+- "business" / "management" → **Business Administration**
 
-CRITICAL RULE: If someone says "I'm keen on counseling", they are interested in **Psychology** as an academic field.
+Infer the most relevant academic field based on the stated interests.
 
 Output JSON:
 {{
@@ -258,7 +251,7 @@ Output only valid JSON, no explanation."""
             fields = set(result.get('academic_fields', []))
             all_interests = result.get('explicit_interests', []) + result.get('implicit_interests', [])
 
-            # 应用语义映射表
+            # 应用语义映射表 (通用学科映射，不针对特定数据集)
             semantic_mapping = {
                 'counseling': 'Psychology',
                 'mental health': 'Psychology',
@@ -266,10 +259,14 @@ Output only valid JSON, no explanation."""
                 'psychological': 'Psychology',
                 'social work': 'Social Work',
                 'community services': 'Social Work',
-                'adoption': 'Social Work',
-                'advocacy': 'Community Advocacy',
-                'LGBTQ': 'LGBTQ Studies',
-                'transgender': 'Gender Studies'
+                'teaching': 'Education',
+                'education': 'Education',
+                'law': 'Law',
+                'legal': 'Law',
+                'medicine': 'Medicine',
+                'healthcare': 'Medicine',
+                'business': 'Business Administration',
+                'management': 'Business Administration'
             }
 
             for interest in all_interests:

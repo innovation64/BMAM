@@ -60,8 +60,8 @@ Session text:
 
 Return 5-10 most important relationships.
 Format: source | relation | target
-Example: Caroline | interested_in | adoption
-Example: Alex | supports | LGBTQ_rights"""
+Example: PersonA | interested_in | topic
+Example: PersonB | supports | cause"""
 
         try:
             response = await self._call_llm(prompt)
@@ -96,8 +96,8 @@ Session text:
 
 Return 5-10 most important temporal events.
 Format: Brief event description with time context
-Example: May 2023: Caroline attended support group
-Example: After meeting Alex, Caroline researched adoption"""
+Example: May 2023: PersonA attended an event
+Example: After meeting PersonB, PersonA researched a topic"""
 
         try:
             response = await self._call_llm(prompt)

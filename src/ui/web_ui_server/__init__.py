@@ -52,12 +52,80 @@ class WebUIServer(
 
 
 # Convenience function for running the server
+# Convenience function for running the server
 async def main():
     """Run the web UI server"""
-    from src.coordination.brain_coordinator import BrainInspiredCoordinator
+    # Imports for V3 HRM Coordinator
+    from src.core.container import get_container
+    from src.core.config import get_config
+    from src.memory.memory_system.registration import register_memory_system_components
+    from src.core.interfaces.memory_interface import IMemorySystem
+    from src.agents.brain_regions import (
+        HippocampusAgent,
+        TemporalLobeAgent,
+        PrefrontalAgent,
+        AmygdalaAgent,
+        BasalGangliaAgent
+    )
+    from src.coordination.coordinator_v3_hrm import BrainInspiredCoordinatorV3_HRM
+
+    # Initialize Container and Config
+    container = get_container()
+    config = get_config()
+    
+    # Register Memory System
+    if not container.is_registered(IMemorySystem):
+        register_memory_system_components(container)
+    memory_system = container.resolve(IMemorySystem)
+
+    # Initialize Brain Regions
+    # Note: We need to handle dependencies manually here as per V3 requirements
+    # 1. Temporal Lobe (needs memory system)
+    temporal_lobe = TemporalLobeAgent(
+        memory_system=memory_system,
+        capacity=70000
+    )
+    
+    # 2. Hippocampus (needs temporal lobe and memory system)
+    hippocampus = HippocampusAgent(
+        temporal_lobe_agent=temporal_lobe,
+        memory_system=memory_system,
+        capacity=20000
+    )
+    
+    # 3. Prefrontal (needs nothing specific, maybe coordinator later)
+    prefrontal = PrefrontalAgent(capacity=10)
+    
+    # 4. Amygdala (needs hippocampus and temporal lobe)
+    amygdala = AmygdalaAgent(
+        hippocampus_agent=hippocampus,
+        temporal_lobe_agent=temporal_lobe,
+        capacity=1000
+    )
+    
+    # 5. Basal Ganglia
+    basal_ganglia = BasalGangliaAgent(capacity=500)
+
+    agents = {
+        'hippocampus': hippocampus,
+        'temporal_lobe': temporal_lobe,
+        'prefrontal': prefrontal,
+        'amygdala': amygdala,
+        'basal_ganglia': basal_ganglia
+    }
+
+    components = {
+        'memory_system': memory_system,
+        'agents': agents,
+        'message_bus': None # Optional
+    }
 
     # Initialize BMAM coordinator
-    coordinator = BrainInspiredCoordinator()
+    coordinator = BrainInspiredCoordinatorV3_HRM(
+        container=container,
+        config=config,
+        components=components
+    )
     await coordinator.initialize()
 
     # Create and start web server

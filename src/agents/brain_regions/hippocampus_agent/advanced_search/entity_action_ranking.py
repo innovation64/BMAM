@@ -20,7 +20,7 @@ class EntityActionRanker:
     实体-动作排序器 (Entity-Action Ranker)
 
     Key | 关键:
-    - 区分 "Caroline研究adoption" vs "他人研究气候"
+    - 区分 "PersonA研究主题X" vs "他人研究主题Y"
     - 精确匹配 entity-action-object 三元组
     """
 

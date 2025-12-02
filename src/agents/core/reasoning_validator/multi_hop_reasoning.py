@@ -24,7 +24,7 @@ class MultiHopReasoningMixin:
         Multi-hop推理: 需要连接多条证据
 
         🧠 NEW: 协作推理架构
-        - Reflection Agent: 识别抽象pattern,跨记忆推理 (如Q3: "LGBTQ group" → "helping profession")
+        - Reflection Agent: 识别抽象pattern,跨记忆推理 (如Q3: "community group" → "helping profession")
         - Reasoning Validator: 验证和综合reflection结果
         """
 

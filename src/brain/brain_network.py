@@ -69,8 +69,13 @@ class BrainNetwork:
         # 全局工作区 (Global Workspace) - 存储各脑区的输出
         self.workspace = {}
 
-        # 🧠 分布式记忆系统 - 每个脑区存储不同类型记忆
-        self.distributed_memory = get_distributed_memory()
+        # 🧠 键值记忆系统 - 替代旧的分布式记忆
+        from ..memory.key_value_stores import KeyValueMemoryStore
+        self.memory_store = KeyValueMemoryStore(
+            value_store_path="data/brain_memory.db",
+            enable_vector_index=True
+        )
+        self.distributed_memory = None  # Deprecated
 
         # 🔥 NEW: Brain-region collaboration modules
         self.region_activation = RegionActivationDynamics()
@@ -157,8 +162,9 @@ class BrainNetwork:
 
     def set_memory_system(self, memory_system):
         """设置记忆系统 (用于HippocampalPrefrontalLoop)"""
+        # 兼容旧接口，如果是KeyValueMemoryStore则直接使用
         self.hippocampal_loop = HippocampalPrefrontalLoop(
-            memory_system=memory_system
+            memory_system=self.memory_store  # Always use the internal KeyValueMemoryStore
         )
         logger.debug("🧠 HippocampalPrefrontalLoop initialized with memory system")
 

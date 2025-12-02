@@ -64,7 +64,7 @@ Task: Determine what TYPE OF INFORMATION this memory contains (not just keywords
 Semantic Types:
 - episodic: Specific event that happened (time, place, what happened)
 - semantic: Facts, knowledge, identity information (who someone is, what they know)
-- identity: Core identity characteristics (transgender, veteran, profession, etc.)
+- identity: Core identity characteristics (personal identity, background, profession, etc.)
 - procedural: How to do something, skills, procedures
 - social: Social relationships, community connections
 

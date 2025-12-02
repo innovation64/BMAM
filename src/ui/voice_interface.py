@@ -13,7 +13,7 @@ import tempfile
 from typing import Optional, Callable, Dict, Any, Tuple
 from dataclasses import dataclass
 from datetime import datetime
-import numpy as np
+import math
 from shutil import which
 
 # Audio processing libraries (to be installed)
@@ -65,14 +65,22 @@ class VoiceActivityDetector:
 
     def is_silent(self, audio_data: bytes) -> bool:
         """Check if audio chunk is silent"""
-        # Convert bytes to numpy array
-        audio_array = np.frombuffer(audio_data, dtype=np.int16)
+        # Convert bytes to integers
+        count = len(audio_data) // 2
+        if count == 0:
+            return True
+            
+        try:
+            audio_array = struct.unpack(f"{count}h", audio_data)
+        except struct.error:
+            return True
 
-        if audio_array.size == 0:
+        if not audio_array:
             return True
 
         # Calculate RMS (Root Mean Square)
-        rms = np.sqrt(np.mean(audio_array ** 2))
+        sum_squares = sum(x * x for x in audio_array)
+        rms = math.sqrt(sum_squares / len(audio_array))
 
         return rms < self.config.silence_threshold
 
@@ -100,13 +108,21 @@ class AudioProcessor:
     @staticmethod
     def get_amplitude(audio_data: bytes) -> float:
         """Get normalized amplitude from audio data"""
-        audio_array = np.frombuffer(audio_data, dtype=np.int16)
+        # Convert bytes to integers
+        count = len(audio_data) // 2
+        if count == 0:
+            return 0.0
+            
+        try:
+            audio_array = struct.unpack(f"{count}h", audio_data)
+        except struct.error:
+            return 0.0
 
-        if audio_array.size == 0:
+        if not audio_array:
             return 0.0
 
         # Calculate amplitude (0-1)
-        max_val = np.max(np.abs(audio_array))
+        max_val = max(abs(x) for x in audio_array)
         normalized = max_val / 32768.0  # Normalize to 0-1
 
         return min(1.0, normalized)
@@ -114,13 +130,21 @@ class AudioProcessor:
     @staticmethod
     def apply_filters(audio_data: bytes) -> bytes:
         """Apply noise reduction filters"""
-        audio_array = np.frombuffer(audio_data, dtype=np.int16).copy()
-
-        # Simple noise gate
-        threshold = 100
-        audio_array[np.abs(audio_array) < threshold] = 0
-
-        return audio_array.tobytes()
+        # Simple noise gate using struct
+        count = len(audio_data) // 2
+        if count == 0:
+            return audio_data
+            
+        try:
+            audio_array = list(struct.unpack(f"{count}h", audio_data))
+            
+            # Simple noise gate
+            threshold = 100
+            filtered_array = [0 if abs(x) < threshold else x for x in audio_array]
+            
+            return struct.pack(f"{count}h", *filtered_array)
+        except struct.error:
+            return audio_data
 
 
 class SpeechToTextEngine:

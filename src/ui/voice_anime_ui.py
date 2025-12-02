@@ -9,7 +9,8 @@ from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
 from datetime import datetime
-import numpy as np
+import math
+import random
 
 
 class CharacterState(Enum):
@@ -105,7 +106,7 @@ class AnimeCharacterController:
         """Update character animation state"""
         # Natural blinking
         self.blink_timer += delta_time
-        blink_interval = 3.0 + np.random.uniform(-0.5, 0.5)
+        blink_interval = 3.0 + random.uniform(-0.5, 0.5)
         eye_openness = 1.0
         if self.blink_timer > blink_interval:
             eye_openness = 0.1
@@ -114,15 +115,15 @@ class AnimeCharacterController:
 
         # Breathing animation
         self.breath_timer += delta_time
-        body_bounce = np.sin(self.breath_timer * 0.5) * 0.02
+        body_bounce = math.sin(self.breath_timer * 0.5) * 0.02
 
         # Mouth sync for speaking
         mouth_openness = 0.0
         if self.is_speaking:
-            mouth_openness = abs(np.sin(self.breath_timer * 8)) * 0.7
+            mouth_openness = abs(math.sin(self.breath_timer * 8)) * 0.7
 
         # Head movement for engagement
-        head_tilt = np.sin(self.breath_timer * 0.3) * 0.1
+        head_tilt = math.sin(self.breath_timer * 0.3) * 0.1
 
         return AnimationFrame(
             state=self.current_state,
@@ -132,8 +133,8 @@ class AnimeCharacterController:
             head_tilt=head_tilt,
             body_bounce=body_bounce,
             arm_position=(
-                np.sin(self.breath_timer * 0.4) * 0.1,
-                -np.sin(self.breath_timer * 0.4) * 0.1
+                math.sin(self.breath_timer * 0.4) * 0.1,
+                -math.sin(self.breath_timer * 0.4) * 0.1
             )
         )
 
@@ -227,8 +228,8 @@ class VoiceWaveformVisualizer:
 
     def __init__(self, num_bars: int = 32):
         self.num_bars = num_bars
-        self.bar_heights = np.zeros(num_bars)
-        self.target_heights = np.zeros(num_bars)
+        self.bar_heights = [0.0] * num_bars
+        self.target_heights = [0.0] * num_bars
         self.smoothing = 0.15
         self.is_active = False
 
@@ -236,20 +237,22 @@ class VoiceWaveformVisualizer:
         """Update waveform visualization"""
         if self.is_active and audio_amplitude > 0:
             # Generate wave pattern
+            # Generate wave pattern
             for i in range(self.num_bars):
-                wave = np.sin((i / self.num_bars) * np.pi * 2 + delta_time * 5)
+                wave = math.sin((i / self.num_bars) * math.pi * 2 + delta_time * 5)
                 self.target_heights[i] = abs(wave) * audio_amplitude
         else:
-            self.target_heights *= 0.9  # Decay when inactive
+            self.target_heights = [h * 0.9 for h in self.target_heights]  # Decay when inactive
 
         # Smooth transitions
-        self.bar_heights += (self.target_heights - self.bar_heights) * self.smoothing
+        for i in range(self.num_bars):
+            self.bar_heights[i] += (self.target_heights[i] - self.bar_heights[i]) * self.smoothing
 
     def set_active(self, active: bool):
         """Set waveform active state"""
         self.is_active = active
         if not active:
-            self.target_heights = np.zeros(self.num_bars)
+            self.target_heights = [0.0] * self.num_bars
 
 
 class ChatBubbleRenderer:
@@ -377,7 +380,7 @@ class VoiceAnimeUI:
         return {
             'character': animation_frame,
             'memories': self.memory_panel.get_visible_memories(),
-            'waveform': self.waveform.bar_heights.tolist(),
+            'waveform': self.waveform.bar_heights,
             'chat_bubble': {
                 'text': self.chat_bubble.display_text,
                 'alpha': self.chat_bubble.bubble_alpha,

@@ -75,11 +75,11 @@ Information Types (what information does this question ask for?):
 Task: Identify what TYPE OF INFORMATION the question is asking for (not the answer itself).
 
 Examples:
-- "What is Caroline's identity?" → personal_identity
-- "What community did Caroline engage with?" → community_affiliation
-- "What fields would Caroline pursue?" → educational_interest
-- "When did Caroline go?" → temporal_event
-- "What did Caroline research?" → activity_info
+- "What is Person's identity?" → personal_identity
+- "What community did Person engage with?" → community_affiliation
+- "What fields would Person pursue?" → educational_interest
+- "When did Person go?" → temporal_event
+- "What did Person research?" → activity_info
 
 Important: Focus on WHAT TYPE OF INFO is being asked, not specific keywords.
 

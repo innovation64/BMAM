@@ -51,15 +51,15 @@ class MemoryArchive:
     Example:
         # Create archive
         archive = MemoryArchive.create(
-            name="locomo_baseline",
+            name="memory_baseline",
             source_db_path=Path("data/brain_memory.db"),
             output_dir=Path("archives/"),
-            description="LoCoMo conversation baseline",
+            description="Memory snapshot baseline",
             tags=["baseline", "test"]
         )
 
         # Load archive
-        archive = MemoryArchive(Path("archives/locomo_baseline.bma"))
+        archive = MemoryArchive(Path("archives/memory_baseline.bma"))
         validation = archive.validate()
         if validation['valid']:
             archive.load(target_dir=Path("data/"))

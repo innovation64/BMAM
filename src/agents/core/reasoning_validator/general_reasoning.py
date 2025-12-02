@@ -129,13 +129,13 @@ Available Memories:
 Task: Extract the DIRECT answer from memories. This is a simple fact retrieval task.
 
 Examples:
-- Question: "What is Caroline's relationship status?"
-  Memory: "Caroline is single and has had her friends for 4 years."
+- Question: "What is Person's relationship status?"
+  Memory: "Person is single and has had their friends for 4 years."
   Answer: "single"
 
-- Question: "Where did Caroline move from?"
-  Memory: "Caroline moved from Sweden 4 years ago."
-  Answer: "Sweden"
+- Question: "Where did Person move from?"
+  Memory: "Person moved from CountryX 4 years ago."
+  Answer: "CountryX"
 
 Instructions:
 1. Find the memory that directly answers the question

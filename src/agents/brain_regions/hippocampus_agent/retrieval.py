@@ -110,7 +110,7 @@ def extract_event_keywords(query: str) -> List[str]:
         'graduation', 'ceremony', 'interview', 'appointment', 'class',
         'workshop', 'conference', 'seminar', 'lecture', 'presentation',
         # 社交类
-        'support group', 'lgbtq', 'charity', 'volunteer', 'mentors',
+        'support group', 'community group', 'charity', 'volunteer', 'mentors',
         'friends', 'family', 'colleagues', 'school', 'university',
         # 创作类
         'paint', 'painted', 'painting', 'sunrise', 'art', 'research',
@@ -190,7 +190,7 @@ class RetrievalMixin:
 
         优化点:
         1. 自动从查询中提取实体
-        2. 实体匹配权重提升 (解决Caroline/Melanie混淆问题)
+        2. 实体匹配权重提升 (解决实体混淆问题)
         3. 支持Pattern Separation辨别性特征
 
         Args:
@@ -355,7 +355,7 @@ class RetrievalMixin:
                     semantic_score = self._cosine_similarity(query_embedding, mem.embedding)
 
                 # 🔥 新增: 实体匹配分数 (关键优化点!)
-                # 解决Caroline/Melanie混淆问题
+                # 解决实体混淆问题
                 entity_score = 0.0
                 if query_entities:
                     # 获取记忆中的实体

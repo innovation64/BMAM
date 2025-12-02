@@ -682,8 +682,8 @@ class BrainInspiredCoordinator:
 
         Example:
             result = coordinator.export_memory_archive(
-                archive_name="locomo_baseline",
-                description="LoCoMo conversation memory after 500 turns",
+                archive_name="memory_baseline",
+                description="Memory snapshot after training",
                 tags=["baseline", "test"],
                 include_faiss=True
             )
@@ -791,7 +791,7 @@ class BrainInspiredCoordinator:
         Example:
             # Load baseline memory
             result = coordinator.load_memory_archive(
-                archive_path=Path("archives/locomo_baseline.bma"),
+                archive_path=Path("archives/memory_baseline.bma"),
                 validate=True
             )
 
@@ -934,7 +934,7 @@ class BrainInspiredCoordinator:
 
         Example:
             validation = coordinator.validate_memory_archive(
-                archive_path=Path("archives/locomo_baseline.bma"),
+                archive_path=Path("archives/memory_baseline.bma"),
                 check_checksums=True
             )
 
@@ -1023,6 +1023,14 @@ class BrainInspiredCoordinator:
             'what fields', 'what areas', 'what type'
         ]
 
+        # 🔥 Temporal question patterns - require cross-memory reasoning
+        # "When did X..." needs to combine conversation date + relative time
+        temporal_patterns = [
+            'when did', 'when is', 'when was', 'when will', 'what date',
+            'what time', 'how long ago', 'how many days', 'how many years'
+        ]
+        has_temporal_pattern = any(pattern in query_lower for pattern in temporal_patterns)
+
         has_high_priority = any(kw in query_lower for kw in high_priority_keywords)
         has_inference_pattern = any(pattern in query_lower for pattern in inference_patterns)
 
@@ -1033,12 +1041,14 @@ class BrainInspiredCoordinator:
         # Trigger reasoning chain if:
         # 1. Has high-priority inference keywords (e.g., "identity", "likely"), OR
         # 2. Has inference pattern (e.g., "what is"), OR
-        # 3. Starts with reasoning question + has proper nouns (names in query)
+        # 3. Starts with reasoning question + has proper nouns (names in query), OR
+        # 4. 🔥 Has temporal pattern (e.g., "when did") - needs cross-memory date calculation
         has_proper_nouns = any(word[0].isupper() for word in query.split() if len(word) > 1)
 
         should_use = (
             has_high_priority or
             has_inference_pattern or
+            has_temporal_pattern or  # 🔥 NEW: temporal questions need reasoning chain
             (starts_with_reasoning and has_proper_nouns)
         )
 

@@ -378,7 +378,7 @@ async def demo_learnable_router():
 
     # 测试查询
     test_queries = [
-        "Caroline什么时候参加的LGBTQ支持群?",  # 期望: hippocampus (时间)
+        "Person什么时候参加的活动?",  # 期望: hippocampus (时间)
         "她的教育背景是什么?",  # 期望: temporal_lobe (知识)
         "她现在的情绪状态如何?",  # 期望: amygdala (情绪)
         "总结一下最近的对话",  # 期望: short_term_memory
@@ -393,7 +393,7 @@ async def demo_learnable_router():
     # 模拟反馈学习
 
     feedback_examples = [
-        ("Caroline什么时候参加的LGBTQ支持群?", ['hippocampus'], True, 1.0),
+        ("Person什么时候参加的活动?", ['hippocampus'], True, 1.0),
         ("她的教育背景是什么?", ['temporal_lobe'], True, 0.9),
         ("她现在的情绪状态如何?", ['amygdala'], True, 0.95),
         ("总结一下最近的对话", ['short_term_memory'], True, 0.85),

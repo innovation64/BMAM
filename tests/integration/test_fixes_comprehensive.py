@@ -14,7 +14,7 @@ sys.path.insert(0, str(project_root))
 
 from src.agents.core.perception_encoding import EnhancedPerceptionEncodingAgent
 from src.agents.base import AgentMessage
-from src.coordination.brain_coordinator import BrainInspiredCoordinator
+from src.coordination.brain_coordinator_refactored import BrainInspiredCoordinator
 from src.utils.config import get_logger
 
 logger = get_logger(__name__)

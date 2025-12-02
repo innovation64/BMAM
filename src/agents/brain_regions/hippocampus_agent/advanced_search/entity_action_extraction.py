@@ -32,8 +32,8 @@ class EntityActionExtractor:
         提取实体和动作 - Extract Entity and Action
 
         Examples | 示例:
-        - "Caroline研究什么?" → entity=Caroline, action=研究
-        - "谁参加了LGBTQ?" → entity=None, action=参加
+        - "PersonA研究什么?" → entity=PersonA, action=研究
+        - "谁参加了活动?" → entity=None, action=参加
 
         Args:
             query: 查询文本
@@ -67,13 +67,13 @@ class EntityActionExtractor:
 查询: "{query}"
 
 提取:
-1. **实体** (Entity): 人物/组织 (如"Caroline", "Alice")
+1. **实体** (Entity): 人物/组织 (如"PersonA", "PersonB")
    - 如果查询是"谁..."，则entity=null
 2. **动作** (Action): 关键行为 (如"研究", "参加", "买")
    - 理解语义，不只匹配动词
 3. **对象** (Object): 动作对象
    - "研究什么?" → object=unknown
-   - "参加LGBTQ" → object=LGBTQ
+   - "参加活动" → object=活动
 
 返回JSON:
 {{

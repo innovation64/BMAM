@@ -28,7 +28,7 @@ class Entity:
     attributes: Dict[str, Any] = field(default_factory=dict)
     relations: Dict[str, List[str]] = field(default_factory=lambda: defaultdict(list))
     # relations格式: {relation_type: [target_entity_names]}
-    # 例如: {"attended": ["LGBTQ_group"], "interested_in": ["counseling"]}
+    # 例如: {"attended": ["event_name"], "interested_in": ["topic"]}
 
 
 class TemporalConceptGraph:
@@ -62,7 +62,7 @@ class TemporalConceptGraph:
         添加实体
 
         Args:
-            name: 实体名称 "Caroline"
+            name: 实体名称 "PersonA"
             entity_type: 实体类型 "Person"
             attributes: 属性 {"age": 25}
         """
@@ -89,9 +89,9 @@ class TemporalConceptGraph:
         添加关系
 
         Args:
-            source: 源实体 "Caroline"
+            source: 源实体 "PersonA"
             relation: 关系类型 "attended"
-            target: 目标实体 "LGBTQ_group"
+            target: 目标实体 "event_name"
             source_type: 源实体类型 (如果不存在则创建)
             target_type: 目标实体类型 (如果不存在则创建)
         """
@@ -351,8 +351,8 @@ class TemporalConceptGraph:
             匹配的三元组列表
 
         Example:
-            query_by_pattern(subject_pattern="Caroline", relation_pattern="attended")
-            # 返回所有 Caroline attended X 的关系
+            query_by_pattern(subject_pattern="PersonA", relation_pattern="attended")
+            # 返回所有 PersonA attended X 的关系
         """
         results = []
 

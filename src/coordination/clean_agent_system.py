@@ -176,49 +176,39 @@ class ConversationAgent(BrainAgent):
             # ✅ P0: Benchmark模式根据检测语言自适应prompt
             if detected_language == 'en':
                 if relevant_memories:
-                    # ✅ P0-CRITICAL: Detect identity questions and force inference
+                    # ✅ P0-CRITICAL: Detect identity questions (通用检测，不针对特定类型)
                     is_identity_question = any(word in user_input.lower() for word in ['identity', '身份', 'who is', 'what is'])
-                    has_lgbtq_context = any(keyword in str(relevant_memories).lower() for keyword in ['transgender', 'lgbtq', 'lgbt', 'queer', 'gay'])
 
                     # ✅ DEBUG: Log detection results
                     import logging
                     logger = logging.getLogger(__name__)
-                    logger.debug(f"🔍 Identity detection: is_identity={is_identity_question}, has_lgbtq={has_lgbtq_context}")
-                    if has_lgbtq_context:
-                        logger.debug(f"🔍 LGBTQ keywords found in memories!")
+                    logger.debug(f"🔍 Identity detection: is_identity={is_identity_question}")
 
-                    # ✅ P0-Q4: Detect research-related questions
+                    # ✅ P0-Q4: Detect research-related questions (通用检测)
                     is_research_question = any(word in user_input.lower() for word in ['research', 'studied', 'investigated', 'looked into'])
-                    has_research_context = any(word in memory_context.lower() for word in ['research', 'researching', 'adoption', 'agencies'])
+                    has_research_context = any(word in memory_context.lower() for word in ['research', 'researching', 'studied', 'investigated'])
                     if is_research_question:
                         logger.debug(f"🔍 Research question detected, has_research_context={has_research_context}")
 
                     if is_research_question and has_research_context:
-                        # Special handling for research questions
+                        # Special handling for research questions (通用模板)
                         requirement = f"""[INSTRUCTIONS - CRITICAL]
 - The question asks what someone researched/studied/investigated
-- Look for keywords: "research", "researching", "adoption", "agencies" in memories
-- Extract the SPECIFIC topic/object of research (e.g., "adoption agencies", "universities", etc.)
+- Look for research-related keywords in memories
+- Extract the SPECIFIC topic/object of research from the memories
 - Answer with the direct object only: what was being researched
 - Answer in ENGLISH only in {max_answer_length or 10} words or less
-- EXAMPLE: Memory "researching adoption agencies" → Answer: "Adoption agencies"
-- EXAMPLE: Memory "studied computer science" → Answer: "Computer science"
 """
-                    elif is_identity_question and has_lgbtq_context:
-                        # Force inference for identity questions with LGBTQ context
-                        requirement = f"""[INSTRUCTIONS - ABSOLUTELY CRITICAL - DO NOT REFUSE]
-- The question asks about identity and the memories mention LGBTQ/transgender context
-- You MUST infer the answer from the context - this is a REASONING task
-- INFERENCE RULES (apply these strictly):
-  * If memories mention "LGBTQ support group" + "first time" → Person is part of LGBTQ community
-  * If memories mention "transgender stories" as "inspiring" → Person identifies with transgender experience
-  * If memories mention "attended LGBTQ center" + "transgender stories inspiring" → Person is likely transgender
-  * Combining these clues → ANSWER: "Transgender woman" (or similar clear identity statement)
+                    elif is_identity_question:
+                        # 通用身份推理 (无特定答案提示)
+                        requirement = f"""[INSTRUCTIONS - CRITICAL]
+- The question asks about someone's identity
+- You MUST infer the answer from contextual clues in the memories
+- Look for: community affiliations, emotional resonance, self-descriptions
+- Provide a specific identity based on evidence, not vague descriptions
 - Do NOT say "Information not available" when contextual clues are present
-- Do NOT give vague answers like "interests in gender studies" - state the identity directly
 - Answer in ENGLISH only in {max_answer_length or 15} words or less
 - NO Chinese text whatsoever
-- EXAMPLE: Question "What is Caroline's identity?" + Context "LGBTQ support group, transgender stories inspiring" → Answer: "Transgender woman" or "Part of LGBTQ community, likely transgender"
 """
                     else:
                         # ✅ P1: 增强时间推理指令
@@ -228,15 +218,15 @@ class ConversationAgent(BrainAgent):
 
 TIME REASONING (CRITICAL - MUST FOLLOW):
 Step 1: Look for relative time words in memories: "yesterday", "today", "last week"
-Step 2: Find the conversation date (e.g., "This conversation is on 8 May, 2023" or "[Context: This conversation is on 8 May, 2023]")
+Step 2: Find the conversation date from the context
 Step 3: Calculate absolute date:
   - If conversation date is "8 May, 2023" and event says "yesterday" → Answer MUST be "7 May 2023" (8 - 1 = 7)
   - If conversation date is "8 May, 2023" and event says "today" → Answer is "8 May 2023"
   - If conversation date is "25 May, 2023" and event says "last Sunday" → Calculate to actual date
 
 EXAMPLE:
-Memory: "[Context: This conversation is on 8 May, 2023] Caroline: I went to a LGBTQ support group yesterday"
-Question: "When did Caroline go to the LGBTQ support group?"
+Memory: "[Context: Date 8 May, 2023] Person: I attended an event yesterday"
+Question: "When did Person attend the event?"
 CORRECT Answer: "7 May 2023" (because 8 May - 1 day = 7 May)
 WRONG Answer: "8 May 2023" ❌"""
 
@@ -255,8 +245,8 @@ WRONG Answer: "8 May 2023" ❌"""
                     requirement = f"""[INSTRUCTIONS - CRITICAL]
 - Answer in ENGLISH only
 - If you don't know: Say "I don't have information about [the question topic]."
-  * Example: Question "When did Melanie paint a sunrise?" → Answer: "I don't have information about when Melanie painted a sunrise."
-  * Example: Question "What is John's age?" → Answer: "I don't have information about John's age."
+  * Example: Question "When did X do Y?" → Answer: "I don't have information about when X did Y."
+  * Example: Question "What is X's age?" → Answer: "I don't have information about X's age."
 - DO NOT just say "Information not available" - repeat key terms from the question
 - Be concise but complete: 8-15 words
 - NO emojis, NO greetings"""
@@ -479,17 +469,18 @@ WRONG Answer: "8 May 2023" ❌"""
         # 过滤低分记忆
         relevant = [item for item in scored_memories if item['score'] >= dynamic_threshold]
 
-        # ✅ P0-CRITICAL: For identity questions, always include LGBTQ/transgender memories
-        # Even if they have low similarity scores
+        # ✅ P0-CRITICAL: For identity questions, include community/group-related memories
+        # Even if they have low similarity scores (通用化：不针对特定身份类型)
         is_identity_query = any(word in user_input.lower() for word in ['identity', '身份', 'who is'])
         if is_identity_query:
-            lgbtq_keywords = ['transgender', 'lgbtq', 'lgbt', 'queer', 'gay', 'gender', '支持小组']
+            # 通用身份相关关键词 (社群、团体、自我描述)
+            identity_keywords = ['community', 'group', 'support', 'identify', 'member', 'belong', '社群', '支持小组']
             for item in scored_memories:
                 content_lower = item['content'].lower()
-                if any(kw in content_lower for kw in lgbtq_keywords):
+                if any(kw in content_lower for kw in identity_keywords):
                     if item not in relevant:
                         relevant.append(item)
-                        logger.debug(f"🔍 Forcibly included LGBTQ-related memory for identity question: {item['content'][:60]}...")
+                        logger.debug(f"🔍 Forcibly included identity-related memory for identity question: {item['content'][:60]}...")
 
         # 🔥 NEW: For temporal questions, use query intent matching to boost/demote memories
         if query_intent == 'temporal':
@@ -505,8 +496,8 @@ WRONG Answer: "8 May 2023" ❌"""
                     item['score'] += WEIGHTS.get('query_intent_bonus', 3.0)
                     logger.debug(f"📅 Boosted temporal memory: {content[:60]}...")
 
-                # Demote: 仅包含身份信息但无时间信息的记忆
-                identity_indicators = ['transgender', 'identity', 'who is', 'what is']
+                # Demote: 仅包含身份信息但无时间信息的记忆 (通用指标)
+                identity_indicators = ['identity', 'who is', 'what is', 'belong to', 'member of']
                 has_identity_only = any(ind in content_lower for ind in identity_indicators) and not has_temporal_info
                 if has_identity_only:
                     item['score'] -= WEIGHTS.get('keyword_match', 1.0)

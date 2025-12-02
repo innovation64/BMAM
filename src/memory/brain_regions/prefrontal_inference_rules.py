@@ -161,38 +161,12 @@ def init_default_rules() -> PrefrontalInferenceRules:
     """
     初始化默认推理规则
 
-    这些规则模拟人类的常识推理
+    ⚠️ 2025-12-02: 已移除所有数据集特定规则
+    保留通用规则框架，具体推理由LLM动态处理
     """
     rules = PrefrontalInferenceRules()
 
-    # 规则1: LGBTQ group参与 → 身份线索
-    rules.add_rule(
-        name="lgbtq_participation_inference",
-        condition=lambda f: any('LGBTQ' in str(e) for e in f.get('events', [])),
-        conclusion="Identity clue: LGBTQ+ related (participation in LGBTQ activities)",
-        confidence=0.6
-    )
-
-    # 规则2: transgender stories共鸣 + 高情绪 → 强线索
-    rules.add_rule(
-        name="transgender_resonance_inference",
-        condition=lambda f: (
-            any('transgender' in str(e).lower() for e in f.get('events', [])) and
-            f.get('emotion_intensity', 0) > 0.7
-        ),
-        conclusion="Strong identity clue: transgender (high emotional resonance with transgender content)",
-        confidence=0.85
-    )
-
-    # 规则3: 多次LGBTQ相关活动 → 确认身份
-    rules.add_rule(
-        name="repeated_lgbtq_activity_inference",
-        condition=lambda f: len([e for e in f.get('events', []) if 'LGBTQ' in str(e)]) >= 3,
-        conclusion="Confirmed: LGBTQ+ identity (repeated engagement with LGBTQ+ activities)",
-        confidence=0.9
-    )
-
-    # 规则4: 时间推理 - 如果提到"昨天"且有日期信息
+    # 规则1: 时间推理 - 如果提到"昨天"且有日期信息 (通用)
     rules.add_rule(
         name="temporal_yesterday_inference",
         condition=lambda f: 'yesterday' in f.get('query', '').lower() and f.get('current_date'),
@@ -200,16 +174,20 @@ def init_default_rules() -> PrefrontalInferenceRules:
         confidence=0.95
     )
 
-    # 规则5: 身份隐私推理 - 高情绪+LGBTQ → 可能是隐私话题
+    # 规则2: 社群参与推理 (通用 - 不针对特定社群)
     rules.add_rule(
-        name="identity_privacy_inference",
-        condition=lambda f: (
-            f.get('emotion_intensity', 0) > 0.8 and
-            any('LGBTQ' in str(e) or 'identity' in str(e).lower() for e in f.get('events', []))
-        ),
-        conclusion="Privacy consideration: identity topic with high emotional significance",
-        confidence=0.75
+        name="community_participation_inference",
+        condition=lambda f: any('group' in str(e).lower() or 'community' in str(e).lower() for e in f.get('events', [])),
+        conclusion="Identity clue: community involvement detected",
+        confidence=0.6
     )
 
+    # 规则3: 高情绪事件推理 (通用)
+    rules.add_rule(
+        name="high_emotion_event_inference",
+        condition=lambda f: f.get('emotion_intensity', 0) > 0.8,
+        conclusion="High emotional significance detected - likely important personal event",
+        confidence=0.7
+    )
 
     return rules

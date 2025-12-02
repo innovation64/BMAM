@@ -13,6 +13,7 @@ from pathlib import Path
 from datetime import datetime
 import os
 import sys
+import pytest
 
 # Add src to path
 BMAM_ROOT = Path(__file__).parent.parent.parent
@@ -22,6 +23,7 @@ os.chdir(str(BMAM_ROOT))
 from src.agents.environment.environment_agent import EnvironmentAgent
 from src.agents.core.memory_retrieval import MemoryRetrievalAgent
 from src.memory.memory_system import memory_system
+from src.coordination.brain_coordinator_refactored import BrainInspiredCoordinator
 
 
 class TestExternalExplorationIntegration:

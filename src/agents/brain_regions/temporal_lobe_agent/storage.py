@@ -11,6 +11,7 @@ import pickle
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Any, Optional, Tuple, Set
+import numpy as np
 
 from .data_models import SemanticMemory, MemoryType
 
@@ -260,6 +261,19 @@ class StorageMixin:
         self.memory_dict[memory.id] = memory
 
         logger.debug(f"📥 [TemporalLobe] Added to self.memories, total count={len(self.memories)}")
+
+        # 🧠 Key-Value Store Integration
+        if self.memory_store:
+            self.memory_store.store(
+                memory_id=memory.id,
+                content=memory.content,
+                vector=np.array(memory.embedding) if memory.embedding else None,
+                entities=memory.entities,
+                timestamp=memory.timestamp,
+                relations=memory.relations,
+                details=memory.metadata,
+                importance=memory.importance
+            )
 
         # 🔥 自动持久化到SQLite数据库
         try:

@@ -234,26 +234,41 @@ class OpenAIEmbeddingService:
         else:
             return await self._compute_embedding(text)
     
-    async def _compute_embedding(self, text: str) -> np.ndarray:
+    async def _compute_embedding(self, text: str, max_retries: int = 3) -> np.ndarray:
         """
-        Actually compute embedding from OpenAI API
-        实际调用OpenAI API计算嵌入向量
+        Actually compute embedding from OpenAI API with retry
+        实际调用OpenAI API计算嵌入向量，带重试机制
         """
-        try:
-            # 每次都动态获取客户端，避免跨事件循环问题
-            client = await shared_client_manager.get_embedding_client()
-                
-            # 让OpenAI客户端自己处理重试，我们不再手动重试
-            response = await client.embeddings.create(
-                model=self.model,
-                input=text,
-                dimensions=self.dimension
-            )
-            
-            embedding = response.data[0].embedding
-            return np.array(embedding, dtype=np.float32)
-            
-        except Exception as e:
+        import asyncio
+        import openai
+
+        last_error = None
+        for attempt in range(max_retries):
+            try:
+                # 每次都动态获取客户端，避免跨事件循环问题
+                client = await shared_client_manager.get_embedding_client()
+
+                response = await client.embeddings.create(
+                    model=self.model,
+                    input=text,
+                    dimensions=self.dimension
+                )
+
+                embedding = response.data[0].embedding
+                return np.array(embedding, dtype=np.float32)
+
+            except (openai.APIConnectionError, ConnectionError) as e:
+                last_error = e
+                wait_time = 2 ** attempt  # 指数退避: 1s, 2s, 4s
+                logger.warning(f"连接错误 (尝试 {attempt+1}/{max_retries})，{wait_time}s后重试...")
+                await asyncio.sleep(wait_time)
+            except Exception as e:
+                last_error = e
+                break  # 其他错误不重试
+
+        # 所有重试失败
+        e = last_error
+        if e:
             # 准确记录异常类型和详细信息，避免misleading日志
             error_type = type(e).__name__
             error_msg = str(e)

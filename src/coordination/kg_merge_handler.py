@@ -164,16 +164,19 @@ class KGMergeHandler:
 
         return deduped
 
-    def load_locomo_kg_triples(self, kg_file_path: str = 'data/locomo_kg.json') -> List[Dict[str, Any]]:
+    def load_kg_triples(self, kg_file_path: str = None) -> List[Dict[str, Any]]:
         """
-        Load KG triples from LoCoMo JSON file
+        Load KG triples from JSON file
 
         Args:
-            kg_file_path: Path to KG JSON file
+            kg_file_path: Path to KG JSON file (default: from env or data/knowledge_graph.json)
 
         Returns:
             List of triple dicts
         """
+        import os
+        if kg_file_path is None:
+            kg_file_path = os.getenv('BMAM_KG_FILE', 'data/knowledge_graph.json')
         if self._kg_cache is not None:
             return self._kg_cache
 
@@ -200,7 +203,7 @@ class KGMergeHandler:
         self,
         query: str,
         entities: List[str],
-        kg_file_path: str = 'data/locomo_kg.json'
+        kg_file_path: str = None
     ) -> List[Dict[str, Any]]:
         """
         Query KG for facts related to entities
@@ -208,12 +211,12 @@ class KGMergeHandler:
         Args:
             query: Query text
             entities: List of entity names
-            kg_file_path: Path to KG file
+            kg_file_path: Path to KG file (default: from env or data/knowledge_graph.json)
 
         Returns:
             List of KG facts as memory dicts
         """
-        all_triples = self.load_locomo_kg_triples(kg_file_path)
+        all_triples = self.load_kg_triples(kg_file_path)
 
         if not all_triples:
             return []
@@ -228,9 +231,9 @@ class KGMergeHandler:
         work_predicates = ['works_at', 'occupation', 'job', 'profession']
         interest_predicates = ['likes', 'enjoys', 'interested_in', 'hobby', 'prefers']
 
-        # Location entities for filtering
-        location_names = ['yosemite', 'yellowstone', 'sequoia', 'sweden', 'norway',
-                         'denmark', 'san francisco', 'berkeley', 'oakland']
+        # Location entities for filtering (通用地名类型，不包含特定地名)
+        # 实际地名应由NER动态识别，这里仅保留地名类型关键词
+        location_names = []  # 2025-12-02: 移除硬编码地名列表，由NER动态识别
 
         # Family entities
         family_entities = ['kids', 'children', 'family', 'son', 'daughter']
@@ -325,7 +328,7 @@ class KGMergeHandler:
         Convert KG triple to pseudo-"memory" format
 
         Args:
-            triple: {'subject': 'Caroline', 'predicate': 'moved_from', 'object': 'Sweden'}
+            triple: {'subject': 'PersonA', 'predicate': 'moved_from', 'object': 'LocationX'}
 
         Returns:
             Pseudo-memory dict
@@ -350,7 +353,7 @@ class KGMergeHandler:
             'timestamp': datetime.now().isoformat(),
             'kg_enhanced': True,
             'metadata': {
-                'kg_source': 'locomo_kg.json',
+                'kg_source': 'knowledge_graph',
                 'triple': triple,
                 'retrieval_scores': {
                     'kg_direct': 1.0  # Mark as direct KG fact

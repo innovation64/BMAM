@@ -19,6 +19,8 @@ logger = logging.getLogger(__name__)
 from ...base import BrainAgent, AgentMessage, BrainRegion
 from ....utils.knowledge_graph_builder import KnowledgeGraphBuilder
 from ....memory.storage_adapter import MemoryStorageAdapter, StorageConfig
+from ....memory.key_value_stores import KeyValueMemoryStore
+from ....memory.brain_regions.hippocampal_event_graph import HippocampalEventGraph
 
 
 @dataclass
@@ -73,6 +75,12 @@ class HippocampusAgentCore(BrainAgent):
                 sync_on_store=True
             )
         )
+
+        # 🧠 Key-Value Memory Store Integration
+        self.memory_store = memory_system if isinstance(memory_system, KeyValueMemoryStore) else None
+        
+        # 🧠 Hippocampal Event Graph
+        self.event_graph = HippocampalEventGraph(enable_pattern_separation=True)
 
         # 🔥 内部记忆存储 (人一生容量)
         # Note: When use_global_storage=True, self.memories becomes a cache

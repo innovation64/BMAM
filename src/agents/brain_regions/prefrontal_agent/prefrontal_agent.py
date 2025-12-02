@@ -24,7 +24,9 @@ from .core_operations import CoreOperationsMixin
 from .task_coordination import TaskCoordinationMixin
 from .confidence_assessment import ConfidenceAssessmentMixin
 from .conflict_detection import ConflictDetectionMixin
+from .conflict_detection import ConflictDetectionMixin
 from .memory_compression import MemoryCompressionMixin
+from ....brain.prefrontal_controller import PrefrontalController
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +72,9 @@ class PrefrontalAgent(
         self.brain_coordinator = brain_coordinator  # 用于协调其他脑区
         self.current_task_stack: List[Dict[str, Any]] = []  # 任务栈
         self.reflection_history: List[Dict[str, Any]] = []  # 反思历史
+        
+        # 🧠 Prefrontal Controller (Meta-memory & Routing)
+        self.controller = PrefrontalController()
 
         # 统计信息
         self.total_stored = 0
@@ -135,6 +140,22 @@ class PrefrontalAgent(
 
         elif action == 'get_statistics':
             return self.get_statistics()
+            
+        # 🧠 Prefrontal Controller Actions
+        elif action == 'route_query':
+            # 需要传入其他脑区的引用，这里假设通过brain_coordinator获取或直接传入
+            # 为了简化，我们假设调用者会处理脑区引用，或者我们在controller中处理
+            # 这里我们暂时只返回controller的统计信息，实际路由逻辑可能需要在BrainNetwork层面调用
+            # 或者我们需要在PrefrontalAgent中持有其他脑区的引用(这可能导致循环引用)
+            
+            # 更好的方式是: PrefrontalAgent作为协调者，接收查询，然后调用BrainNetwork或其他Agent
+            # 但PrefrontalAgent目前没有直接持有其他Agent的引用(除了brain_coordinator)
+            
+            # 临时方案: 仅返回controller统计，实际路由逻辑在BrainNetwork中实现，或者由BrainCoordinator调用
+            pass
+            
+        elif action == 'get_meta_statistics':
+            return self.controller.get_statistics()
 
         return {'error': f'Unknown action: {action}'}
 

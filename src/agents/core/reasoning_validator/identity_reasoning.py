@@ -85,9 +85,9 @@ Task: Analyze evidence and infer identity using probabilistic reasoning.
 
 Step 1 - Extract Identity Clues:
 Look for:
-- Community affiliations (e.g., "LGBTQ support group")
-- Emotional resonance (e.g., "transgender stories inspiring")
-- Self-descriptive actions (e.g., "came out", "transition")
+- Community affiliations (support groups, organizations)
+- Emotional resonance with specific stories/topics
+- Self-descriptive actions and statements
 - Direct statements about identity
 
 Step 2 - Pattern Matching:
@@ -104,22 +104,19 @@ Calculate P(identity | evidence):
 - <0.5: Insufficient evidence
 
 Step 4 - Decision:
-- If confidence ≥ 0.5: Provide inferred identity with FULL DESCRIPTION (e.g., "transgender woman" not just "transgender")
+- If confidence ≥ 0.5: Provide inferred identity with FULL DESCRIPTION
 - If confidence < 0.5: Request more specific memories (return refined_query)
 
 🔥 IMPORTANT - Answer Format Requirements:
-- For gender identity: Include both identity AND gender (e.g., "transgender woman", "gay man", "non-binary person")
-- For LGBTQ identities: Be specific about the full identity when evidence supports it
-- Examples:
-  * Evidence: "LGBTQ group" + "transgender stories inspiring" → Answer: "transgender woman" (infer gender from context)
-  * Evidence: "gay pride" + "boyfriend" → Answer: "gay man"
-  * Evidence: "came out as non-binary" → Answer: "non-binary person"
+- Be specific about the full identity when evidence supports it
+- Include relevant descriptors (e.g., profession, background, characteristics)
+- Base your answer ONLY on the evidence in the memories
 
 Output JSON only:
 {{
     "clues_found": ["clue1", "clue2", ...],
     "pattern_matched": "description of pattern",
-    "answer": "FULL inferred identity with gender/specifics (e.g., 'transgender woman', or null if insufficient)",
+    "answer": "inferred identity based on evidence (or null if insufficient)",
     "confidence": 0.0-1.0,
     "reasoning_chain": ["step1", "step2", "conclusion"],
     "evidence_quality": "strong/moderate/weak",

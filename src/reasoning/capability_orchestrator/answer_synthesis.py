@@ -167,11 +167,11 @@ Verbose Answer: {verbose_answer}
 Task: Extract just the academic field/discipline names in a concise format.
 
 Examples:
-- "Caroline would likely pursue education in social work, community advocacy, or LGBTQ studies"
-  → "social work, community advocacy, LGBTQ studies"
+- "Person X would likely pursue education in field A, field B, or field C"
+  → "field A, field B, field C"
 
-- "She would be interested in psychology and counseling to help the transgender community"
-  → "psychology, counseling"
+- "They would be interested in discipline X and discipline Y"
+  → "discipline X, discipline Y"
 
 Rules:
 - Extract ONLY academic fields/disciplines

@@ -37,15 +37,17 @@ class KGMergeConfig:
     """
 
     important_keywords: Set[str] = field(default_factory=lambda: {
-        'sweden', 'beach', 'mountains', 'forest', 'nature', 'dinosaurs',
-        'camp', 'lake', 'river', 'ocean', 'desert', 'city', 'country',
-        'university', 'school', 'company', 'organization'
+        # 通用地点类 (不包含特定地名)
+        'beach', 'mountains', 'forest', 'nature', 'camp', 'lake',
+        'river', 'ocean', 'desert', 'city', 'country', 'town', 'village',
+        # 通用机构类
+        'university', 'school', 'company', 'organization', 'hospital',
+        'office', 'store', 'restaurant', 'hotel', 'museum'
     })
     """
-    重要关键词集合
+    重要关键词集合 (通用词，不针对特定数据集)
 
     即使对象很短（单个词），如果在这个集合中也保留
-    例如: "Alice visited Sweden" - Sweden 是重要实体
     """
 
     min_object_word_count: int = 2
@@ -245,10 +247,9 @@ class KGMergeConfig:
 # ============================================================================
 
 def get_default_config() -> KGMergeConfig:
-    """获取默认配置（当前生产配置）"""
-    # Phase 4 P1.3: 使用 LoCoMo 优化配置作为默认配置
-    # 原因：测试发现质量过滤过于严格，导致Q4的所有facts被过滤
-    return get_locomo_optimized_config()
+    """获取默认配置（通用配置，不针对特定数据集）"""
+    # 2025-12-02: 移除LoCoMo特定配置，使用通用平衡配置
+    return get_balanced_config()
 
 
 def get_conservative_config() -> KGMergeConfig:
@@ -315,14 +316,14 @@ def get_balanced_config() -> KGMergeConfig:
     )
 
 
-def get_locomo_optimized_config() -> KGMergeConfig:
+def get_high_kg_priority_config() -> KGMergeConfig:
     """
-    LoCoMo 优化配置
+    高KG优先级配置 (原 LoCoMo 优化配置，已移除特定关键词)
 
-    针对 LoCoMo 测试集优化的配置
-    - 保留地点相关的重要关键词
+    适用于KG质量较高的场景
+    - 通用关键词
     - 适中的质量过滤
-    - 高 KG 优先级（因为 LoCoMo KG 质量高）
+    - 较高 KG 优先级
     """
     return KGMergeConfig(
         low_quality_predicates={
@@ -330,18 +331,17 @@ def get_locomo_optimized_config() -> KGMergeConfig:
             'look', 'think', 'feel', 'say', 'tell'
         },
         important_keywords={
-            # 地点
-            'sweden', 'beach', 'mountains', 'forest', 'nature', 'dinosaurs',
-            'camp', 'lake', 'river', 'ocean', 'desert', 'city', 'country',
-            # 机构
-            'university', 'school', 'company', 'organization',
-            # LoCoMo 特定
-            'sunrise', 'sunset', 'painting', 'photography', 'art',
-            'adoption', 'agency', 'psychology', 'transgender'
+            # 通用地点类
+            'beach', 'mountains', 'forest', 'nature', 'camp', 'lake',
+            'river', 'ocean', 'desert', 'city', 'country', 'town',
+            # 通用机构类
+            'university', 'school', 'company', 'organization', 'hospital',
+            # 通用活动类
+            'art', 'music', 'sport', 'game', 'event', 'meeting'
         },
         min_object_word_count=2,
         overlap_threshold=0.7,
-        kg_fact_plasticity_score=2.5,  # 较高优先级（LoCoMo KG 质量高）
+        kg_fact_plasticity_score=2.5,  # 较高优先级
         max_merged_results=20,
         plasticity_top_k=15,  # 限制 top-k
         plasticity_score_threshold=0.2

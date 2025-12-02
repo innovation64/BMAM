@@ -5,6 +5,7 @@ Tests for Configuration Management
 
 import pytest
 import os
+from pathlib import Path
 from BMAM.src.core.config import (
     BMAMConfig,
     MemorySystemConfig,
@@ -13,6 +14,7 @@ from BMAM.src.core.config import (
     get_config,
     reset_config
 )
+from BMAM.src.utils.paths import BMAMPaths
 
 
 class TestMemorySystemConfig:
@@ -26,9 +28,9 @@ class TestMemorySystemConfig:
         assert config.embedding_dimension == 1536
         assert config.embedding_max_length == 8191
         assert config.enable_cache is True
-        assert config.cache_dir == "data/embedding_cache"
-        assert config.vector_db_index_path == "data/faiss_index"
-        assert config.database_url == "sqlite:///data/memories.db"
+        assert Path(config.cache_dir) == BMAMPaths.EMBEDDING_CACHE_DIR
+        assert Path(config.vector_db_index_path) == BMAMPaths.DATA_DIR / "faiss_index"
+        assert config.database_url == f"sqlite:///{BMAMPaths.BRAIN_MEMORY_DB}"
 
     def test_immutability(self):
         """Test config is immutable (frozen dataclass)"""

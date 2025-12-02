@@ -59,14 +59,12 @@ class BasicCapabilitiesMixin:
 - If asking "Who" → answer must be PERSON or IDENTITY
 - If asking "When" → answer must be TIME/DATE
 - If asking "What community" → answer must be COMMUNITY (generalize from specific groups)
-  Example: "LGBTQ support group" → community is "LGBTQ community"
 - If asking "What did X research" → extract the MAIN TOPIC (concise)
-  Example: "adoption agencies that support LGBTQ families" → "adoption agencies"
 
 **Abstraction Level**:
 - For "community" questions: generalize specific groups to broader communities
 - For "research" questions: extract core topic, not all details
-- Be concise: prefer "adoption agencies" over "adoption agencies that support LGBTQ families"
+- Be concise: extract the key topic only
 
 **Output JSON**:
 {{

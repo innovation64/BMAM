@@ -3,7 +3,7 @@
 """
 
 import asyncio
-from src.coordination.brain_coordinator import brain_coordinator
+from src.coordination.brain_coordinator_refactored import BrainInspiredCoordinator
 
 async def test_kg_switch():
     """测试KG开关"""
@@ -12,12 +12,16 @@ async def test_kg_switch():
     print("测试 KG 开关功能")
     print("=" * 60)
 
+    # Initialize coordinator
+    coordinator = BrainInspiredCoordinator()
+    await coordinator.initialize()
+
     # 测试1: 关闭KG增强检索
     print("\n📊 测试1: KG增强检索 = False")
     context1 = {
         'kg_enhanced_search': False
     }
-    result1 = await brain_coordinator.process_user_input("你好", context1)
+    result1 = await coordinator.process_user_input("你好", context1)
     print(f"  成功: {result1.success}")
     print(f"  记忆数: {len(result1.memories_retrieved)}")
     print(f"  响应长度: {len(result1.response)}")
@@ -27,7 +31,7 @@ async def test_kg_switch():
     context2 = {
         'kg_enhanced_search': True
     }
-    result2 = await brain_coordinator.process_user_input("你好", context2)
+    result2 = await coordinator.process_user_input("你好", context2)
     print(f"  成功: {result2.success}")
     print(f"  记忆数: {len(result2.memories_retrieved)}")
     print(f"  响应长度: {len(result2.response)}")

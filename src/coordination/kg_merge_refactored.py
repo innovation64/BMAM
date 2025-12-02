@@ -439,7 +439,7 @@ if __name__ == "__main__":
         vector_memories = [
             {
                 'id': 'vec1',
-                'content': 'Alice visited Sweden last summer for vacation',
+                'content': 'Alice visited CountryX last summer for vacation',
                 'score': 0.8,
                 'plasticity_score': 0.8
             },
@@ -459,7 +459,7 @@ if __name__ == "__main__":
 
         # 模拟 KG facts
         kg_facts = [
-            create_kg_fact_memory({'subject': 'Alice', 'predicate': 'visited', 'object': 'Sweden'}),
+            create_kg_fact_memory({'subject': 'Alice', 'predicate': 'visited', 'object': 'CountryX'}),
             create_kg_fact_memory({'subject': 'Bob', 'predicate': 'likes', 'object': 'camping'}),
             create_kg_fact_memory({'subject': 'Charlie', 'predicate': 'is_a', 'object': 'person'})  # 低质量
         ]

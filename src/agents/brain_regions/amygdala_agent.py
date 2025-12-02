@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 import uuid
 
 from ..base import BrainAgent, AgentMessage, BrainRegion
+from ...brain.emotion_modulator import EmotionModulator
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +80,9 @@ class AmygdalaAgent(BrainAgent):
         self.temporal_lobe = temporal_lobe_agent  # 用于影响语义记忆
         self.current_stress_level = 0.0  # 当前压力水平 (0.0-1.0)
         self.emotion_modulation_history: List[Dict[str, Any]] = []
+        
+        # 🧠 Emotion Modulator
+        self.modulator = EmotionModulator()
 
         # 统计信息
         self.total_stored = 0
@@ -325,8 +329,13 @@ class AmygdalaAgent(BrainAgent):
             }
 
         try:
-            # 计算情绪增强系数
-            importance_boost = emotion_intensity * 0.3  # 最多增加30%重要性
+            # 计算情绪增强系数 (使用EmotionModulator)
+            # importance_boost = emotion_intensity * 0.3  # OLD
+            
+            # 假设基础重要性为0.5 (或者从外部获取)
+            base_importance = 0.5
+            modulated_importance = self.modulator.modulate_importance(base_importance, emotion_intensity)
+            importance_boost = modulated_importance - base_importance
 
             # 记录调节历史
             modulation_record = {

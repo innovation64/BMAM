@@ -170,11 +170,11 @@
         };
 
         const mockChain = [
-            { agent: 'Perception', type: 'retrieval', description: 'Processing query: "What is Caroline interested in?"', confidence: 1.0 },
+            { agent: 'Perception', type: 'retrieval', description: 'Processing query: "What is Person interested in?"', confidence: 1.0 },
             { agent: 'Memory Retrieval', type: 'retrieval', description: 'Retrieved 20 relevant memories from FAISS', confidence: 0.95 },
             { agent: 'Reasoning Validator', type: 'reasoning', description: 'Detected question type: multi_hop', confidence: 0.9 },
             { agent: 'Reflection Agent', type: 'reflection', description: 'Pattern-based reasoning: identifying interests from behaviors', confidence: 0.85 },
-            { agent: 'Reflection', type: 'collaboration', description: 'Inferred: LGBTQ advocacy, adoption services', confidence: 0.90 },
+            { agent: 'Reflection', type: 'collaboration', description: 'Inferred: community advocacy, family services', confidence: 0.90 },
             { agent: 'Reasoning Validator', type: 'validation', description: 'Validated and synthesized final answer', confidence: 0.95 }
         ];
 

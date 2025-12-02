@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from collections import defaultdict
 from dataclasses import dataclass, field
 import uuid
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -128,6 +129,30 @@ class StorageMixin:
         # 🔥 Phase 3: Delegate to storage adapter
         memory_dict = self._memory_to_dict(memory)
         storage_result = await self.storage_adapter.store_memory(memory_dict)
+
+        # 🧠 Key-Value Store Integration
+        if self.memory_store:
+            self.memory_store.store(
+                memory_id=memory.id,
+                content=memory.content,
+                vector=np.array(memory.embedding) if memory.embedding else None,
+                entities=memory.entities,
+                timestamp=memory.timestamp,
+                relations=extracted_relations,  # Pass extracted relations
+                details=memory.metadata,
+                importance=memory.importance,
+                emotion_intensity=memory.emotion_intensity
+            )
+
+        # 🧠 Event Graph Integration
+        if self.event_graph:
+            self.event_graph.add_event(
+                content=memory.content,
+                entities=memory.entities,
+                timestamp=memory.timestamp,
+                metadata=memory.metadata,
+                embedding=np.array(memory.embedding) if memory.embedding else None
+            )
 
         # 存储到本地列表/缓存 (for backward compatibility)
         self.memories.append(memory)

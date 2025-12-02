@@ -733,8 +733,39 @@ class MemoryReasoningChain:
 
         context = "\n".join(context_parts)
 
-        # Build prompt
-        prompt = f"""Based on the following memories and their relationships, answer the question.
+        # 🔥 Detect temporal questions that need date calculation
+        question_lower = question.lower()
+        is_temporal_question = any(pattern in question_lower for pattern in [
+            'when did', 'when is', 'when was', 'what date', 'what time',
+            'how long ago', 'how many days'
+        ])
+
+        # Build prompt with special handling for temporal questions
+        if is_temporal_question:
+            prompt = f"""Based on the following memories and their relationships, answer the TEMPORAL question.
+
+{context}
+
+Question: {question}
+
+🔥 CRITICAL TEMPORAL REASONING INSTRUCTIONS:
+1. Look for the CONVERSATION DATE in the memory context (e.g., "[Context: This conversation is on 8 May 2023]")
+2. Look for RELATIVE TIME expressions in the memories (e.g., "yesterday", "last week", "last Saturday")
+3. CALCULATE the ABSOLUTE DATE:
+   - If memory says "yesterday" and conversation is on "8 May 2023" → Answer = "7 May 2023"
+   - If memory says "last Saturday" and conversation is on "25 May 2023" → Find previous Saturday
+   - If memory says "last week" → Subtract 7 days from conversation date
+
+4. Your answer MUST be an ABSOLUTE DATE (e.g., "7 May 2023"), NOT a relative time (e.g., "yesterday")
+
+Example:
+- Memory: "[Context: This conversation is on 8 May 2023] Person attended an event yesterday"
+- Question: "When did Person attend the event?"
+- Answer: "7 May 2023" (NOT "yesterday")
+
+Provide ONLY the calculated absolute date as your answer."""
+        else:
+            prompt = f"""Based on the following memories and their relationships, answer the question.
 
 {context}
 

@@ -7,19 +7,18 @@ from typing import Dict, Any
 logger = logging.getLogger(__name__)
 
 DEFAULT_MEMORY_SIGNAL_CONFIG: Dict[str, Any] = {
+    # NOTE: These are generic defaults. For domain-specific tuning,
+    # override via BMAM_MEMORY_SIGNAL_CONFIG env var or config/memory_signal_config.json
     "retrieval": {
         "factual_keywords": [
+            # Generic learning/knowledge verbs
             "research",
             "researched",
             "study",
             "studied",
             "learn",
             "learned",
-            "adoption",
-            "adopt",
-            "paint",
-            "painted",
-            "painting",
+            # Generic activity verbs
             "work",
             "works",
             "working",

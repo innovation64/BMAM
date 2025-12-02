@@ -19,6 +19,7 @@ from dataclasses import dataclass, field
 import uuid
 
 from ..base import BrainAgent, AgentMessage, BrainRegion
+from ...brain.habit_learner import HabitLearner
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +65,9 @@ class BasalGangliaAgent(BrainAgent):
         # 🔥 策略缓存 (strategy_cache) - 用于存储行为模式和策略
         # References self.skills for procedural patterns
         self.strategy_cache = self.skills  # Alias for functional brain regions test
+        
+        # 🧠 Habit Learner
+        self.habit_learner = HabitLearner()
 
         # 统计信息
         self.total_stored = 0
@@ -105,6 +109,20 @@ class BasalGangliaAgent(BrainAgent):
 
         elif action == 'get_statistics':
             return self.get_statistics()
+            
+        # 🧠 Habit Learner Actions
+        elif action == 'update_policy':
+            return self.update_policy(
+                context=message.content['context'],
+                strategy_id=message.content['strategy_id'],
+                reward=message.content['reward']
+            )
+            
+        elif action == 'recommend_strategy':
+            return self.recommend_strategy(
+                context=message.content['context'],
+                available_strategies=message.content['available_strategies']
+            )
 
         return {'error': f'Unknown action: {action}'}
 
@@ -304,6 +322,16 @@ class BasalGangliaAgent(BrainAgent):
             'max': self.capacity,
             'usage_percent': (current / self.capacity) * 100 if self.capacity > 0 else 0
         }
+
+    def update_policy(self, context: str, strategy_id: str, reward: float) -> Dict[str, Any]:
+        """更新策略"""
+        self.habit_learner.update_policy(context, strategy_id, reward)
+        return {'status': 'updated', 'context': context, 'strategy_id': strategy_id, 'reward': reward}
+
+    def recommend_strategy(self, context: str, available_strategies: List[str]) -> Dict[str, Any]:
+        """推荐策略"""
+        recommended = self.habit_learner.recommend_strategy(context, available_strategies)
+        return {'recommended_strategy': recommended, 'context': context}
 
     def get_statistics(self) -> Dict[str, Any]:
         """获取统计信息"""

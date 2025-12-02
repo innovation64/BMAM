@@ -26,8 +26,8 @@ class ConflictDetectionMixin:
         - Carter & van Veen (2007) - Anterior Cingulate Cortex conflict detection
 
         冲突类型:
-        1. **时间冲突** (Temporal Conflict): "Caroline昨天去了A" vs "Caroline昨天去了B"
-        2. **事实冲突** (Factual Conflict): "Caroline是工程师" vs "Caroline是心理咨询师"
+        1. **时间冲突** (Temporal Conflict): "Person昨天去了A" vs "Person昨天去了B"
+        2. **事实冲突** (Factual Conflict): "Person是职业A" vs "Person是职业B"
         3. **来源冲突** (Source Conflict): 内部记忆 vs 外部文档不一致
 
         Args:

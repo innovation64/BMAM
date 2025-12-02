@@ -19,7 +19,7 @@ class InferenceMixin:
         🧠 Fact integration reasoning (Consolidation Agent推理能力)
 
         整合多条记忆中的相关事实 - 用于补全缺失细节
-        Example: "transgender" + "LGBTQ group" + "inspiring stories" → consolidate → "transgender woman"
+        Example: "attribute A" + "group context" + "emotional resonance" → consolidate → "complete identity"
         """
 
         if not memories:
@@ -55,10 +55,10 @@ Instructions:
 4. For identity/characteristic questions: infer missing specifics from contextual clues
 
 Example reasoning:
-- Memory 1: "attended LGBTQ support group"
-- Memory 2: "found transgender stories inspiring"
-- Memory 3: "emotional connection to women's experiences"
-→ Consolidation: These fragments suggest "transgender woman" (infers gender from feminine context)
+- Memory 1: "attended community support group"
+- Memory 2: "found related stories inspiring"
+- Memory 3: "emotional connection to shared experiences"
+→ Consolidation: These fragments suggest a specific identity (infer details from context)
 
 Return ONLY a JSON object with this exact structure:
 {{
@@ -104,7 +104,7 @@ Return ONLY a JSON object with this exact structure:
         🧠 Identity detail inference (特别针对Q5类型问题)
 
         从上下文线索推断身份细节 (如性别、具体特征)
-        Example: "transgender" (base) + contextual clues → "transgender woman"
+        Example: "attribute" (base) + contextual clues → "complete identity"
         """
 
         if not memories:
@@ -135,22 +135,19 @@ Available memories:
 Task: Infer complete identity details by consolidating explicit statements with contextual clues.
 
 Identity Inference Rules:
-1. Extract explicit identity markers (e.g., "transgender", "LGBTQ", "gay", "lesbian")
-2. Infer gender from contextual clues:
-   - Feminine contexts: women's groups, feminine pronouns, women's stories → likely woman
-   - Masculine contexts: men's groups, masculine pronouns, men's stories → likely man
-3. Consolidate base identity + gender → complete identity
-   - "transgender" + feminine context → "transgender woman"
-   - "gay" + masculine context → "gay man"
+1. Extract explicit identity markers from memories
+2. Infer additional details from contextual clues:
+   - Group affiliations, pronouns used, emotional resonance
+3. Consolidate base identity + inferred details → complete identity
 4. Only infer details when evidence is strong (confidence > 0.7)
 
 Example:
-- Memory 1: "attended LGBTQ support group"
-- Memory 2: "transgender stories were inspiring"
-- Memory 3: "emotional about women's experiences"
-→ Base identity: transgender
-→ Gender inference: woman (from feminine emotional resonance)
-→ Complete identity: transgender woman
+- Memory 1: "attended community support group"
+- Memory 2: "found certain stories inspiring"
+- Memory 3: "emotional about shared experiences"
+→ Base identity: extracted from explicit markers
+→ Additional details: inferred from context
+→ Complete identity: full identity based on evidence
 
 Return ONLY a JSON object:
 {{

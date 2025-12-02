@@ -148,9 +148,9 @@ class RegionalMemoryStore:
         """
         检查内容是否包含查询中提到的日期
 
-        例如: query="When did Caroline go to LGBTQ support group?"
-              content="On 8 May 2023, Caroline attended an LGBTQ support group"
-              返回True (因为同时包含"Caroline", "LGBTQ", "support group")
+        例如: query="When did Person go to an event?"
+              content="On 8 May 2023, Person attended an event"
+              返回True (因为同时包含"Person", "event"等关键词)
         """
         import re
 

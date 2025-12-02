@@ -14,11 +14,11 @@ class MemoryType(Enum):
     阶段1: 五类语义记忆类型
     用于模拟人脑多层记忆加工（而非单纯存原文）
     """
-    FACTUAL = "factual"           # 客观事实陈述: "Caroline attended LGBTQ support group"
-    RELATIONAL = "relational"     # 实体关系: "Caroline -> interested_in -> adoption"
-    TEMPORAL = "temporal"         # 时间线事件: "2023-05-08: Caroline visited support group"
-    PROCEDURAL = "procedural"     # 过程/行动: "How Caroline researched adoption process"
-    SUMMARY = "summary"           # 高层摘要: "Caroline's journey to parenthood"
+    FACTUAL = "factual"           # 客观事实陈述: "Person attended a support group"
+    RELATIONAL = "relational"     # 实体关系: "Person -> interested_in -> topic"
+    TEMPORAL = "temporal"         # 时间线事件: "2023-05-08: Person visited an event"
+    PROCEDURAL = "procedural"     # 过程/行动: "How Person researched a process"
+    SUMMARY = "summary"           # 高层摘要: "Person's journey through events"
 
 
 @dataclass

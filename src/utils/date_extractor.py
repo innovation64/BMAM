@@ -144,9 +144,9 @@ if __name__ == '__main__':
     # 测试用例
     test_queries = [
         "How many days passed between 8 May 2023 and 25 May 2023?",
-        "When did Caroline first meet Dr. Sarah on 27 May 2023?",
+        "When did PersonA first meet PersonB on 27 May 2023?",
         "What happened on 12 May?",
-        "Between May 8 and June 3, what did Caroline do?"
+        "Between May 8 and June 3, what did PersonA do?"
     ]
 
     extractor = DateExtractor()

@@ -105,8 +105,8 @@ class KnowledgeGraphBuilder:
 
         Returns:
             (entities, relations)
-            entities: [{'name': 'Caroline', 'type': 'Person', 'mentions': 3}, ...]
-            relations: [{'source': 'Caroline', 'relation': 'works_as', 'target': 'therapist'}, ...]
+            entities: [{'name': 'PersonA', 'type': 'Person', 'mentions': 3}, ...]
+            relations: [{'source': 'PersonA', 'relation': 'works_as', 'target': 'occupation'}, ...]
         """
         # Update known persons from context
         if context:
@@ -336,15 +336,15 @@ Extract as many meaningful entities and relations as possible. For relations, us
 Output JSON format:
 {{
   "entities": [
-    {{"name": "Caroline", "type": "Person"}},
-    {{"name": "Sweden", "type": "Location"}},
-    {{"name": "counseling", "type": "Concept"}},
+    {{"name": "PersonName", "type": "Person"}},
+    {{"name": "LocationName", "type": "Location"}},
+    {{"name": "topic_name", "type": "Concept"}},
     ...
   ],
   "relations": [
-    {{"source": "Caroline", "relation": "identity_is", "target": "transgender woman"}},
-    {{"source": "Caroline", "relation": "moved_from", "target": "Sweden"}},
-    {{"source": "Caroline", "relation": "interested_in", "target": "counseling"}},
+    {{"source": "PersonName", "relation": "identity_is", "target": "specific identity"}},
+    {{"source": "PersonName", "relation": "moved_from", "target": "LocationName"}},
+    {{"source": "PersonName", "relation": "interested_in", "target": "topic_name"}},
     ...
   ]
 }}
@@ -457,7 +457,7 @@ Only output valid JSON, no explanation.
             (r'([A-Z]\w+)\s+check out\s+(.+?)(?:\.|,|!)', 'exploring'),
 
             # Identity and attributes
-            (r'The\s+(\w+)\s+stories', 'story_about'),  # "The transgender stories"
+            (r'The\s+(\w+)\s+stories', 'story_about'),  # "The topic stories"
             (r'([A-Z]\w+)\s+is\s+(single|married|divorced)', 'relationship_status'),
 
             # Location and residence
@@ -547,7 +547,7 @@ Only output valid JSON, no explanation.
         return unique_relations
 
     def register_alias(self, alias: str, canonical: str):
-        """注册实体别名 (e.g., "Mel" -> "Melanie")"""
+        """注册实体别名 (e.g., "nickname" -> "full_name")"""
         alias_key = alias.strip().lower()
         canonical_name = canonical.strip()
         if not alias_key or not canonical_name:

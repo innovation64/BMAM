@@ -12,8 +12,8 @@
 - 迭代检索: 多轮检索补充信息
 
 解决问题:
-- Q2: "What fields would Caroline pursue?" 只检索到D1:11 counseling,
-  缺少D1:9的education context → 需要迭代补充
+- Q2: "What fields would Person pursue?" 只检索到部分记忆,
+  缺少相关context → 需要迭代补充
 
 Author: BMAM Team
 """

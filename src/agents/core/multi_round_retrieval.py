@@ -183,7 +183,7 @@ class GapDetector:
     def _check_location_info(self, memories: List[Dict[str, Any]]) -> bool:
         """检查是否包含地点信息"""
         location_indicators = [
-            r'\b(in|at|to|from)\s+[A-Z][a-z]+',  # "in Sweden", "at Google"
+            r'\b(in|at|to|from)\s+[A-Z][a-z]+',  # "in LocationX", "at CompanyY"
             r'\b(city|country|place|location|office|building|park)\b',
         ]
 
@@ -226,7 +226,7 @@ class GapDetector:
     def _generate_temporal_query(self, original_query: str) -> str:
         """生成补充的时间查询"""
         # 提取查询主体
-        # 例如: "When did Caroline go camping?" → "Caroline camping date"
+        # 例如: "When did Person go camping?" → "Person camping date"
         query_words = original_query.lower().split()
 
         # 移除时间词

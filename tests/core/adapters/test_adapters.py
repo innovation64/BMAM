@@ -8,6 +8,10 @@ Verify that all adapters properly bridge legacy implementations to interfaces
 
 import pytest
 import numpy as np
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+
 from unittest.mock import AsyncMock, MagicMock, Mock
 from src.core.adapters import (
     MemorySystemAdapter,

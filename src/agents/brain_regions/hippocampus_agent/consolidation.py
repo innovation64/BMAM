@@ -5,6 +5,7 @@ Hippocampus Agent - 海马体智能体
 """
 
 import logging
+import json
 from typing import Dict, List, Any, Optional
 from datetime import datetime, timedelta
 from collections import defaultdict
@@ -67,7 +68,6 @@ class ConsolidationMixin:
         try:
             response = await self.call_llm(decision_prompt, max_tokens=200, temperature=0.3)
 
-            import json
             import re
             json_match = re.search(r'\{.*\}', response, re.DOTALL)
             if json_match:

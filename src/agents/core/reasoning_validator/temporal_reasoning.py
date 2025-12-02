@@ -65,8 +65,8 @@ Task: {"Calculate DURATION between two dates/events" if is_duration_query else "
 {'Step 1 - Identify Time Points:' if is_duration_query else 'Step 1 - Find Conversation Date (查询海马体):'}
 {'''Look for TWO time references:
 - If "between EVENT_A and EVENT_B": Find dates for BOTH events
-  Example: "between attending LGBTQ group and researching adoption"
-  → Find: "Yesterday, Caroline attended..." (7 May) AND "On 25 May, Caroline researched..." (25 May)
+  Example: "between attending an event and completing a task"
+  → Find: "Yesterday, Person attended..." (7 May) AND "On 25 May, Person completed..." (25 May)
 - If "had X for Y time": Find reference date + duration
   Example: "had friends for 4 years" + conversation on "8 May 2023" → Started on 8 May 2019''' if is_duration_query else '''Look in HIPPOCAMPUS memories for:
 - "[Context: This conversation is on DATE]"
@@ -75,8 +75,8 @@ Task: {"Calculate DURATION between two dates/events" if is_duration_query else "
 
 {'Step 2 - Extract Event Dates:' if is_duration_query else 'Step 2 - Find Event Time (查询海马体):'}
 {'''Extract absolute dates for EACH event:
-- If "Yesterday, Caroline attended..." + context "8 May 2023" → Event_A = 7 May 2023
-- If "On 25 May, Caroline researched..." → Event_B = 25 May 2023
+- If "Yesterday, Person attended..." + context "8 May 2023" → Event_A = 7 May 2023
+- If "On 25 May, Person completed..." → Event_B = 25 May 2023
 - If "had X for 4 years" → Duration is EXPLICITLY stated, use directly!''' if is_duration_query else '''Look in HIPPOCAMPUS memories for:
 - "yesterday" → -1 day
 - "today" → +0 days
