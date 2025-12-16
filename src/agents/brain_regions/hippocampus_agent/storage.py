@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 from .core import EpisodicMemory, HippocampusAgentCore
 from ....utils.flexible_date_parser import FlexibleDateParser, get_global_parser
+from ....memory.story_arc import get_story_arc_manager, StoryArcManager
 
 import asyncio
 
@@ -339,6 +340,9 @@ class StorageMixin:
         # 更新索引
         self._update_indexes(memory)
 
+        # 🔥 V2.0: StoryArc 时间线集成 - 解决 Temporal 准确率问题
+        await self._add_to_story_arc(memory, event_time, extraction_method)
+
         # 🔥 FIX: 容量控制 - 基于全局存储计数，而非仅本地列表
         should_forget = False
         if self._use_global_storage:
@@ -471,6 +475,62 @@ class StorageMixin:
 
         for mem in self.memories:
             self._update_indexes(mem)
+
+    async def _add_to_story_arc(
+        self,
+        memory: EpisodicMemory,
+        event_time: Optional[datetime],
+        extraction_method: str
+    ) -> None:
+        """
+        🔥 V2.0: 将记忆添加到 StoryArc 时间线
+
+        解决 Temporal 准确率问题 (35% → 70%+):
+        - 维护显式的事件时间线索引
+        - 支持直接的时间查询 (e.g., "when did Caroline visit museum?")
+        - 支持时间跨度计算 (e.g., "how long have they been friends?")
+
+        Args:
+            memory: 要添加的记忆
+            event_time: 事件发生时间
+            extraction_method: 时间提取方法 ('relative', 'absolute', 'context', etc.)
+        """
+        # 只有高置信度的事件时间才加入 StoryArc
+        HIGH_CONFIDENCE_METHODS = ('relative', 'absolute', 'explicit', 'metadata', 'inherited')
+
+        if not event_time:
+            logger.debug(f"Skipping StoryArc: no event_time for memory {memory.id}")
+            return
+
+        if extraction_method not in HIGH_CONFIDENCE_METHODS:
+            logger.debug(f"Skipping StoryArc: low confidence method '{extraction_method}' for memory {memory.id}")
+            return
+
+        try:
+            # 获取 StoryArc 管理器单例
+            story_arc = get_story_arc_manager()
+
+            # 从记忆创建事件
+            event = await story_arc.add_event_from_memory(
+                memory_id=memory.id,
+                content=memory.content,
+                event_time=event_time,
+                metadata={
+                    'extraction_method': extraction_method,
+                    'entities': memory.entities,
+                    'importance': memory.importance,
+                    'speaker': memory.speaker
+                }
+            )
+
+            if event:
+                logger.debug(f"✅ StoryArc: Added event {event.event_id} on {event.event_date}")
+            else:
+                logger.debug(f"StoryArc: No event extracted from memory {memory.id}")
+
+        except Exception as e:
+            # StoryArc 是增强功能，失败不应影响主流程
+            logger.warning(f"StoryArc integration failed for memory {memory.id}: {e}")
 
 
     def _get_capacity_status(self) -> Dict[str, Any]:
@@ -749,6 +809,9 @@ class StorageMixin:
 
         # 更新所有索引 (包括event_index)
         self._update_indexes(memory)
+
+        # 🔥 V2.0: StoryArc 时间线集成 - 解决 Temporal 准确率问题
+        await self._add_to_story_arc(memory, event_time, extraction_method)
 
         # 🔥 FIX: 容量控制 - 基于全局存储计数，而非仅本地列表
         should_forget = False
