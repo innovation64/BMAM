@@ -204,8 +204,20 @@ class AdaptiveMemoryShapingManager:
                     message_type='request',
                     content={'action': 'consolidate_memory', 'memory_id': memory_id, 'reason': reason}
                 )
-                await self.coordinator._activate_agent('consolidation', msg)
+                result = await self.coordinator._activate_agent('consolidation', msg)
                 logger.info(f"   ✅ Consolidation completed for {memory_id[:8]}")
+
+                # 🔥 2025-12-14: 巩固闭环 - 将巩固结果反馈到脑区连接强度
+                if result and hasattr(self.coordinator, 'learning_manager'):
+                    try:
+                        strengthened = result.get('strengthened', False)
+                        learning_manager = self.coordinator.learning_manager
+                        if strengthened and learning_manager and hasattr(learning_manager, 'routing_manager'):
+                            # 记忆被强化说明检索策略有效
+                            learning_manager.routing_manager.update_strategy_weight('hybrid', 0.01)
+                            logger.debug(f"   🔄 Consolidation feedback: memory strengthened, +0.01 to hybrid")
+                    except Exception as fe:
+                        logger.debug(f"   Consolidation feedback failed: {fe}")
         except Exception as e:
             logger.warning(f"   ❌ Consolidation failed: {e}")
 
@@ -237,6 +249,19 @@ class AdaptiveMemoryShapingManager:
                 result = await self.coordinator._activate_agent('reflection', msg)
                 insights = result.get('insights_generated', 0)
                 logger.info(f"   ✅ Reflection completed, {insights} insights generated")
+
+                # 🔥 2025-12-14: 反思闭环 - 将insights反馈到策略权重
+                if insights > 0 and hasattr(self.coordinator, 'learning_manager'):
+                    try:
+                        # 反思成功意味着当前策略有效，给正反馈
+                        learning_manager = self.coordinator.learning_manager
+                        if learning_manager and hasattr(learning_manager, 'routing_manager'):
+                            # 根据 insights 数量调整反馈强度
+                            feedback_strength = min(0.1, insights * 0.02)  # 每个insight +0.02，最多+0.1
+                            learning_manager.routing_manager.update_strategy_weight('hybrid', feedback_strength)
+                            logger.info(f"   🔄 Reflection feedback applied: +{feedback_strength:.3f} to hybrid strategy")
+                    except Exception as fe:
+                        logger.debug(f"   Reflection feedback failed: {fe}")
         except Exception as e:
             logger.warning(f"   ❌ Reflection failed: {e}")
 

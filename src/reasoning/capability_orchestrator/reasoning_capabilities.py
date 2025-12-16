@@ -410,8 +410,11 @@ Output JSON:
             'confidence': result.get('confidence', 0.0)
         }
 
-    async def _multi_hop_inference(self, query: str, memories: List, intermediate: Dict) -> Dict:
-        """🧠 LLM驱动的多跳推理 - 综合多条记忆进行兴趣/模式推断"""
+    async def _multi_hop_inference(self, query: str, memories: List, intermediate: Dict, reflection_hints: Dict = None) -> Dict:
+        """🧠 LLM驱动的多跳推理 - 综合多条记忆进行兴趣/模式推断
+
+        增强: 使用反思模块提供的模式洞察来辅助多跳推理
+        """
         from src.agents.base import BrainAgent
 
         class TempMultiHopAnalyzer(BrainAgent):
@@ -429,21 +432,42 @@ Output JSON:
             f"{i+1}. {m.get('content', str(m))}" for i, m in enumerate(memories[:20])
         ])
 
+        # 🧠 构建反思洞察上下文
+        reflection_context = ""
+        if reflection_hints:
+            patterns = reflection_hints.get('reflection_patterns', [])
+            reasoning = reflection_hints.get('reflection_reasoning', '')
+            hint = reflection_hints.get('reflection_hint', '')
+
+            if patterns or reasoning or hint:
+                reflection_context = f"""
+**Pattern Analysis from Reflection Module**:
+- Identified Patterns: {patterns if patterns else 'None identified'}
+- Prior Reasoning: {reasoning[:200] if reasoning else 'None'}
+- Suggested Answer Hint: {hint[:150] if hint else 'None'}
+
+Use these insights to guide your multi-hop reasoning.
+"""
+                logger.info(f"🔮 Multi-hop using reflection hints: patterns={patterns}")
+
         prompt = f"""Synthesize information across multiple memories to answer the question.
 
 **Question**: {query}
 
 **Available Memories**:
 {memories_text}
-
+{reflection_context}
 Task: Synthesize information from memories to directly answer what the question asks.
+- Identify key entities and their relationships across memories
+- Trace connections between related facts
+- If reflection hints are provided, use them to guide your reasoning
 
 Output JSON:
 {{
     "answer": "synthesized answer (directly answer what the question asks)",
     "confidence": 0.0-1.0,
     "evidence": ["key memories used"],
-    "reasoning": "synthesis logic"
+    "reasoning": "multi-hop synthesis logic showing how facts connect"
 }}
 """
 

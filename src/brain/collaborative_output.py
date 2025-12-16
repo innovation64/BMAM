@@ -22,8 +22,12 @@ Author: BMAM Team
 import logging
 import json
 from typing import Dict, List, Any, Optional, Tuple
+import os
+import ast
 from dataclasses import dataclass
 from enum import Enum
+
+from ..utils.config import get_env
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +41,42 @@ class AnswerType(Enum):
     INTEREST = "interest"          # 兴趣答案 (interests, fields)
     PATTERN = "pattern"            # 模式答案 (behavior patterns)
     COMPLEX = "complex"            # 复杂答案 (multi-hop)
+    COUNTERFACTUAL = "counterfactual"  # 假设性问题 (Would X if Y?, hypothetical)
+
+
+# Fallback keyword maps are configurable to avoid硬编码
+DEFAULT_FALLBACK_KEYWORDS = {
+    "temporal": ["when", "date", "time"],
+    "identity": ["identity", "who is"],
+    "relationship": ["relationship", "status"],
+    "interest": ["field", "interest", "hobby"],
+    "counterfactual": ["would", "could", "might", "if"],
+}
+
+
+def _load_fallback_keywords() -> Dict[str, List[str]]:
+    """Load fallback keyword config from env (JSON dict) or use defaults."""
+    raw = get_env("ANSWER_TYPE_FALLBACK_KEYWORDS")
+    if not raw:
+        return DEFAULT_FALLBACK_KEYWORDS
+
+    try:
+        parsed = ast.literal_eval(raw) if raw.startswith("{") else json.loads(raw)
+        if isinstance(parsed, dict):
+            normalized = {}
+            for k, v in parsed.items():
+                if isinstance(v, list):
+                    normalized[k] = [str(item).lower() for item in v]
+            if normalized:
+                return normalized
+    except Exception:
+        logger.warning("Failed to parse ANSWER_TYPE_FALLBACK_KEYWORDS, using defaults")
+
+    return DEFAULT_FALLBACK_KEYWORDS
+
+
+FALLBACK_KEYWORDS = _load_fallback_keywords()
+FALLBACK_CONFIDENCE = float(get_env("ANSWER_FALLBACK_CONFIDENCE", "0.4"))
 
 
 @dataclass
@@ -101,6 +141,11 @@ class CollaborativeOutput:
             AnswerType.COMPLEX: {
                 'primary': ['reflection', 'consolidation'],
                 'secondary': ['reasoning_validator'],
+                'validator': 'prefrontal_cortex'
+            },
+            AnswerType.COUNTERFACTUAL: {
+                'primary': ['reflection', 'reasoning_validator'],
+                'secondary': ['consolidation'],
                 'validator': 'prefrontal_cortex'
             }
         }
@@ -196,6 +241,7 @@ Answer Types:
 - interest: Questions about interests, fields, preferences (e.g., "What fields would X pursue?")
 - pattern: Questions about behavioral patterns (e.g., "What does X regularly do?")
 - complex: Multi-hop or complex reasoning questions
+- counterfactual: Hypothetical "Would X...?" questions requiring reasoning about alternatives (e.g., "Would X pursue Y as a career?", "Would X still want to do Y if Z?")
 
 Critical distinctions:
 - "What is X's identity?" → identity (personal characteristics)
@@ -269,7 +315,8 @@ Output JSON:
                 'relationship': AnswerType.RELATIONSHIP,
                 'interest': AnswerType.INTEREST,
                 'pattern': AnswerType.PATTERN,
-                'complex': AnswerType.COMPLEX
+                'complex': AnswerType.COMPLEX,
+                'counterfactual': AnswerType.COUNTERFACTUAL
             }
 
             answer_type = answer_type_map.get(answer_type_str, AnswerType.FACTUAL)
@@ -280,18 +327,32 @@ Output JSON:
             import traceback
             logger.error(traceback.format_exc())
 
-            # Fallback: 根据关键词简单判断
+            # Fallback: 根据可配置的关键词简单判断
             query_lower = query.lower()
-            if any(kw in query_lower for kw in ['when', 'date', 'time']):
-                return AnswerType.TEMPORAL, {'expected_shape': 'single', 'target_entity': '', 'confidence': 0.4, 'reasoning': 'keyword fallback'}
-            elif 'identity' in query_lower or 'who is' in query_lower:
-                return AnswerType.IDENTITY, {'expected_shape': 'single', 'target_entity': '', 'confidence': 0.4, 'reasoning': 'keyword fallback'}
-            elif 'relationship' in query_lower or 'status' in query_lower:
-                return AnswerType.RELATIONSHIP, {'expected_shape': 'single', 'target_entity': '', 'confidence': 0.4, 'reasoning': 'keyword fallback'}
-            elif 'field' in query_lower or 'interest' in query_lower:
-                return AnswerType.INTEREST, {'expected_shape': 'list', 'target_entity': '', 'confidence': 0.4, 'reasoning': 'keyword fallback'}
-            else:
-                return AnswerType.FACTUAL, {'expected_shape': 'single', 'target_entity': '', 'confidence': 0.4, 'reasoning': 'keyword fallback'}
+            fallback_map = {
+                "temporal": (AnswerType.TEMPORAL, "single"),
+                "identity": (AnswerType.IDENTITY, "single"),
+                "relationship": (AnswerType.RELATIONSHIP, "single"),
+                "interest": (AnswerType.INTEREST, "list"),
+                "counterfactual": (AnswerType.COUNTERFACTUAL, "single"),
+            }
+
+            for key, keywords in FALLBACK_KEYWORDS.items():
+                if any(kw in query_lower for kw in keywords):
+                    ans_type, shape = fallback_map.get(key, (AnswerType.FACTUAL, "single"))
+                    return ans_type, {
+                        'expected_shape': shape,
+                        'target_entity': '',
+                        'confidence': FALLBACK_CONFIDENCE,
+                        'reasoning': 'keyword fallback'
+                    }
+
+            return AnswerType.FACTUAL, {
+                'expected_shape': 'single',
+                'target_entity': '',
+                'confidence': FALLBACK_CONFIDENCE,
+                'reasoning': 'keyword fallback'
+            }
 
     async def _generate_candidates(
         self,

@@ -166,21 +166,22 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             exportBtn.textContent = '⏳ Exporting...';
             const response = await fetch('/api/memory/export');
-            const data = await response.json();
 
-            if (data.success) {
-                const blob = new Blob([JSON.stringify(data.package || data, null, 2)], { type: 'application/json' });
+            if (response.ok) {
+                // 服务器返回 .bma.tar.gz 文件
+                const blob = await response.blob();
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `bmam_brain_package_${new Date().toISOString().slice(0, 10)}.json`;
+                a.download = `bmam_soul_${new Date().toISOString().slice(0, 10)}.bma.tar.gz`;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
                 window.URL.revokeObjectURL(url);
                 exportBtn.textContent = '✅ Exported';
             } else {
-                alert('Export failed: ' + data.error);
+                const data = await response.json();
+                alert('Export failed: ' + (data.error || 'Unknown error'));
                 exportBtn.textContent = '❌ Failed';
             }
         } catch (e) {
@@ -188,21 +189,28 @@ document.addEventListener('DOMContentLoaded', () => {
             exportBtn.textContent = '❌ Error';
         }
 
-        setTimeout(() => exportBtn.textContent = '⬇️ Export JSON', 2000);
+        setTimeout(() => exportBtn.textContent = '⬇️ Export Soul', 2000);
     }
 
     async function importMemories(file) {
         if (!file) return;
 
+        // 验证文件格式
+        if (!file.name.endsWith('.bma.tar.gz') && !file.name.endsWith('.tar.gz')) {
+            alert('Please select a .bma.tar.gz archive file');
+            return;
+        }
+
         try {
             importBtn.textContent = '⏳ Importing...';
-            const text = await file.text();
-            const json = JSON.parse(text);
+
+            // 使用 FormData 上传文件
+            const formData = new FormData();
+            formData.append('file', file);
 
             const response = await fetch('/api/memory/import', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(json)
+                body: formData
             });
 
             const result = await response.json();

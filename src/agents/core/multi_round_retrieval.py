@@ -224,15 +224,45 @@ class GapDetector:
         return False
 
     def _generate_temporal_query(self, original_query: str) -> str:
-        """生成补充的时间查询"""
-        # 提取查询主体
-        # 例如: "When did Person go camping?" → "Person camping date"
-        query_words = original_query.lower().split()
+        """
+        生成补充的时间查询 - 增强版
 
-        # 移除时间词
-        filtered_words = [w for w in query_words if w not in ['when', 'what', 'time', 'date', 'did', '?']]
+        策略:
+        1. 提取专有名词 (人名/地名/组织名)
+        2. 提取关键事件名词
+        3. 生成实体+事件的组合查询
 
-        return ' '.join(filtered_words) + ' date time'
+        例如: "When is Caroline going to the transgender conference?"
+        → "Caroline conference" (提取人名+事件核心词)
+        """
+        # 提取专有名词 (大写开头的词)
+        proper_nouns = re.findall(r'\b[A-Z][a-z]+\b', original_query)
+
+        # 关键事件词 (名词性词汇)
+        event_keywords = []
+        stop_words = {'when', 'what', 'time', 'date', 'did', 'does', 'do', 'is', 'are',
+                      'was', 'were', 'will', 'going', 'to', 'the', 'a', 'an', 'for',
+                      'how', 'long', 'ago', 'have', 'has', 'had'}
+
+        for word in original_query.lower().split():
+            clean_word = word.strip('?.,!')
+            if clean_word not in stop_words and len(clean_word) > 3:
+                event_keywords.append(clean_word)
+
+        # 组合查询：专有名词 + 关键事件词
+        query_parts = []
+        if proper_nouns:
+            query_parts.extend(proper_nouns[:2])  # 最多2个专有名词
+        if event_keywords:
+            query_parts.extend(event_keywords[:3])  # 最多3个关键词
+
+        if query_parts:
+            return ' '.join(query_parts)
+        else:
+            # 回退到简单方法
+            query_words = original_query.lower().split()
+            filtered_words = [w for w in query_words if w not in stop_words]
+            return ' '.join(filtered_words) + ' date time'
 
     def _generate_entity_query(self, original_query: str) -> str:
         """生成补充的实体查询"""

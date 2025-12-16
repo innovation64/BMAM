@@ -519,9 +519,8 @@ service = MyService(memory)
 
 ## Reference Documentation
 
-- **Full Design:** `/Users/liyang/Desktop/testversion/ARCHITECTURE_REFACTOR_DESIGN.md`
-- **Implementation Report:** `/Users/liyang/Desktop/testversion/PHASE_1_CORE_INFRASTRUCTURE_COMPLETE.md`
-- **Test Suite:** `/Users/liyang/Desktop/testversion/BMAM/tests/core/`
+- **Architecture:** `docs/ARCHITECTURE.md`
+- **Test Suite:** `tests/core/`
 
 ---
 

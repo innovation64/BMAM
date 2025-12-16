@@ -72,12 +72,15 @@ class KnowledgeGraphBuilder:
         # Unified knowledge graph (new architecture)
         self.kg = kg_instance
 
-        # Legacy storage (deprecated, kept for backward compatibility)
-        # TODO: Remove in next major version
+        # 🔥 2025-12-16: Legacy storage (DEPRECATED)
+        # This dict is kept for backward compatibility only.
+        # New code should use self.kg (unified NetworkX KG) instead.
+        # Will be removed in v2.0 - use get_unified_kg_stats() for statistics
         self.knowledge_graph = {
             'entities': {},  # {entity_name: {type, mentions, aliases, ...}}
             'relations': []  # [(source, relation, target), ...]
         }
+        self._legacy_access_warned = False  # Track deprecation warning
 
         # Entity aliases for disambiguation (alias_lower -> canonical with original casing)
         self.entity_aliases: Dict[str, str] = {}
@@ -640,7 +643,35 @@ Only output valid JSON, no explanation.
                    f"{len(self.knowledge_graph['relations'])} relations")
 
     def get_statistics(self) -> Dict[str, Any]:
-        """获取知识图谱统计信息"""
+        """
+        获取知识图谱统计信息
+
+        🔥 2025-12-16: 优先使用统一 KG，回退到 legacy dict
+        """
+        # 优先使用统一 KG
+        if self.kg:
+            try:
+                kg_stats = self.kg.get_statistics()
+                basic = kg_stats.get('basic', {})
+                return {
+                    'total_entities': basic.get('total_nodes', 0),
+                    'entity_count': basic.get('total_nodes', 0),
+                    'total_relations': basic.get('total_edges', 0),
+                    'relation_count': basic.get('total_edges', 0),
+                    'triple_count': basic.get('total_edges', 0),
+                    'entities_by_type': kg_stats.get('type_distribution', {}),
+                    'top_entities': self._get_top_entities_from_kg(5),
+                    'source': 'unified_kg'
+                }
+            except Exception as e:
+                logger.warning(f"Failed to get unified KG stats: {e}, falling back to legacy")
+
+        # 回退到 legacy dict (发出弃用警告)
+        if not self._legacy_access_warned:
+            logger.warning("⚠️ DEPRECATED: Using legacy knowledge_graph dict. "
+                          "Consider providing kg_instance for unified storage.")
+            self._legacy_access_warned = True
+
         entity_count = len(self.knowledge_graph['entities'])
         relation_count = len(self.knowledge_graph['relations'])
 
@@ -651,8 +682,24 @@ Only output valid JSON, no explanation.
             'relation_count': relation_count,
             'triple_count': relation_count,
             'entities_by_type': self._count_by_type(),
-            'top_entities': self._get_top_entities(5)
+            'top_entities': self._get_top_entities(5),
+            'source': 'legacy_dict'
         }
+
+    def _get_top_entities_from_kg(self, k: int) -> List[Tuple[str, int]]:
+        """从统一 KG 获取 top-k 高频实体"""
+        if not self.kg:
+            return []
+        try:
+            # 获取节点按度数排序
+            nodes_with_degree = []
+            for node in self.kg.graph.nodes():
+                degree = self.kg.graph.degree(node)
+                nodes_with_degree.append((node, degree))
+            nodes_with_degree.sort(key=lambda x: x[1], reverse=True)
+            return nodes_with_degree[:k]
+        except Exception:
+            return []
 
     def _count_by_type(self) -> Dict[str, int]:
         """按类型统计实体"""

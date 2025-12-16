@@ -11,6 +11,8 @@ Learnable Agent Router - 可学习的智能体路由器
 - 用向量空间几何替代if-else规则
 - 持续学习: 每次反馈都更新
 - 泛化能力: 相似查询自动路由到合适Agent
+
+🔥 2025-12-16: 统一使用 OpenAI embedding (text-embedding-3-small)
 """
 
 import numpy as np
@@ -18,10 +20,10 @@ import json
 from typing import Dict, List, Tuple, Optional
 from pathlib import Path
 from dataclasses import dataclass, asdict
-from sentence_transformers import SentenceTransformer
 
 from ..base import BrainAgent, AgentMessage, BrainRegion
 from ...utils.config import get_logger
+from ...services.openai_embedding_service import OpenAIEmbeddingService
 
 logger = get_logger(__name__)
 
@@ -58,7 +60,7 @@ class LearnableAgentRouter(BrainAgent):
     def __init__(
         self,
         agent_names: List[str],
-        embedding_model: str = "all-MiniLM-L6-v2",
+        embedding_model: str = "text-embedding-3-small",  # 🔥 2025-12-16: 统一使用 OpenAI
         learning_rate: float = 0.05,
         checkpoint_dir: str = "./checkpoints"
     ):
@@ -68,9 +70,9 @@ class LearnableAgentRouter(BrainAgent):
             system_prompt="可学习的智能体路由器，基于向量学习选择最佳Agent"
         )
 
-        # 嵌入模型 (用于编码查询)
-        self.encoder = SentenceTransformer(embedding_model)
-        self.embedding_dim = self.encoder.get_sentence_embedding_dimension()
+        # 🔥 2025-12-16: 使用 OpenAI embedding (统一模型)
+        self.encoder = OpenAIEmbeddingService(use_cache=True)
+        self.embedding_dim = self.encoder.dimension  # 1536 for text-embedding-3-small
 
         # 每个Agent的任务向量 (可学习参数)
         self.agent_names = agent_names
@@ -137,9 +139,11 @@ class LearnableAgentRouter(BrainAgent):
                 'reasoning': "时间相关查询，选择海马体..."
             }
         """
-        # 1. 编码查询
-        query_emb = self.encoder.encode(query, convert_to_numpy=True)
-        query_emb = query_emb / np.linalg.norm(query_emb)  # L2归一化
+        # 1. 编码查询 (🔥 2025-12-16: 使用 OpenAI async API)
+        query_emb = await self.encoder.encode_text(query)
+        norm = np.linalg.norm(query_emb)
+        if norm > 0:
+            query_emb = query_emb / norm  # L2归一化
 
         # 2. 计算每个Agent的相似度分数
         scores = {}
@@ -186,9 +190,11 @@ class LearnableAgentRouter(BrainAgent):
 
         这模拟了突触可塑性: 正确的连接被强化，错误的被削弱
         """
-        # 1. 编码查询
-        query_emb = self.encoder.encode(query, convert_to_numpy=True)
-        query_emb = query_emb / np.linalg.norm(query_emb)
+        # 1. 编码查询 (🔥 2025-12-16: 使用 OpenAI async API)
+        query_emb = await self.encoder.encode_text(query)
+        norm = np.linalg.norm(query_emb)
+        if norm > 0:
+            query_emb = query_emb / norm
 
         # 2. 更新每个被选中的Agent
         for agent_name in selected_agents:
@@ -287,11 +293,20 @@ class LearnableAgentRouter(BrainAgent):
             # 恢复Agent向量
             for agent_name, emb_list in checkpoint['agent_embeddings'].items():
                 if agent_name in self.agent_embeddings:
-                    self.agent_embeddings[agent_name] = np.array(emb_list)
+                    loaded_emb = np.array(emb_list)
+                    # 🔥 2025-12-16: 检查维度是否匹配 (旧模型384维 vs 新模型1536维)
+                    if loaded_emb.shape[0] == self.embedding_dim:
+                        self.agent_embeddings[agent_name] = loaded_emb
+                    else:
+                        logger.warning(f"Dimension mismatch for {agent_name}: "
+                                      f"checkpoint={loaded_emb.shape[0]}, expected={self.embedding_dim}. "
+                                      f"Re-initializing with random vector.")
+                        # 维度不匹配，重新初始化
+                        random_vec = np.random.randn(self.embedding_dim)
+                        self.agent_embeddings[agent_name] = random_vec / np.linalg.norm(random_vec)
 
             # 恢复统计
             self.routing_stats = checkpoint.get('routing_stats', self.routing_stats)
-
 
         except (json.JSONDecodeError) as e:
             logger.warning(f"Failed to load checkpoint: {e}")

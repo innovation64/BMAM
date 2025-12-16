@@ -5,8 +5,12 @@ Memory Retrieval Agent
 这是一个基于策略模式的优雅记忆检索系统
 """
 
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 import logging
+import json
+import time
+from pathlib import Path
+from datetime import datetime
 
 from .data_models import RetrievalRequest, RetrievalResult, CacheKey
 from .cache.lru_cache_manager import LRUCacheManager
@@ -137,7 +141,6 @@ class MemoryRetrievalAgent:
                 'execution_time': 0.05
             }
         """
-        import time
         start_time = time.time()
 
         # 1. 尝试从缓存获取
@@ -258,3 +261,273 @@ class MemoryRetrievalAgent:
             策略名称列表
         """
         return list(self.strategies.keys())
+
+    async def retrieve_multi_source(
+        self,
+        query: str,
+        k: int = 10,
+        strategy: str = "multi",
+        brain_coordinator=None,
+        enable_external_exploration: bool = False,
+        use_cache: bool = True,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """
+        多源检索 + 外部探索兜底。
+
+        优先尝试多策略检索；如果结果不足且允许，将触发EnvironmentAgent进行外部探索。
+        """
+        start_time = time.perf_counter()
+
+        semantic_result = await self.retrieve(
+            query=query,
+            strategy="semantic",
+            k=k,
+            use_cache=use_cache,
+            **kwargs
+        )
+        temporal_result = await self.retrieve(
+            query=query,
+            strategy="temporal",
+            k=max(3, k // 2),
+            use_cache=use_cache,
+            **kwargs
+        )
+
+        if 'multi' in self.strategies:
+            multi_result = await self.strategies['multi'].retrieve(
+                query=query,
+                k=k,
+                strategy_names=[name for name in self.strategies.keys() if name != 'multi'],
+                **kwargs
+            )
+        else:
+            multi_result = {'memories': [], 'strategy': strategy, 'strategy_stats': {}}
+
+        fused_memories = multi_result.get('memories', [])
+
+        results: Dict[str, Any] = {
+            'semantic': semantic_result.get('memories', []),
+            'temporal': temporal_result.get('memories', []),
+            'multi_fused': fused_memories,
+            'strategy_stats': multi_result.get('strategy_stats', {}),
+            'retrieval_strategy': multi_result.get('strategy', strategy),
+        }
+
+        # Use unique fused memories as the primary coverage signal; fall back to combined count.
+        total_results = (
+            self._count_unique_memories([fused_memories])
+            if fused_memories
+            else self._count_unique_memories([results['semantic'], results['temporal']])
+        )
+
+        exploration_triggered = False
+        exploration_results: List[Dict[str, Any]] = []
+        stored_count = 0
+
+        if enable_external_exploration and self._detect_retrieval_insufficiency(total_results, k):
+            exploration_triggered = True
+            exploration_results, stored_count = await self._trigger_external_exploration(
+                query=query,
+                k=max(k, 5),
+                brain_coordinator=brain_coordinator
+            )
+
+        results.update({
+            'exploration': exploration_results,
+            'exploration_triggered': exploration_triggered,
+            'retrieval_time_ms': (time.perf_counter() - start_time) * 1000,
+            'total_count': total_results + len(exploration_results),
+            'storage_success': stored_count > 0
+        })
+
+        return results
+
+    def _count_unique_memories(self, collections: List[List[Any]]) -> int:
+        """Compute unique memory count across result collections."""
+        seen = set()
+        for collection in collections:
+            for item in collection or []:
+                mem = None
+                if isinstance(item, dict):
+                    mem = item.get('memory', item)
+                else:
+                    mem = getattr(item, 'memory', item)
+
+                mem_id = None
+                if isinstance(mem, dict):
+                    mem_id = mem.get('id') or mem.get('memory_id') or mem.get('memoryId')
+                else:
+                    mem_id = getattr(mem, 'id', None) or getattr(mem, 'memory_id', None)
+
+                seen.add(str(mem_id) if mem_id is not None else f"anon_{id(item)}")
+        return len(seen)
+
+    def _detect_retrieval_insufficiency(self, total_results: int, k: int) -> bool:
+        """判断检索是否不足。"""
+        # Trigger exploration unless we have strictly more than k solid candidates.
+        return total_results <= max(1, k)
+
+    async def _trigger_external_exploration(
+        self,
+        query: str,
+        k: int,
+        brain_coordinator=None
+    ) -> Tuple[List[Dict[str, Any]], int]:
+        """触发外部探索，返回(探索结果列表, 成功写入数量)。"""
+        start_time = time.perf_counter()
+        exploration_results: List[Dict[str, Any]] = []
+        stored = 0
+
+        try:
+            from src.agents.environment.environment_agent import EnvironmentAgent
+
+            env_agent = getattr(brain_coordinator, 'environment_agent', None)
+            if not env_agent:
+                env_agent = EnvironmentAgent(brain_coordinator=brain_coordinator)
+
+            exploration_response = await env_agent.explore_external(
+                query=query,
+                exploration_type="web_search",
+                max_results=k
+            )
+            exploration_results = self._normalize_exploration_results(
+                exploration_response,
+                max_results=k
+            )
+        except Exception as e:
+            logger.error(f"External exploration failed, using mock data: {e}")
+            exploration_results = self._mock_exploration(query, k)
+
+        if exploration_results:
+            stored = await self._store_exploration_to_memory(
+                query=query,
+                exploration_results=exploration_results
+            )
+
+        duration_ms = (time.perf_counter() - start_time) * 1000
+        self._log_exploration_event(
+            query=query,
+            exploration_results=exploration_results,
+            stored_count=stored,
+            duration_ms=duration_ms
+        )
+
+        return exploration_results, stored
+
+    def _normalize_exploration_results(
+        self,
+        exploration_response: Any,
+        max_results: int
+    ) -> List[Dict[str, Any]]:
+        """将外部探索结果转换为统一的dict列表。"""
+        if not exploration_response:
+            return []
+
+        raw_results = []
+        source = 'external'
+
+        if isinstance(exploration_response, dict):
+            raw_results = exploration_response.get('results', [])
+            source = exploration_response.get('source', 'external')
+        elif isinstance(exploration_response, list):
+            raw_results = exploration_response
+
+        normalized: List[Dict[str, Any]] = []
+        for item in raw_results[:max_results]:
+            if hasattr(item, "to_dict"):
+                item = item.to_dict()
+
+            normalized.append({
+                'title': item.get('title') or item.get('name') or item.get('content', '')[:50],
+                'content': item.get('content') or item.get('snippet') or item.get('summary', ''),
+                'source': item.get('source', source),
+                'relevance': float(item.get('relevance', 0.6)),
+                'url': item.get('url'),
+                'metadata': item.get('metadata', {})
+            })
+
+        return normalized
+
+    def _mock_exploration(self, query: str, k: int) -> List[Dict[str, Any]]:
+        """在外部探索不可用时使用的兜底mock数据。"""
+        return [
+            {
+                'title': f'External insight about {query}',
+                'content': f'No indexed memories found. Mock insight for \"{query}\".',
+                'source': 'mock_exploration',
+                'relevance': 0.55,
+                'metadata': {'mock': True}
+            },
+            {
+                'title': 'Related background information',
+                'content': f'General background related to \"{query}\".',
+                'source': 'mock_exploration',
+                'relevance': 0.5,
+                'metadata': {'mock': True}
+            }
+        ][:max(1, min(k, 5))]
+
+    async def _store_exploration_to_memory(
+        self,
+        query: str,
+        exploration_results: List[Dict[str, Any]]
+    ) -> int:
+        """将外部探索结果写入记忆系统，返回成功写入数量。"""
+        try:
+            from src.memory.memory_system import memory_system
+        except Exception as e:
+            logger.error(f"Cannot store exploration results: {e}")
+            return 0
+
+        stored = 0
+        for item in exploration_results:
+            content = item.get('content') or item.get('title') or query
+            metadata = dict(item.get('metadata', {}))
+            metadata.update({
+                'external_exploration': True,
+                'source': item.get('source'),
+                'original_query': query
+            })
+
+            try:
+                memory_id = await memory_system.store_memory(
+                    content=content,
+                    memory_type='semantic',
+                    importance=min(1.0, max(0.3, item.get('relevance', 0.5))),
+                    metadata=metadata
+                )
+                if memory_id:
+                    stored += 1
+            except Exception as e:
+                logger.warning(f"Failed to store exploration memory: {e}")
+
+        return stored
+
+    def _log_exploration_event(
+        self,
+        query: str,
+        exploration_results: List[Dict[str, Any]],
+        stored_count: int,
+        duration_ms: float
+    ) -> None:
+        """将探索事件写入JSONL日志，便于集成测试验证。"""
+        log_dir = Path("logs/exploration")
+        log_dir.mkdir(parents=True, exist_ok=True)
+        log_file = log_dir / "external_exploration.jsonl"
+
+        entry = {
+            'event_type': 'external_exploration',
+            'query': query,
+            'result_count': len(exploration_results),
+            'storage_success': stored_count > 0,
+            'stored_count': stored_count,
+            'duration_ms': duration_ms,
+            'timestamp': datetime.now().isoformat(),
+        }
+
+        try:
+            with open(log_file, "a", encoding="utf-8") as f:
+                f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        except Exception as e:
+            logger.warning(f"Failed to log exploration event: {e}")

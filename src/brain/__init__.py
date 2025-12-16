@@ -1,14 +1,14 @@
 """
-Brain Plasticity Module
-神经可塑性模块 - 实现类脑动态连接和学习
+Brain Module
+神经网络模块 - 脑区协作与记忆处理
 """
 
-from .neural_plasticity import NeuralPlasticityEngine
-from .connection_matrix import ConnectionMatrix
-from .synaptic_plasticity import SynapticPlasticity
+from .brain_network import BrainNetwork
+from .collaborative_output import CollaborativeOutput
+from .region_activation import RegionActivationDynamics
 
 __all__ = [
-    'NeuralPlasticityEngine',
-    'ConnectionMatrix', 
-    'SynapticPlasticity'
+    'BrainNetwork',
+    'CollaborativeOutput',
+    'RegionActivationDynamics'
 ]

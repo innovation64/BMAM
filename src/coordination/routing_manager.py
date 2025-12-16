@@ -31,6 +31,93 @@ class RoutingManager:
         self._get_task_type_keywords = task_type_keywords_fn
         self._get_kg_patterns = kg_patterns_fn
 
+        # 🔥 NEW: Learnable strategy weights (can be updated by LearningManager)
+        # These weights are multiplied with strategy scores to bias selection
+        self.strategy_weights = {
+            'keyword_search': 1.0,
+            'semantic_search': 1.0,
+            'episodic_search': 1.0,
+            'associative_search': 1.0,
+            'multi_strategy_search': 1.0,
+            'episodic': 1.0,
+            'semantic': 1.0,
+            'temporal': 1.0,
+            'hybrid': 1.0,
+            'kg_joint': 1.0
+        }
+
+        # 🔥 NEW: Performance history for learning
+        self.strategy_performance = {
+            strategy: {'success': 0, 'failure': 0, 'total_confidence': 0.0}
+            for strategy in self.strategy_weights.keys()
+        }
+
+        # 🔥 NEW: Learning rate for weight updates
+        self.learning_rate = 0.1
+
+    def update_strategy_weight(self, strategy: str, delta: float) -> None:
+        """
+        Update a strategy's weight based on learning feedback
+        基于学习反馈更新策略权重
+
+        Args:
+            strategy: Strategy name
+            delta: Weight change (+/-)
+        """
+        if strategy in self.strategy_weights:
+            old_weight = self.strategy_weights[strategy]
+            # Clamp weight between 0.5 and 2.0 to prevent extreme bias
+            new_weight = max(0.5, min(2.0, old_weight + delta * self.learning_rate))
+            self.strategy_weights[strategy] = new_weight
+            logger.info(f"📊 Strategy weight updated: {strategy} {old_weight:.3f} → {new_weight:.3f}")
+
+    def record_strategy_outcome(
+        self,
+        strategy: str,
+        success: bool,
+        confidence: float = 0.0
+    ) -> None:
+        """
+        Record the outcome of a retrieval strategy for learning
+        记录检索策略的结果用于学习
+
+        Args:
+            strategy: Strategy used
+            success: Whether retrieval was successful
+            confidence: Confidence score of the result
+        """
+        if strategy not in self.strategy_performance:
+            self.strategy_performance[strategy] = {'success': 0, 'failure': 0, 'total_confidence': 0.0}
+
+        if success:
+            self.strategy_performance[strategy]['success'] += 1
+        else:
+            self.strategy_performance[strategy]['failure'] += 1
+        self.strategy_performance[strategy]['total_confidence'] += confidence
+
+        logger.debug(f"📈 Strategy outcome recorded: {strategy} success={success} conf={confidence:.2f}")
+
+    def get_strategy_success_rate(self, strategy: str) -> float:
+        """Get success rate for a strategy"""
+        if strategy not in self.strategy_performance:
+            return 0.5  # Default neutral
+
+        perf = self.strategy_performance[strategy]
+        total = perf['success'] + perf['failure']
+        if total == 0:
+            return 0.5
+        return perf['success'] / total
+
+    def get_learnable_weights(self) -> Dict[str, float]:
+        """Get current learnable weights"""
+        return self.strategy_weights.copy()
+
+    def set_learnable_weights(self, weights: Dict[str, float]) -> None:
+        """Set learnable weights (for loading from checkpoint)"""
+        for strategy, weight in weights.items():
+            if strategy in self.strategy_weights:
+                self.strategy_weights[strategy] = max(0.5, min(2.0, weight))
+
 
     async def select_optimal_retrieval_strategy(self, query: str, context: Dict[str, Any]) -> str:
         """
@@ -53,7 +140,7 @@ class RoutingManager:
         query_features = await self.analyze_query_features(query, context)
 
         # 基于记忆激活和认知负荷选择策略
-        strategy_scores = {
+        raw_scores = {
             'keyword_search': self.evaluate_keyword_search_suitability(query_features),
             'semantic_search': self.evaluate_semantic_search_suitability(query_features),
             'episodic_search': self.evaluate_episodic_search_suitability(query_features),
@@ -61,11 +148,18 @@ class RoutingManager:
             'multi_strategy_search': self.evaluate_multi_strategy_suitability(query_features)
         }
 
+        # 🔥 FIX: Apply learnable weights to bias strategy selection
+        strategy_scores = {
+            strategy: score * self.strategy_weights.get(strategy, 1.0)
+            for strategy, score in raw_scores.items()
+        }
+
         # 选择最高分的策略
         best_strategy = max(strategy_scores.items(), key=lambda x: x[1])
         strategy_name = best_strategy[0]
         confidence = best_strategy[1]
 
+        logger.debug(f"Strategy selection: {strategy_name} (weighted_score={confidence:.3f})")
 
         return strategy_name
 
@@ -313,27 +407,33 @@ class RoutingManager:
             }
         """
         # 计算各策略的适合度分数（基于特征，无硬编码）
-        scores = {}
+        raw_scores = {}
 
         # 1. 情节记忆适合度
         episodic_score = self.calculate_episodic_suitability(query_features, context)
-        scores['episodic'] = episodic_score
+        raw_scores['episodic'] = episodic_score
 
         # 2. 语义记忆适合度
         semantic_score = self.calculate_semantic_suitability(query_features, context)
-        scores['semantic'] = semantic_score
+        raw_scores['semantic'] = semantic_score
 
         # 3. 时间线检索适合度
         temporal_score = self.calculate_temporal_suitability(query_features, context)
-        scores['temporal'] = temporal_score
+        raw_scores['temporal'] = temporal_score
 
         # 4. 混合检索适合度
         hybrid_score = self.calculate_hybrid_suitability(query_features, context)
-        scores['hybrid'] = hybrid_score
+        raw_scores['hybrid'] = hybrid_score
 
         # 5. KG联合检索适合度
         kg_score = self.calculate_kg_suitability(query_features, context)
-        scores['kg_joint'] = kg_score
+        raw_scores['kg_joint'] = kg_score
+
+        # 🔥 FIX: Apply learnable weights to bias strategy selection
+        scores = {
+            strategy: score * self.strategy_weights.get(strategy, 1.0)
+            for strategy, score in raw_scores.items()
+        }
 
         # 选择分数最高的策略
         best_strategy = max(scores, key=scores.get)

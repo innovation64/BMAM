@@ -146,11 +146,12 @@ Output JSON only:
                 logger.debug(f"🔄 Reasoning Validator → Hippocampus: Requesting more memories")
                 logger.info(f"   Refined query: {result['refined_query']}")
 
-                # 向海马体请求更多记忆
-                more_memories = await hippocampus.retrieve(
+                # 修复: hippocampus.retrieve -> hippocampus.search_memories
+                search_result = await hippocampus.search_memories(
                     query=result['refined_query'],
                     k=10
                 )
+                more_memories = search_result.get('memories', []) if isinstance(search_result, dict) else search_result
 
                 if more_memories:
                     # 合并记忆,重新推理

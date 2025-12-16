@@ -72,8 +72,9 @@ class BasalGangliaAgent(BrainAgent):
         # 统计信息
         self.total_stored = 0
 
-        # 🔥 Auto-persistence setup
-        self.state_file = Path("data/basal_ganglia_state.json")
+        # 🔥 Auto-persistence setup (使用 BMAMPaths 支持并行测试)
+        from src.utils.paths import BMAMPaths
+        self.state_file = BMAMPaths.BASAL_GANGLIA_STATE
         self._load_state_from_file()
 
         logger.info(f"✅ BasalGangliaAgent initialized (capacity={capacity})")

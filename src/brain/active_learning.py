@@ -19,6 +19,7 @@ from ..utils.config import get_logger
 from ..utils.model_selector import select_model_for_task
 from ..services.shared_openai_client import shared_client_manager
 from ..utils.parameters import LLMParams, MemoryParams, RetrievalParams, ProcessingParams, ThresholdParams
+from ..coordination.soul_state import get_soul_state
 
 logger = get_logger(__name__)
 
@@ -41,12 +42,15 @@ class ActiveLearningManager:
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         self.config = config or {}
         self.client_manager = shared_client_manager
-        
+
+        # 初始化 SoulState 连接
+        self.soul_state = get_soul_state()
+
         # 默认配置
         self.enabled = self.config.get('active_learning_enabled', True)
         self.confidence_threshold = self.config.get('active_learning_threshold', 0.6) # Increased threshold
         self.curiosity_level = self.config.get('curiosity_level', 0.7)  # 0.0-1.0, 越高越爱问
-        
+
         logger.info(f"✅ ActiveLearningManager initialized (enabled={self.enabled}, threshold={self.confidence_threshold})")
 
     async def check_and_generate_question(

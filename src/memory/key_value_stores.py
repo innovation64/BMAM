@@ -778,3 +778,204 @@ class KeyValueMemoryStore:
             'key_store': self.key_store.get_statistics(),
             'value_store': self.value_store.get_statistics()
         }
+
+    async def search_memories(
+        self,
+        query: str = None,
+        k: int = 10,
+        query_vector: Optional[np.ndarray] = None,
+        entities: Optional[List[str]] = None,
+        time_range: Optional[Tuple[datetime, datetime]] = None,
+        filters: Optional[Dict[str, Any]] = None,  # 兼容参数
+        **kwargs  # 忽略其他未知参数
+    ) -> Dict[str, Any]:
+        """
+        搜索记忆 - 兼容接口
+
+        这个方法提供与其他记忆系统兼容的接口。
+        当没有结构化查询参数时，使用关键词匹配。
+
+        Args:
+            query: 查询文本
+            k: 返回数量
+            query_vector: 查询向量（可选）
+            entities: 实体过滤（可选）
+            time_range: 时间范围（可选）
+            filters: 过滤器字典（兼容参数）
+
+        Returns:
+            {'memories': [...], 'count': int}
+        """
+        # 从filters中提取参数（如果有）
+        if filters:
+            entities = entities or filters.get('entities')
+            if 'time_range' in filters and isinstance(filters['time_range'], tuple):
+                time_range = filters['time_range']
+
+        # 尝试结构化检索
+        results = self.retrieve(
+            query_vector=query_vector,
+            query_entities=entities,
+            time_range=time_range,
+            top_k=k,
+            include_content=True
+        )
+
+        # 🔥 如果没有结果且有查询文本，使用关键词匹配
+        if not results and query:
+            results = self._keyword_search(query, k)
+
+        # 转换为兼容格式
+        memories = []
+        for r in results:
+            mem = {
+                'id': r.get('memory_id'),
+                'content': r.get('content', ''),
+                'score': r.get('score', 0.0),
+                'importance': r.get('importance', 0.5),
+                'source': 'kv_store'
+            }
+            if r.get('details'):
+                mem['metadata'] = r['details']
+            memories.append(mem)
+
+        # 返回记忆列表（而不是字典）以兼容 storage_adapter
+        return memories
+
+    def _keyword_search(self, query: str, k: int = 10) -> List[Dict[str, Any]]:
+        """
+        关键词搜索 - 当没有结构化查询参数时使用
+
+        简单的BM25-like关键词匹配
+        """
+        if not query:
+            return []
+
+        query_words = set(query.lower().split())
+        if not query_words:
+            return []
+
+        # 获取所有记忆
+        all_memory_ids = list(self.key_store.keys.keys())
+        if not all_memory_ids:
+            return []
+
+        # 批量获取内容
+        values = self.value_store.batch_retrieve(all_memory_ids)
+
+        # 计算匹配分数
+        scored_results = []
+        for memory_id in all_memory_ids:
+            if memory_id not in values:
+                continue
+
+            content = values[memory_id].get('content', '').lower()
+            content_words = set(content.split())
+
+            # 计算词重叠
+            overlap = len(query_words & content_words)
+            if overlap > 0:
+                score = overlap / len(query_words)
+                scored_results.append({
+                    'memory_id': memory_id,
+                    'content': values[memory_id].get('content', ''),
+                    'score': score,
+                    'importance': values[memory_id].get('importance', 0.5),
+                    'details': values[memory_id].get('details')
+                })
+
+        # 按分数排序
+        scored_results.sort(key=lambda x: x['score'], reverse=True)
+        return scored_results[:k]
+
+    def store_memory_sync(
+        self,
+        memory_id: str = None,
+        content: str = None,
+        embedding: Optional[List[float]] = None,
+        entities: Optional[List[str]] = None,
+        timestamp: Optional[datetime] = None,
+        importance: float = 0.5,
+        metadata: Optional[Dict[str, Any]] = None,
+        memory_type: str = None,
+        emotion_tags: List[str] = None,
+        context_tags: List[str] = None,
+        **kwargs
+    ) -> Optional[str]:
+        """同步版本的 store_memory"""
+        import uuid
+
+        if memory_id is None:
+            memory_id = str(uuid.uuid4())
+
+        if content is None:
+            logger.warning("store_memory called without content")
+            return None
+
+        vector = np.array(embedding) if embedding else None
+
+        full_metadata = metadata or {}
+        if emotion_tags:
+            full_metadata['emotion_tags'] = emotion_tags
+        if context_tags:
+            full_metadata['context_tags'] = context_tags
+        if memory_type:
+            full_metadata['memory_type'] = memory_type
+
+        self.store(
+            memory_id=memory_id,
+            content=content,
+            vector=vector,
+            entities=entities,
+            timestamp=timestamp or datetime.now(),
+            details=full_metadata,
+            importance=importance
+        )
+
+        return memory_id
+
+    async def store_memory(
+        self,
+        memory_id: str = None,
+        content: str = None,
+        embedding: Optional[List[float]] = None,
+        entities: Optional[List[str]] = None,
+        timestamp: Optional[datetime] = None,
+        importance: float = 0.5,
+        metadata: Optional[Dict[str, Any]] = None,
+        memory_type: str = None,
+        emotion_tags: List[str] = None,
+        context_tags: List[str] = None,
+        **kwargs
+    ) -> Optional[str]:
+        """
+        存储记忆 - 异步兼容接口
+
+        Args:
+            memory_id: 记忆ID（可选，自动生成）
+            content: 记忆内容
+            embedding: 向量嵌入
+            entities: 实体列表
+            timestamp: 时间戳
+            importance: 重要性
+            metadata: 元数据
+            memory_type: 记忆类型（兼容参数）
+            emotion_tags: 情绪标签（兼容参数）
+            context_tags: 上下文标签（兼容参数）
+
+        Returns:
+            memory_id
+        """
+        return self.store_memory_sync(
+            memory_id=memory_id,
+            content=content,
+            embedding=embedding,
+            entities=entities,
+            timestamp=timestamp,
+            importance=importance,
+            metadata=metadata,
+            memory_type=memory_type,
+            emotion_tags=emotion_tags,
+            context_tags=context_tags,
+            **kwargs
+        )

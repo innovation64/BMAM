@@ -143,8 +143,25 @@ const regionColors = {
     'hippocampus': '#667eea',
     'temporal_lobe': '#48bb78',
     'prefrontal': '#ed8936',
+    'prefrontal_storage': '#ed8936',
     'amygdala': '#f56565',
-    'basal_ganglia': '#9f7aea'
+    'basal_ganglia': '#9f7aea',
+    'short_term_memory': '#4fd1c5',
+    'long_term_memory': '#38b2ac',
+    'memory_retrieval': '#4299e1',
+    'consolidation': '#805ad5',
+    'memory_distortion': '#d53f8c',
+    'reflection': '#3182ce',
+    'forgetting': '#718096',
+    'stress_response': '#e53e3e',
+    'reasoning_validator': '#dd6b20',
+    'persona_memory': '#d69e2e',
+    'personality': '#b794f4',
+    'conversation': '#63b3ed',
+    'executive_control': '#f687b3',
+    'perception_encoding': '#68d391',
+    'action_execution': '#f6ad55',
+    'environment': '#cbd5e0'
 };
 
 // 初始化
@@ -197,7 +214,7 @@ async function loadMemoryState() {
             // 更新概览统计
             document.getElementById('total-memories').textContent = summary.total_memories.toLocaleString();
             document.getElementById('overall-usage').textContent = summary.overall_usage.toFixed(2) + '%';
-            document.getElementById('active-regions').textContent = `${summary.active_regions}/5`;
+            document.getElementById('active-regions').textContent = `${summary.active_regions}/${regions.length}`;
 
             // 更新脑区列表
             updateBrainRegions(regions);
@@ -313,6 +330,76 @@ async function loadDataFlow() {
     } catch (error) {
         console.error('加载数据流失败:', error);
     }
+}
+
+// 更新流向图
+function updateFlowChart(flows) {
+    // Define all possible nodes based on regionColors
+    const allNodes = Object.keys(regionColors).map((id, index) => ({
+        name: id,
+        category: index % 10, // Just to vary colors if category used for color
+        symbolSize: id === 'hippocampus' || id === 'temporal_lobe' ? 60 : 40,
+        itemStyle: { color: regionColors[id] }
+    }));
+
+    // Filter nodes to only those involved in flows or core regions
+    const activeNodeNames = new Set(['hippocampus', 'temporal_lobe', 'prefrontal', 'amygdala', 'basal_ganglia']);
+    flows.forEach(f => {
+        activeNodeNames.add(f.source);
+        activeNodeNames.add(f.target);
+    });
+
+    const nodes = allNodes.filter(n => activeNodeNames.has(n.name));
+
+    const links = flows.map(flow => ({
+        source: flow.source,
+        target: flow.target,
+        value: flow.count,
+        lineStyle: {
+            width: Math.max(1, flow.count / 5)
+        }
+    }));
+
+    const option = {
+        backgroundColor: 'transparent',
+        tooltip: {
+            formatter: function (params) {
+                if (params.dataType === 'edge') {
+                    return `${params.data.source} → ${params.data.target}<br/>数量: ${params.data.value}`;
+                }
+                return params.name;
+            }
+        },
+        series: [{
+            type: 'graph',
+            layout: 'force',
+            data: nodes,
+            links: links,
+            roam: true,
+            label: {
+                show: true,
+                position: 'right',
+                formatter: '{b}',
+                color: '#e2e8f0'
+            },
+            lineStyle: {
+                color: 'source',
+                curveness: 0.3
+            },
+            emphasis: {
+                focus: 'adjacency',
+                lineStyle: {
+                    width: 10
+                }
+            },
+            force: {
+                repulsion: 300,
+                edgeLength: 150
+            }
+        }]
+    };
+
+    flowChart.setOption(option);
 }
 
 // 加载性能数据

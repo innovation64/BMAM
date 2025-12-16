@@ -241,19 +241,71 @@ class TemporalRetrievalStrategy(RetrievalStrategy):
 
     def _get_memory_timestamp(self, memory) -> Optional[datetime]:
         """
-        获取记忆的时间戳
+        获取记忆的事件时间 - 🔥 2025-12-14 修复: 优先使用 metadata.event_time
+
+        优先级:
+        1. metadata['event_time'] - 真正的事件发生时间
+        2. metadata['conversation_date'] - 对话日期
+        3. timestamp - 存储时间 (fallback)
 
         Args:
-            memory: 记忆对象
+            memory: 记忆对象 (可以是对象或字典格式)
 
         Returns:
             datetime对象或None
         """
         try:
-            if hasattr(memory, 'created_at') and memory.created_at:
-                return memory.created_at
-            elif hasattr(memory, 'timestamp') and memory.timestamp:
-                return memory.timestamp
+            # 1. 优先从 metadata 获取 event_time (真正的事件时间)
+            metadata = None
+            if hasattr(memory, 'metadata') and memory.metadata:
+                metadata = memory.metadata
+            elif isinstance(memory, dict):
+                metadata = memory.get('metadata', {})
+                # 处理嵌套格式 {'memory': {..., 'metadata': {...}}}
+                if 'memory' in memory and isinstance(memory['memory'], dict):
+                    metadata = memory['memory'].get('metadata', {})
+
+            if metadata:
+                # 优先使用 event_time
+                event_time = metadata.get('event_time')
+                if event_time:
+                    if isinstance(event_time, str):
+                        try:
+                            return datetime.fromisoformat(event_time.replace('Z', '+00:00')).replace(tzinfo=None)
+                        except ValueError:
+                            pass
+                    elif isinstance(event_time, datetime):
+                        return event_time
+
+                # 其次使用 conversation_date
+                conv_date = metadata.get('conversation_date')
+                if conv_date:
+                    if isinstance(conv_date, str):
+                        try:
+                            return datetime.fromisoformat(conv_date.replace('Z', '+00:00')).replace(tzinfo=None)
+                        except ValueError:
+                            pass
+                    elif isinstance(conv_date, datetime):
+                        return conv_date
+
+            # 2. 最后回退到 timestamp (存储时间)
+            ts = None
+            if hasattr(memory, 'timestamp') and memory.timestamp:
+                ts = memory.timestamp
+            elif isinstance(memory, dict):
+                ts = memory.get('timestamp')
+                if not ts and 'memory' in memory:
+                    ts = memory['memory'].get('timestamp')
+
+            if ts:
+                if isinstance(ts, str):
+                    try:
+                        return datetime.fromisoformat(ts.replace('Z', '+00:00')).replace(tzinfo=None)
+                    except ValueError:
+                        pass
+                elif isinstance(ts, datetime):
+                    return ts
+
         except Exception as e:
             logger.debug(f"Failed to get memory timestamp: {e}")
 

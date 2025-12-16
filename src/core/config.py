@@ -12,6 +12,8 @@ import os
 from pathlib import Path
 from functools import lru_cache
 
+from src.utils.paths import BMAMPaths
+
 
 @dataclass(frozen=True)
 class MemorySystemConfig:
@@ -23,15 +25,15 @@ class MemorySystemConfig:
     embedding_dimension: int = 1536
     embedding_max_length: int = 8191
     enable_cache: bool = True
-    cache_dir: str = "data/embedding_cache"
+    cache_dir: str = str(BMAMPaths.EMBEDDING_CACHE_DIR)
     cache_max_size: int = 10000
     cache_ttl_hours: int = 24
 
-    vector_db_index_path: str = "data/faiss_index"
+    vector_db_index_path: str = str(BMAMPaths.DATA_DIR / "faiss_index")
     max_vectors: int = 5000
     compaction_frequency: int = 50
 
-    database_url: str = "sqlite:///data/memories.db"
+    database_url: str = f"sqlite:///{BMAMPaths.BRAIN_MEMORY_DB}"
     connection_pool_size: int = 5
 
 
@@ -110,13 +112,19 @@ class BMAMConfig:
             embedding_dimension=int(os.getenv("EMBEDDING_DIMENSION", "1536")),
             embedding_max_length=int(os.getenv("EMBEDDING_MAX_LENGTH", "8191")),
             enable_cache=os.getenv("ENABLE_EMBEDDING_CACHE", "true").lower() == "true",
-            cache_dir=os.getenv("EMBEDDING_CACHE_DIR", "data/embedding_cache"),
+            cache_dir=os.getenv("EMBEDDING_CACHE_DIR", str(BMAMPaths.EMBEDDING_CACHE_DIR)),
             cache_max_size=int(os.getenv("CACHE_MAX_SIZE", "10000")),
             cache_ttl_hours=int(os.getenv("CACHE_TTL_HOURS", "24")),
-            vector_db_index_path=os.getenv("FAISS_INDEX_PATH", "data/faiss_index"),
+            vector_db_index_path=os.getenv(
+                "FAISS_INDEX_PATH",
+                str(BMAMPaths.DATA_DIR / "faiss_index")
+            ),
             max_vectors=int(os.getenv("MAX_FAISS_VECTORS", "5000")),
             compaction_frequency=int(os.getenv("FAISS_COMPACTION_FREQUENCY", "50")),
-            database_url=os.getenv("DATABASE_URL", "sqlite:///data/memories.db"),
+            database_url=os.getenv(
+                "DATABASE_URL",
+                f"sqlite:///{BMAMPaths.BRAIN_MEMORY_DB}"
+            ),
             connection_pool_size=int(os.getenv("DB_POOL_SIZE", "5"))
         )
 

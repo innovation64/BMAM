@@ -90,7 +90,9 @@ CRITICAL: Return the ACTUAL object name from memories, NOT phrases like "the obj
 
             # 双向反馈
             if result.get('confidence', 0) < 0.7 and result.get('refined_query') and hippocampus:
-                more_memories = await hippocampus.retrieve(result['refined_query'], k=10)
+                # 修复: hippocampus.retrieve -> hippocampus.search_memories
+                search_result = await hippocampus.search_memories(result['refined_query'], k=10)
+                more_memories = search_result.get('memories', []) if isinstance(search_result, dict) else search_result
                 if more_memories:
                     return await self._research_reasoning(query, memories + more_memories, None)
 

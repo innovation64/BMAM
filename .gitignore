@@ -6,6 +6,7 @@ __pycache__/
 .Python
 env/
 venv/
+.venv*/
 ENV/
 build/
 develop-eggs/
@@ -35,7 +36,6 @@ coverage.xml
 .hypothesis/
 
 # IDE
-.claude/
 .idea/
 .vscode/
 *.swp
@@ -47,40 +47,54 @@ coverage.xml
 .env
 *.log
 
-# Results
-results/
-logs/
-output/
-*.json
-!config/*.json
-!data/**/*.json
+# Logs
+/logs/
+
+# Archives and backups
+/archives/
+*.tar.gz
+*.bak
 
 # Temporary files
 tmp/
 temp/
 *.tmp
-*.bak
 
 # Model checkpoints
 *.ckpt
 *.pth
 *.h5
-checkpoints/
 
-# Data files that should not be tracked
-/data/embedding_cache/
-/data/memory_vectors.index
-/data/memory_vectors_mappings.json
+# =====================
+# Runtime Data (IMPORTANT: Do not commit)
+# =====================
+# Entire data directory is runtime-generated
+/data/
 
-# Large texture files
-src/ui/static/models/**/*.png
-src/ui/static/models/**/*.jpg
+# Keep config files
+!config/*.json
+!config/*.yaml
 
-# Large log files
-bmam.log
-# Ignore runtime caches and DB files
-/data/embedding_cache/embeddings.json
-/data/brain_memory.db
-/data/agent_buffers/
-/data/brain/connection_matrix.json
-/data/brain/synaptic_plasticity.json
+# Large texture/model files (Live2D, etc.)
+src/ui/static/models/
+src/ui/web_ui_server/static/models/
+*.moc3
+*.png
+!README*.png
+!docs/**/*.png
+
+# =====================
+# Experiment Data (Do not commit large data files)
+# =====================
+experiments/data/locomo_dataset/
+experiments/locomo_archives/
+/locomo_archives/
+experiments/locomo_checkpoints/
+experiments/backups_*/
+experiments/results/**/*.json
+experiments/benchmarks/metrics/
+!experiments/results/.gitkeep
+!experiments/benchmarks/.gitkeep
+
+# Broken code backups
+**/broken_code_backup*/

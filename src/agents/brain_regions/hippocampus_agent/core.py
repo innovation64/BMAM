@@ -21,6 +21,7 @@ from ....utils.knowledge_graph_builder import KnowledgeGraphBuilder
 from ....memory.storage_adapter import MemoryStorageAdapter, StorageConfig
 from ....memory.key_value_stores import KeyValueMemoryStore
 from ....memory.brain_regions.hippocampal_event_graph import HippocampalEventGraph
+from ....memory.storage_coordinator import get_storage_coordinator
 
 
 @dataclass
@@ -119,12 +120,150 @@ class HippocampusAgentCore(BrainAgent):
         self.state_file = Path("data/hippocampus_state.json")
         self._load_state_from_file()
 
+        # 🔥 NEW: Track if global sync is needed on first async operation
+        self._global_sync_done = False
+        self._use_global_storage = use_global_storage
+
         logger.info(
             f"✅ HippocampusAgent initialized (capacity={capacity}, "
             f"consolidation={'enabled' if temporal_lobe_agent else 'disabled'}, "
             f"kg_extraction={'shared' if self._shared_kg_builder else 'local'}, "
             f"storage={'delegated' if use_global_storage else 'local'})"
         )
+
+    async def ensure_global_sync(self) -> Dict[str, Any]:
+        """
+        Ensure local cache is synced with global storage
+        确保本地缓存与全局存储同步
+
+        Called automatically on first async operation if global storage is enabled.
+        Should also be called explicitly after program restart.
+
+        Returns:
+            Sync result from storage_adapter
+        """
+        if self._global_sync_done:
+            return {'already_synced': True}
+
+        if not self._use_global_storage:
+            self._global_sync_done = True
+            return {'global_storage_disabled': True}
+
+        try:
+            # Sync from global storage to local cache
+            sync_result = await self.storage_adapter.sync_from_global(
+                limit=self.capacity  # Sync up to capacity
+            )
+
+            # Rebuild local structures from synced cache
+            if sync_result.get('synced_count', 0) > 0:
+                await self._rebuild_from_cache()
+
+            # Verify consistency
+            consistency = await self.storage_adapter.verify_consistency()
+            sync_result['consistency'] = consistency
+
+            self._global_sync_done = True
+            logger.info(f"✅ Global sync complete: {sync_result}")
+            return sync_result
+
+        except Exception as e:
+            logger.error(f"❌ Global sync failed: {e}")
+            self._global_sync_done = True  # Mark as done to avoid retry loop
+            return {'error': str(e)}
+
+    async def _rebuild_from_cache(self) -> None:
+        """
+        Rebuild local memory structures from storage adapter cache
+        从存储适配器缓存重建本地记忆结构
+        """
+        # Clear existing local structures
+        self.memories.clear()
+        self.memory_dict.clear()
+        self.entity_index.clear()
+        self.time_index.clear()
+        self.event_index.clear()
+        self.entity_action_index.clear()
+
+        # Rebuild from cache
+        for memory_id, memory_dict in self.storage_adapter._local_cache.items():
+            memory = self._dict_to_memory(memory_dict)
+            self.memories.append(memory)
+            self.memory_dict[memory.id] = memory
+            self._update_indexes(memory)
+
+        logger.info(f"✅ Rebuilt {len(self.memories)} memories from global cache")
+
+    def _dict_to_memory(self, memory_dict: Dict[str, Any]) -> EpisodicMemory:
+        """Convert dict to EpisodicMemory"""
+        timestamp = memory_dict.get('timestamp')
+        if isinstance(timestamp, str):
+            timestamp = datetime.fromisoformat(timestamp)
+
+        last_accessed = memory_dict.get('last_accessed')
+        if isinstance(last_accessed, str):
+            last_accessed = datetime.fromisoformat(last_accessed)
+
+        return EpisodicMemory(
+            id=memory_dict.get('id'),
+            content=memory_dict.get('content', ''),
+            timestamp=timestamp or datetime.now(),
+            entities=memory_dict.get('entities', []),
+            importance=memory_dict.get('importance', 0.5),
+            access_count=memory_dict.get('access_count', 0),
+            last_accessed=last_accessed,
+            emotion_tags=memory_dict.get('emotion_tags', []),
+            emotion_intensity=memory_dict.get('emotion_intensity', 0.0),
+            metadata=memory_dict.get('metadata', {}),
+            embedding=memory_dict.get('embedding'),
+            event_id=memory_dict.get('event_id'),
+            speaker=memory_dict.get('speaker')
+        )
+
+    def _update_indexes(self, memory: EpisodicMemory) -> None:
+        """Update all indexes for a memory"""
+        # Entity index
+        for entity in memory.entities:
+            self.entity_index[entity].append(memory.id)
+            entity_lower = entity.lower()
+            if entity_lower != entity:
+                self.entity_index[entity_lower].append(memory.id)
+
+        # Time index
+        date_key = memory.timestamp.strftime('%Y-%m-%d')
+        self.time_index[date_key].append(memory.id)
+
+        # Event index
+        if memory.event_id:
+            self.event_index[memory.event_id].append(memory.id)
+
+    async def get_capacity_status_global(self) -> Dict[str, Any]:
+        """
+        Get capacity status based on global storage (not just local list)
+        基于全局存储获取容量状态
+
+        This fixes the issue where capacity was only checked against local list,
+        which could be incomplete when using global storage delegation.
+        """
+        if self._use_global_storage:
+            global_status = await self.storage_adapter.get_global_capacity_status()
+            global_count = global_status.get('global_count', len(self.memories))
+            return {
+                'current': global_count,
+                'local_cache': len(self.memories),
+                'max': self.capacity,
+                'usage_percent': (global_count / self.capacity) * 100 if self.capacity > 0 else 0,
+                'source': 'global'
+            }
+        else:
+            current = len(self.memories)
+            return {
+                'current': current,
+                'local_cache': current,
+                'max': self.capacity,
+                'usage_percent': (current / self.capacity) * 100 if self.capacity > 0 else 0,
+                'source': 'local'
+            }
 
     async def process_message(self, message: AgentMessage) -> Dict[str, Any]:
         """处理消息"""
@@ -310,6 +449,26 @@ class HippocampusAgentCore(BrainAgent):
             self.total_forgotten = stats.get('total_forgotten', 0)
             self.total_consolidated = stats.get('total_consolidated', 0)
 
+            # 🔥 2025-12-13: 同步到KV存储（如果启用）
+            if self.memory_store:
+                synced = 0
+                for memory in self.memories:
+                    try:
+                        # 使用同步版本避免协程问题
+                        self.memory_store.store_memory_sync(
+                            memory_id=memory.id,
+                            content=memory.content,
+                            embedding=memory.embedding,
+                            entities=memory.entities,
+                            timestamp=memory.timestamp,
+                            importance=memory.importance,
+                            metadata=memory.metadata
+                        )
+                        synced += 1
+                    except Exception as e:
+                        logger.warning(f"Failed to sync memory {memory.id} to KV store: {e}")
+                logger.info(f"🔄 Synced {synced}/{len(self.memories)} memories to KV store")
+
             logger.info(f"✅ Loaded HippocampusAgent state: {len(self.memories)} memories")
             return True
 
@@ -318,32 +477,229 @@ class HippocampusAgentCore(BrainAgent):
             return False
 
     def _load_state_from_file(self):
-        """Auto-load state from JSON file on startup"""
+        """Auto-load state from JSON file on startup using StorageCoordinator"""
         if not self.state_file.exists():
             logger.info(f"📂 No existing state file found at {self.state_file}, starting fresh")
             return
 
         try:
-            with open(self.state_file, 'r') as f:
-                state = json.load(f)
-                success = self.load_state(state)
-                if success:
-                    logger.info(f"✅ Auto-loaded Hippocampus state from {self.state_file}")
-                else:
-                    logger.warning(f"⚠️  Failed to load Hippocampus state from {self.state_file}")
+            # 使用存储协调器安全加载（支持自动从备份恢复）
+            coordinator = get_storage_coordinator()
+            state = coordinator.safe_json_load(str(self.state_file))
+
+            if state is None:
+                logger.error(f"❌ Failed to load state from {self.state_file} (file corrupted and no backup)")
+                return
+
+            success = self.load_state(state)
+            if success:
+                logger.info(f"✅ Auto-loaded Hippocampus state from {self.state_file}")
+            else:
+                logger.warning(f"⚠️  Failed to parse Hippocampus state from {self.state_file}")
         except Exception as e:
             logger.error(f"❌ Error loading Hippocampus state from {self.state_file}: {e}")
 
     def _save_state_to_file(self):
-        """Auto-save current state to JSON file"""
+        """Auto-save current state to JSON file using StorageCoordinator"""
         try:
             # Ensure data directory exists
             self.state_file.parent.mkdir(parents=True, exist_ok=True)
 
             state = self.export_state()
-            with open(self.state_file, 'w') as f:
-                json.dump(state, f, indent=2)
+
+            # 使用存储协调器进行安全写入（自动处理ndarray等类型）
+            coordinator = get_storage_coordinator()
+            success = coordinator.safe_json_dump(state, str(self.state_file), create_backup=True)
+
+            if success:
+                logger.debug(f"✅ Hippocampus state saved to {self.state_file}")
+            else:
+                logger.error(f"❌ Failed to save Hippocampus state to {self.state_file}")
 
         except Exception as e:
             logger.error(f"❌ Error saving Hippocampus state to {self.state_file}: {e}")
 
+    async def receive_retrieval_feedback(self, feedback: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        接收检索/推理反馈，调低低置信度记忆的权重并记录负样本
+
+        Args:
+            feedback: {
+                'confidence': float,
+                'retrieved_memory_ids': [id1, id2, ...],
+                ...
+            }
+        """
+        confidence = feedback.get('confidence', 0.0)
+        memory_ids = feedback.get('retrieved_memory_ids') or []
+
+        updated = 0
+        for mid in memory_ids:
+            mem = self.memory_dict.get(mid)
+            if not mem:
+                continue
+
+            # 记录负反馈次数，供后续巩固/遗忘使用
+            negative_count = mem.metadata.get('negative_feedback_count', 0) + 1
+            mem.metadata['negative_feedback_count'] = negative_count
+            mem.metadata['last_feedback_time'] = datetime.now().isoformat()
+
+            # 低置信度信号 -> 略微降低重要性，避免重复命中
+            if confidence < 0.5:
+                mem.importance = max(0.1, mem.importance - 0.05)
+
+            updated += 1
+
+        if updated:
+            # 保持轻量持久化，确保反馈可追溯
+            self._save_state_to_file()
+
+        return {
+            'feedback_applied': updated,
+            'confidence': confidence
+        }
+
+    async def sync_to_global_vectordb(self, memory_system=None, batch_size: int = 100) -> Dict[str, Any]:
+        """
+        🔥 P0 FIX: 将本地历史记忆同步到全局VectorDB
+
+        解决问题：Hippocampus从JSON加载的历史记忆没有索引到FAISS VectorDB，
+        导致语义检索返回0结果。
+
+        Args:
+            memory_system: 全局记忆系统实例（如未提供则使用storage_adapter的）
+            batch_size: 每批处理的记忆数量
+
+        Returns:
+            同步结果统计
+        """
+        ms = memory_system or (self.storage_adapter.memory_system if self.storage_adapter else None)
+        if not ms:
+            logger.warning("⚠️ No memory_system available for VectorDB sync")
+            return {'error': 'no_memory_system', 'synced': 0}
+
+        synced = 0
+        skipped = 0
+        failed = 0
+
+        # 获取VectorDB中已有的memory_ids
+        existing_ids = set(ms.vector_db.reverse_mapping.keys()) if hasattr(ms, 'vector_db') else set()
+        logger.info(f"🔄 Starting VectorDB sync: {len(self.memories)} local memories, {len(existing_ids)} already in VectorDB")
+
+        # 分批处理
+        memories_to_sync = [m for m in self.memories if m.id not in existing_ids]
+        total_to_sync = len(memories_to_sync)
+
+        if total_to_sync == 0:
+            logger.info("✅ All memories already synced to VectorDB")
+            return {'synced': 0, 'skipped': len(self.memories), 'total': len(self.memories)}
+
+        for i in range(0, total_to_sync, batch_size):
+            batch = memories_to_sync[i:i + batch_size]
+
+            for memory in batch:
+                try:
+                    # 准备记忆数据
+                    memory_dict = {
+                        'id': memory.id,
+                        'content': memory.content,
+                        'timestamp': memory.timestamp,
+                        'entities': memory.entities,
+                        'importance': memory.importance,
+                        'emotion_tags': memory.emotion_tags,
+                        'emotion_intensity': memory.emotion_intensity,
+                        'metadata': memory.metadata,
+                        'event_id': memory.event_id,
+                        'speaker': memory.speaker,
+                        'embedding': memory.embedding  # 可能为None，需要重新生成
+                    }
+
+                    # 存储到全局系统（会自动生成embedding并索引到FAISS）
+                    result_id = await ms.store_memory(
+                        content=memory.content,
+                        memory_type="episodic",
+                        importance=memory.importance,
+                        emotion_tags=memory.emotion_tags,
+                        context_tags=["hippocampus"],
+                        metadata={
+                            **memory.metadata,
+                            'original_id': memory.id,
+                            'entities': memory.entities,
+                            'event_id': memory.event_id,
+                            'speaker': memory.speaker,
+                            'timestamp': memory.timestamp.isoformat() if memory.timestamp else None
+                        },
+                        embedding=memory.embedding
+                    )
+
+                    if result_id:
+                        synced += 1
+                    else:
+                        failed += 1
+
+                except Exception as e:
+                    logger.warning(f"Failed to sync memory {memory.id}: {e}")
+                    failed += 1
+
+            # 每批次后保存索引
+            if hasattr(ms, 'vector_db'):
+                ms.vector_db.save_index()
+
+            logger.info(f"📊 VectorDB sync progress: {synced}/{total_to_sync} synced, {failed} failed")
+
+        skipped = len(self.memories) - total_to_sync
+
+        logger.info(
+            f"✅ VectorDB sync complete: synced={synced}, skipped={skipped}, failed={failed}, "
+            f"VectorDB total={ms.vector_db.index.ntotal if hasattr(ms, 'vector_db') else 'N/A'}"
+        )
+
+        return {
+            'synced': synced,
+            'skipped': skipped,
+            'failed': failed,
+            'total': len(self.memories),
+            'vectordb_total': ms.vector_db.index.ntotal if hasattr(ms, 'vector_db') else 0
+        }
+
+    async def apply_emotional_modulation(
+        self,
+        memory_id: str,
+        importance_boost: float,
+        emotion_tags: Optional[List[str]] = None,
+        emotion_intensity: float = 0.0
+    ) -> Dict[str, Any]:
+        """
+        由杏仁核调用：把情绪调节结果落地到海马体记忆
+        """
+        mem = self.memory_dict.get(memory_id)
+        if not mem:
+            return {'modulated': False, 'reason': 'memory_not_found'}
+
+        # 提升重要性并记录情绪历史
+        old_importance = mem.importance
+        mem.importance = min(1.0, mem.importance + importance_boost)
+        mem.metadata.setdefault('emotion_modulations', []).append({
+            'boost': importance_boost,
+            'emotion_tags': emotion_tags or [],
+            'emotion_intensity': emotion_intensity,
+            'timestamp': datetime.now().isoformat()
+        })
+
+        # 高情绪强度时优先巩固
+        consolidated = False
+        if emotion_intensity >= 0.7 and self.temporal_lobe:
+            try:
+                await self._consolidate_to_temporal_lobe(mem)
+                consolidated = True
+            except Exception as e:
+                logger.warning(f"Failed to consolidate after emotional modulation: {e}")
+
+        self._save_state_to_file()
+
+        return {
+            'modulated': True,
+            'old_importance': old_importance,
+            'new_importance': mem.importance,
+            'consolidated': consolidated
+        }

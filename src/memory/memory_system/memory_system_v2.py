@@ -133,23 +133,36 @@ class AdvancedMemorySystemV2(
     async def store_memory(
         self,
         content: str,
-        metadata: Optional[Dict[str, Any]] = None,
-        **kwargs
-    ) -> str:
+        memory_type: str = "episodic",
+        importance: float = 0.5,
+        emotion_tags: List[str] = None,
+        context_tags: List[str] = None,
+        metadata: Dict[str, Any] = None
+    ) -> Optional[str]:
         """
         Store Memory with Lazy Initialization
         存储记忆（延迟初始化）
 
         Args:
             content: Memory content
-            metadata: Optional metadata
-            **kwargs: Additional parameters
+            memory_type: Type of memory (episodic/semantic/procedural)
+            importance: Importance score (0.0-1.0)
+            emotion_tags: List of emotion labels
+            context_tags: List of context tags
+            metadata: Additional metadata dictionary
 
         Returns:
-            Memory ID
+            Memory ID if successful, None if failed
         """
         await self._ensure_initialized()
-        return await super().store_memory(content, metadata, **kwargs)
+        return await super().store_memory(
+            content=content,
+            memory_type=memory_type,
+            importance=importance,
+            emotion_tags=emotion_tags,
+            context_tags=context_tags,
+            metadata=metadata
+        )
 
     async def retrieve_memories(
         self,

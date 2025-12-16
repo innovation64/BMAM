@@ -41,6 +41,11 @@ class BasicCapabilitiesMixin:
             for i, m in enumerate(memories[:10])
         ])
 
+        # 🔥 2025-12-14: 检测问题语言
+        chinese_chars = sum(1 for c in query if '\u4e00' <= c <= '\u9fff')
+        is_chinese = chinese_chars / max(len(query), 1) > 0.3
+        answer_language = "Chinese (中文)" if is_chinese else "English"
+
         prompt = f"""Extract the factual answer from the memories, ensuring relevance to the question.
 
 **Question**: {query}
@@ -57,9 +62,21 @@ class BasicCapabilitiesMixin:
 - If asking "Which country" → answer must be COUNTRY NAME
 - If asking "What activity" → answer must be ACTIVITY
 - If asking "Who" → answer must be PERSON or IDENTITY
-- If asking "When" → answer must be TIME/DATE
+- If asking "When" → answer must be TIME/DATE (NEVER make up dates!)
+- If asking "Where" → answer must be LOCATION/PLACE (NEVER return dates for location questions!)
 - If asking "What community" → answer must be COMMUNITY (generalize from specific groups)
 - If asking "What did X research" → extract the MAIN TOPIC (concise)
+
+**🚨 STRICT Anti-Hallucination Rules (MUST FOLLOW)**:
+1. If the answer is NOT EXPLICITLY FOUND in memories → respond ONLY: "No information available" with confidence=0.1
+2. NEVER invent, guess, or infer beyond what's EXPLICITLY stated in memories
+3. NEVER fill in gaps with common knowledge - only use information from provided memories
+4. If uncertain → set confidence < 0.5 and prefix answer with "Uncertain: "
+5. Match answer TYPE to question TYPE: where→location, when→date, what→thing
+
+**🌐 Language Rule (CRITICAL)**:
+- Answer MUST be in {answer_language} to match the question language
+- DO NOT mix languages in your answer
 
 **Abstraction Level**:
 - For "community" questions: generalize specific groups to broader communities
@@ -69,7 +86,7 @@ class BasicCapabilitiesMixin:
 **Output JSON**:
 {{
     "question_type": "country|activity|community|research|date|...",
-    "answer": "the extracted fact (concise, appropriate abstraction level)",
+    "answer": "the extracted fact (concise, in {answer_language})",
     "confidence": 0.0-1.0,
     "evidence": "which memory contains this fact"
 }}

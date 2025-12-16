@@ -12,13 +12,18 @@ Key Features:
 4. Halting decision (should we stop or continue?)
 """
 
-from typing import Dict, Any, Optional, Tuple, List
+from typing import Dict, Any, Optional, Tuple, List, Set
 import logging
 import math
+from datetime import datetime
 from dataclasses import dataclass
 from enum import Enum
 
 from src.core.interfaces.agent_interface import IAgent
+from src.coordination.feedback_signals import (
+    ConsolidationFeedbackSignal,
+    FeedbackType,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +52,193 @@ class ThinkingState:
     converged: bool
     mode: ThinkingMode
     evidence: Dict[str, Any]
+
+
+class MemoryQualityMonitor:
+    """
+    Monitors retrieval quality and emits consolidation feedback signals.
+
+    This replaces ad-hoc hardcoded thresholds with a configurable monitor that
+    can adapt its sensitivity based on prior feedback effectiveness.
+    """
+
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
+        self.config = config or {}
+        # 🔥 提高默认阈值从 0.2 到 0.5，确保低置信度时能触发反馈
+        self.base_threshold = float(self.config.get('base_threshold', 0.5))
+        self.min_retrieval_count = int(self.config.get('min_retrieval_count', 5))
+        self.enable_llm_inference = bool(self.config.get('enable_llm_inference', False))
+
+        self.adaptive_threshold = self.base_threshold
+        self.feedback_history: List[Dict[str, Any]] = []
+        self.stats: Dict[str, Any] = {
+            'evaluations': 0,
+            'signals_generated': 0,
+            'last_confidence': None,
+            'last_effectiveness': None,
+        }
+
+    def _extract_entities(self, retrieval_result: Optional[List[Dict[str, Any]]]) -> Set[str]:
+        """Collect entity hints from retrieval results without relying on dataset-specific lists."""
+        entities: Set[str] = set()
+        if not retrieval_result:
+            return entities
+
+        for memory in retrieval_result:
+            # Prefer explicit entity lists if available
+            memory_entities = memory.get('entities') or memory.get('entity') or []
+            if isinstance(memory_entities, list):
+                for ent in memory_entities:
+                    if ent:
+                        entities.add(str(ent))
+            elif isinstance(memory_entities, str):
+                entities.add(memory_entities)
+
+            # Fallback: check nested metadata
+            metadata_entities = (
+                memory.get('metadata', {}).get('entities')
+                if isinstance(memory.get('metadata'), dict)
+                else []
+            )
+            if isinstance(metadata_entities, list):
+                for ent in metadata_entities:
+                    if ent:
+                        entities.add(str(ent))
+
+        return entities
+
+    def _infer_missing_hints(self, query: str, retrieval_count: int) -> List[str]:
+        """Infer high-level missing fact hints from the query intent."""
+        q = (query or "").lower()
+        hints: List[str] = []
+
+        if any(token in q for token in ['who', 'identity', '身份']):
+            hints.append('identity')
+        if any(token in q for token in ['research', 'study', 'investigate', 'researching']):
+            hints.append('research_topic')
+        if any(token in q for token in ['when', 'date', 'time', '什么时候']):
+            hints.append('temporal')
+        if any(token in q for token in ['where', 'location', 'place', '哪里']):
+            hints.append('location')
+        if retrieval_count == 0:
+            hints.append('coverage_gap')
+
+        return hints or ['facts']
+
+    def _record_evaluation(self, signal_generated: bool, confidence: float, retrieval_count: int) -> None:
+        """Update monitoring statistics."""
+        self.stats['evaluations'] += 1
+        if signal_generated:
+            self.stats['signals_generated'] += 1
+        self.stats['last_confidence'] = confidence
+        self.stats['last_retrieval_count'] = retrieval_count
+        self.stats['adaptive_threshold'] = self.adaptive_threshold
+
+    async def evaluate_memory_quality(
+        self,
+        query: str,
+        retrieval_result: Optional[List[Dict[str, Any]]],
+        acc_confidence: float,
+        current_state: Optional[Dict[str, Any]] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Evaluate retrieval quality and emit a consolidation feedback signal when needed.
+
+        Returns:
+            A ConsolidationFeedbackSignal dict when quality is low, otherwise None.
+        """
+        retrieval_result = retrieval_result or []
+        retrieval_count = len(retrieval_result)
+        acc_confidence = float(acc_confidence or 0.0)
+
+        quality_gap = max(0.0, self.adaptive_threshold - acc_confidence)
+        has_enough_coverage = retrieval_count >= self.min_retrieval_count
+        is_confident = acc_confidence >= self.adaptive_threshold
+
+        # If quality is acceptable, no signal is generated.
+        if has_enough_coverage and is_confident:
+            self._record_evaluation(False, acc_confidence, retrieval_count)
+            return None
+
+        feedback_type = (
+            FeedbackType.INCREASE_COVERAGE
+            if not has_enough_coverage
+            else FeedbackType.REFINE_EXTRACTION
+        )
+
+        entities = self._extract_entities(retrieval_result)
+        missing_hints = self._infer_missing_hints(query, retrieval_count)
+
+        urgency = min(
+            1.0,
+            quality_gap + (0.3 if not has_enough_coverage else 0.0)
+        )
+
+        related_memory_ids = [
+            m.get('id') for m in retrieval_result
+            if isinstance(m, dict) and m.get('id')
+        ]
+
+        signal = ConsolidationFeedbackSignal(
+            feedback_type=feedback_type,
+            failed_query=query,
+            query_entities=list(entities),
+            missing_fact_hints=missing_hints,
+            retrieval_count=retrieval_count,
+            acc_confidence=acc_confidence,
+            quality_gap=quality_gap,
+            urgency=urgency,
+            related_memory_ids=related_memory_ids,
+            metadata={
+                'adaptive_threshold': self.adaptive_threshold,
+                'enable_llm_inference': self.enable_llm_inference,
+                'current_state_keys': list((current_state or {}).keys())
+            }
+        )
+
+        self.feedback_history.append({
+            'timestamp': datetime.now().isoformat(),
+            'signal': signal.to_dict()
+        })
+        self._record_evaluation(True, acc_confidence, retrieval_count)
+
+        logger.info(
+            "Memory quality gap detected: type=%s, retrieval=%d, confidence=%.2f, gap=%.2f",
+            signal.feedback_type.value,
+            retrieval_count,
+            acc_confidence,
+            quality_gap,
+        )
+
+        return signal.to_dict()
+
+    def update_adaptive_threshold(self, effectiveness: float) -> None:
+        """
+        Adjust the sensitivity based on recent consolidation effectiveness.
+        """
+        effectiveness = max(0.0, min(1.0, effectiveness))
+        # Blend previous threshold with observed effectiveness to avoid oscillation.
+        self.adaptive_threshold = max(
+            0.05,
+            min(0.95, 0.7 * self.adaptive_threshold + 0.3 * effectiveness)
+        )
+        self.stats['last_effectiveness'] = effectiveness
+        self.stats['adaptive_threshold'] = self.adaptive_threshold
+
+    def record_feedback_result(self, stats_data: Dict[str, Any]) -> None:
+        """Persist feedback processing stats for observability."""
+        self.feedback_history.append({
+            'timestamp': datetime.now().isoformat(),
+            'result': stats_data
+        })
+        self.stats['last_feedback_result'] = stats_data
+
+    def get_statistics(self) -> Dict[str, Any]:
+        """Return lightweight monitoring statistics."""
+        return {
+            **self.stats,
+            'history_length': len(self.feedback_history),
+        }
 
 
 class AnteriorCingulateAgent(IAgent):
@@ -111,6 +303,40 @@ class AnteriorCingulateAgent(IAgent):
         }
 
         logger.info("AnteriorCingulateAgent initialized with ACT mechanism")
+
+    # ========================================================================
+    # IAgent 接口实现
+    # ========================================================================
+
+    @property
+    def agent_id(self) -> str:
+        """唯一智能体标识符"""
+        return "anterior_cingulate"
+
+    @property
+    def brain_region(self) -> str:
+        """关联的大脑区域"""
+        return "anterior_cingulate_cortex"
+
+    async def process_message(self, message) -> Dict[str, Any]:
+        """处理传入消息"""
+        query = message.content.get('query', '') if hasattr(message, 'content') else str(message)
+        result = await self.process(query)
+        return {'response': result, 'status': 'success'}
+
+    async def initialize(self):
+        """初始化智能体资源"""
+        logger.info("AnteriorCingulateAgent initialized")
+        return True
+
+    async def shutdown(self):
+        """清理智能体资源"""
+        logger.info("AnteriorCingulateAgent shutdown")
+        return True
+
+    # ========================================================================
+    # 原有方法
+    # ========================================================================
 
     async def process(self, user_input: str) -> str:
         """

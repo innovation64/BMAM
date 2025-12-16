@@ -36,7 +36,8 @@ class MemoryStorageMixin:
         importance: float = 0.5,
         emotion_tags: List[str] = None,
         context_tags: List[str] = None,
-        metadata: Dict[str, Any] = None
+        metadata: Dict[str, Any] = None,
+        embedding: Any = None  # 🔥 FIX: 接受预计算的 embedding
     ) -> Optional[str]:
         """
         Store New Memory with Embedding
@@ -52,6 +53,7 @@ class MemoryStorageMixin:
             emotion_tags: List of emotion labels
             context_tags: List of context tags
             metadata: Additional metadata dictionary
+            embedding: Pre-computed embedding (optional, avoids recomputation)
 
         Returns:
             Memory ID if successful, None if failed
@@ -78,11 +80,21 @@ class MemoryStorageMixin:
                 metadata=metadata
             )
 
-            # Generate embedding
+            # 🔥 FIX: 使用预计算的 embedding 或生成新的
             try:
-                memory.embedding = await self.embedding_service.encode_text(
-                    content
-                )
+                import numpy as np
+                if embedding is not None:
+                    # 使用预计算的 embedding
+                    if isinstance(embedding, list):
+                        memory.embedding = np.array(embedding)
+                    else:
+                        memory.embedding = embedding
+                    logger.debug(f"Using pre-computed embedding for memory")
+                else:
+                    # 生成新的 embedding
+                    memory.embedding = await self.embedding_service.encode_text(
+                        content
+                    )
 
                 # Add to vector database
                 faiss_id = self.vector_db.add_vector(memory.id, memory.embedding)

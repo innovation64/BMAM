@@ -134,12 +134,137 @@ class FlexibleDateParser:
 
         text_lower = text.lower()
 
+        # 🔥 2025-12-16: 首先尝试解析复杂相对日期模式
+        # "the sunday before 25 May", "the friday before May 25"
+        complex_result = self._parse_complex_relative_date(text_lower, locale, reference_date)
+        if complex_result:
+            return complex_result
+
+        # 简单相对日期关键词匹配
         for keyword, days_offset in relative_dates.items():
             if keyword in text_lower:
                 result = reference_date + timedelta(days=days_offset)
                 return result.replace(hour=0, minute=0, second=0, microsecond=0)
 
         return None
+
+    def _parse_complex_relative_date(
+        self,
+        text: str,
+        locale: str,
+        reference_date: datetime
+    ) -> Optional[datetime]:
+        """
+        🔥 2025-12-16: 解析复杂相对日期表达式
+
+        处理以下模式:
+        - "the sunday before 25 May" → 25 May 前的那个周日
+        - "the friday before May 25, 2023" → 2023年5月25日前的那个周五
+        - "sunday before May 25th" → May 25 前的那个周日
+        - "the week before 9 June" → 9 June 前一周 (约 2 June)
+        """
+        locale_config = self.config.get("locales", {}).get(locale, {})
+        weekdays = locale_config.get("weekdays", {})
+        months_map = locale_config.get("months", {})
+
+        # 🔥 先尝试 "the week before [date]" 模式
+        week_before_result = self._parse_week_before_pattern(text, months_map, reference_date)
+        if week_before_result:
+            return week_before_result
+
+        # 模式: "the [weekday] before [date]"
+        pattern = r'(?:the\s+)?(\w+day)\s+before\s+(\d{1,2})?\s*(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec)(?:\s+(\d{4}))?'
+
+        match = re.search(pattern, text, re.IGNORECASE)
+        if not match:
+            # 尝试另一种格式: "the [weekday] before [month] [day]"
+            pattern2 = r'(?:the\s+)?(\w+day)\s+before\s+(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec)\s+(\d{1,2})(?:st|nd|rd|th)?(?:\s*,?\s*(\d{4}))?'
+            match = re.search(pattern2, text, re.IGNORECASE)
+            if match:
+                weekday_str = match.group(1).lower()
+                month_str = match.group(2).lower()
+                day = int(match.group(3))
+                year = int(match.group(4)) if match.group(4) else reference_date.year
+            else:
+                return None
+        else:
+            weekday_str = match.group(1).lower()
+            day = int(match.group(2)) if match.group(2) else 1
+            month_str = match.group(3).lower()
+            year = int(match.group(4)) if match.group(4) else reference_date.year
+
+        # 获取目标weekday的编号 (0=Monday, 6=Sunday)
+        target_weekday = weekdays.get(weekday_str)
+        if target_weekday is None:
+            return None
+
+        # 获取月份
+        month = months_map.get(month_str)
+        if month is None:
+            return None
+
+        try:
+            # 构建参考日期
+            anchor_date = datetime(year, month, day)
+
+            # 计算这个日期之前的目标weekday
+            # weekday(): 0=Monday, 6=Sunday
+            days_back = (anchor_date.weekday() - target_weekday) % 7
+            if days_back == 0:
+                days_back = 7  # 如果是同一天，回退一周
+
+            result = anchor_date - timedelta(days=days_back)
+            logger.debug(f"Complex relative date: '{weekday_str} before {day} {month_str}' → {result}")
+            return result.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        except (ValueError, Exception) as e:
+            logger.warning(f"Failed to parse complex relative date: {e}")
+            return None
+
+    def _parse_week_before_pattern(
+        self,
+        text: str,
+        months_map: Dict[str, int],
+        reference_date: datetime
+    ) -> Optional[datetime]:
+        """
+        🔥 2025-12-16: 解析 "the week before [date]" 模式
+
+        Examples:
+        - "the week before 9 June 2023" → 2 June 2023 (7 days before)
+        - "week before June 9" → June 2 of reference year
+        """
+        # 模式: "the week before [day] [month] [year?]"
+        pattern1 = r'(?:the\s+)?week\s+before\s+(\d{1,2})\s+(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec)(?:\s+(\d{4}))?'
+
+        match = re.search(pattern1, text, re.IGNORECASE)
+        if not match:
+            # 尝试 "week before [month] [day]" 格式
+            pattern2 = r'(?:the\s+)?week\s+before\s+(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec)\s+(\d{1,2})(?:st|nd|rd|th)?(?:\s*,?\s*(\d{4}))?'
+            match = re.search(pattern2, text, re.IGNORECASE)
+            if match:
+                month_str = match.group(1).lower()
+                day = int(match.group(2))
+                year = int(match.group(3)) if match.group(3) else reference_date.year
+            else:
+                return None
+        else:
+            day = int(match.group(1))
+            month_str = match.group(2).lower()
+            year = int(match.group(3)) if match.group(3) else reference_date.year
+
+        month = months_map.get(month_str)
+        if month is None:
+            return None
+
+        try:
+            anchor_date = datetime(year, month, day)
+            result = anchor_date - timedelta(days=7)
+            logger.debug(f"Week before pattern: 'week before {day} {month_str}' → {result}")
+            return result.replace(hour=0, minute=0, second=0, microsecond=0)
+        except (ValueError, Exception) as e:
+            logger.warning(f"Failed to parse week before pattern: {e}")
+            return None
 
     def _parse_with_patterns(
         self,

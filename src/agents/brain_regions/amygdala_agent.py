@@ -90,8 +90,9 @@ class AmygdalaAgent(BrainAgent):
         self.total_modulations = 0
         self.total_stress_responses = 0
 
-        # 🔥 Auto-persistence setup
-        self.state_file = Path("data/amygdala_state.json")
+        # 🔥 Auto-persistence setup (使用 BMAMPaths 支持并行测试)
+        from src.utils.paths import BMAMPaths
+        self.state_file = BMAMPaths.AMYGDALA_STATE
         self._load_state_from_file()
 
         logger.info(f"✅ AmygdalaAgent initialized (capacity={capacity})")
@@ -356,6 +357,19 @@ class AmygdalaAgent(BrainAgent):
             if emotion_intensity >= 0.7 and self.temporal_lobe:
                 # 通知海马体这是高情绪记忆,应该优先巩固
                 consolidation_triggered = True
+
+            # 将情绪调制落地到海马体记忆 (重要性/巩固权重)
+            try:
+                if hasattr(self.hippocampus, 'apply_emotional_modulation'):
+                    hippo_result = await self.hippocampus.apply_emotional_modulation(
+                        memory_id=memory_id,
+                        importance_boost=importance_boost,
+                        emotion_tags=emotion_tags,
+                        emotion_intensity=emotion_intensity
+                    )
+                    consolidation_triggered = consolidation_triggered or hippo_result.get('consolidated', False)
+            except Exception as e:
+                logger.warning(f"Hippocampus emotional modulation failed: {e}")
 
             self.total_modulations += 1
 

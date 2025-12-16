@@ -13,6 +13,163 @@ logger = logging.getLogger(__name__)
 class TemporalReasoningMixin:
     """时间推理Mixin"""
 
+    async def _try_metadata_based_reasoning(
+        self,
+        query: str,
+        memories: List[Dict],
+        memories_by_region: Optional[Dict]
+    ) -> Optional[Dict[str, Any]]:
+        """
+        🔥 2025-12-12 修复: 基于查询内容相关性选择最佳记忆
+
+        存储时 extract_event_time_from_content 已经把 "yesterday+08 May→07 May" 算好了，
+        存在 metadata.event_time。这里需要找到与查询最相关的记忆。
+
+        Returns:
+            Dict with answer/confidence if metadata has event_time, None otherwise
+        """
+        from datetime import datetime
+
+        # 收集所有带 event_time 的记忆
+        candidates = []
+
+        # 优先使用 memories_by_region 中的 hippocampus 记忆
+        source_memories = memories
+        if memories_by_region:
+            hippocampus_mems = memories_by_region.get('hippocampus', [])
+            if hippocampus_mems:
+                source_memories = hippocampus_mems
+
+        # 🔥 2025-12-12: 提取查询中的关键词用于相关性匹配
+        query_lower = query.lower()
+        # 通用停用词（问题词+冠词+助动词）
+        stop_words = {'when', 'did', 'what', 'where', 'how', 'who', 'is', 'are', 'was', 'were',
+                      'the', 'a', 'an', 'to', 'go', 'went', 'does', 'do', 'have', 'has', 'had'}
+        # 保留原始分词顺序用于短语匹配
+        query_tokens = [w for w in query_lower.split() if w not in stop_words and len(w) > 2]
+        query_words_set = set(query_tokens)
+
+        for mem in source_memories:
+            # 提取 metadata
+            if isinstance(mem, dict):
+                metadata = mem.get('metadata', {})
+                content = mem.get('content', '')
+            else:
+                metadata = getattr(mem, 'metadata', {}) or {}
+                content = getattr(mem, 'content', '')
+
+            event_time = metadata.get('event_time')
+            if not event_time:
+                continue
+
+            # 解析 event_time
+            try:
+                if isinstance(event_time, str):
+                    # 尝试多种格式
+                    for fmt in ['%Y-%m-%dT%H:%M:%S', '%Y-%m-%d', '%d %B %Y']:
+                        try:
+                            dt = datetime.strptime(event_time.split('.')[0], fmt)
+                            break
+                        except ValueError:
+                            continue
+                    else:
+                        continue
+                elif isinstance(event_time, datetime):
+                    dt = event_time
+                else:
+                    continue
+
+                # 🔥 2025-12-12: 计算内容与查询的相关性分数
+                content_lower = content.lower()
+                # 关键词匹配得分
+                keyword_matches = sum(1 for w in query_words_set if w in content_lower)
+                # 🔥 修正: 真正的相邻短语匹配（保留原始顺序）
+                phrase_bonus = 0
+                for phrase_len in [4, 3, 2]:
+                    if len(query_tokens) >= phrase_len:
+                        for i in range(len(query_tokens) - phrase_len + 1):
+                            # 构建相邻短语
+                            phrase = ' '.join(query_tokens[i:i+phrase_len])
+                            if phrase in content_lower:
+                                phrase_bonus += phrase_len * 0.5
+
+                relevance_score = keyword_matches + phrase_bonus
+
+                # 🔥 2025-12-16: 提取时间方法的置信度
+                extraction_method = metadata.get('event_time_extraction', 'unknown')
+                # 高置信度方法: relative, absolute, inherited (从原始对话继承)
+                # 低置信度方法: context_approximate, context, fallback
+                extraction_confidence = 1.0 if extraction_method in ['relative', 'absolute', 'inherited'] else 0.0
+
+                candidates.append({
+                    'event_time': dt,
+                    'content': content,
+                    'metadata': metadata,
+                    'relevance_score': relevance_score,
+                    'extraction_method': extraction_method,
+                    'extraction_confidence': extraction_confidence
+                })
+            except Exception:
+                continue
+
+        if not candidates:
+            return None
+
+        # 🔥 2025-12-16 修复: 优先选择高置信度提取方法的记忆
+        # 排序优先级: extraction_confidence (高/低) > relevance_score
+        # 这确保 "yesterday" (relative) 优先于 "recently" (context_approximate)
+        candidates.sort(key=lambda x: (x['extraction_confidence'], x['relevance_score']), reverse=True)
+        best = candidates[0]
+
+        logger.debug(f"📅 Best candidate: method={best['extraction_method']}, "
+                    f"relevance={best['relevance_score']:.1f}, content='{best['content'][:50]}...'")
+
+        # 🔥 2025-12-13 FIX: 提高相关性阈值，避免返回错误的默认日期
+        # 问题：阈值1.0太低，导致"27 June 2023"被错误返回给43个不相关问题
+        # 解决：提高阈值到3.0，要求更强的关键词匹配
+        if best['relevance_score'] < 3.0:
+            logger.info(f"📅 Metadata reasoning: relevance too low ({best['relevance_score']:.1f} < 3.0), fallback to LLM")
+            return None
+
+        # 🔥 额外检查：确保内容中包含查询的核心动词/动作
+        # 例如 "When did X go to Y" 需要内容包含 "go" 或 "went" 相关词
+        action_words = ['go', 'went', 'attend', 'attended', 'visit', 'visited',
+                        'join', 'joined', 'meet', 'met', 'start', 'started',
+                        'participate', 'participated', 'sign', 'signed', 'apply', 'applied']
+        query_lower = query.lower()
+        content_lower = best['content'].lower()
+
+        has_matching_action = False
+        for action in action_words:
+            if action in query_lower and action in content_lower:
+                has_matching_action = True
+                break
+
+        # 如果查询包含动作词但内容不匹配，降低信心
+        query_has_action = any(a in query_lower for a in action_words)
+        if query_has_action and not has_matching_action and best['relevance_score'] < 5.0:
+            logger.info(f"📅 Metadata reasoning: action word mismatch, fallback to LLM")
+            return None
+
+        formatted_date = best['event_time'].strftime('%d %B %Y')
+
+        logger.info(f"📅 Metadata-based temporal reasoning: event_time={formatted_date}, "
+                   f"relevance={best['relevance_score']:.1f}, content='{best['content'][:80]}...'")
+
+        return {
+            'answer': formatted_date,
+            'confidence': min(0.95, 0.70 + best['relevance_score'] * 0.05),  # 相关性影响置信度
+            'event_time': best['event_time'].isoformat(),
+            'reasoning_chain': [
+                f"从记忆 metadata.event_time 获取预计算的事件时间",
+                f"相关性得分: {best['relevance_score']:.1f}",
+                f"匹配内容: {best['content'][:100]}...",
+                f"event_time: {best['event_time'].isoformat()}",
+                f"格式化结果: {formatted_date}"
+            ],
+            'source': 'metadata_event_time'
+        }
+
     async def _temporal_reasoning(
         self,
         query: str,
@@ -28,7 +185,21 @@ class TemporalReasoningMixin:
         2. 识别相对时间表达("yesterday", "last week")
         3. 执行时间计算
         4. 验证结果合理性
+
+        🔥 2025-12-11 优化: 优先使用 Hippocampus 的规则基础推理结果
+        - 规则推理比 LLM 更可靠地计算 "yesterday = conversation_date - 1"
+        - 只有在规则无法处理时才回退到 LLM
         """
+
+        # 🔥 2025-12-11 重构: 优先使用 metadata.event_time（存储时已计算好）
+        metadata_result = await self._try_metadata_based_reasoning(
+            query=query,
+            memories=memories,
+            memories_by_region=memories_by_region
+        )
+        if metadata_result and metadata_result.get('answer'):
+            logger.info(f"📅 Using metadata.event_time: {metadata_result.get('answer')}")
+            return metadata_result
 
         # 🔥 优先使用脑区组织的记忆
         if memories_by_region:
@@ -73,17 +244,22 @@ Task: {"Calculate DURATION between two dates/events" if is_duration_query else "
 - "Today's date is DATE"
 - "On DATE, ..."'''}
 
-{'Step 2 - Extract Event Dates:' if is_duration_query else 'Step 2 - Find Event Time (查询海马体):'}
+{'Step 2 - Extract Event Dates:' if is_duration_query else 'Step 2 - Find Relative Time & SUBTRACT (查询海马体):'}
 {'''Extract absolute dates for EACH event:
 - If "Yesterday, Person attended..." + context "8 May 2023" → Event_A = 7 May 2023
 - If "On 25 May, Person completed..." → Event_B = 25 May 2023
-- If "had X for 4 years" → Duration is EXPLICITLY stated, use directly!''' if is_duration_query else '''Look in HIPPOCAMPUS memories for:
-- "yesterday" → -1 day
-- "today" → +0 days
-- "last week" → -7 days
-- "I went to ... yesterday"'''}
+- If "had X for 4 years" → Duration is EXPLICITLY stated, use directly!''' if is_duration_query else '''Look in HIPPOCAMPUS memories for RELATIVE TIME words and SUBTRACT:
+🔥 CRITICAL SUBTRACTION RULES:
+- "yesterday" → conversation_date MINUS 1 day (8 May - 1 = 7 May)
+- "today" → conversation_date PLUS 0 days
+- "last week" → conversation_date MINUS 7 days
+- "the day before" → conversation_date MINUS 1 day
+- "two days ago" → conversation_date MINUS 2 days
 
-Step 3 - {'Duration Calculation:' if is_duration_query else 'Cross-Memory Calculation:'}
+🔥 EXAMPLE: If memory says "[Context: 8 May 2023] went yesterday"
+   → Event happened on: 8 - 1 = 7 May 2023 (NOT 8 May!)'''}
+
+Step 3 - {'Duration Calculation:' if is_duration_query else 'Cross-Memory Calculation (MUST SUBTRACT!):'}
 {'''CRITICAL: Calculate "days PASSED BETWEEN" two dates (EXCLUSIVE of both endpoints):
 - Example: Event_A = 7 May 2023, Event_B = 25 May 2023
 - Question: "How many days passed BETWEEN 7 May and 25 May?"
@@ -92,9 +268,16 @@ Step 3 - {'Duration Calculation:' if is_duration_query else 'Cross-Memory Calcul
   * Count: 8 May, 9 May, ..., 24 May = 17 days
 - If question is "How many days FROM X TO Y?" (inclusive): Use 25 - 7 = 18
 - VERIFY: Always count the actual days to double-check!
-- Alternative: If duration EXPLICITLY stated like "had friends for 4 years" → use directly!''' if is_duration_query else '''If Hippocampus says: "Context: conversation is on 8 May 2023" (Memory A)
-AND Hippocampus says: "I went to support group yesterday" (Memory B)
-THEN calculate: 8 May - 1 day = 7 May 2023'''}
+- Alternative: If duration EXPLICITLY stated like "had friends for 4 years" → use directly!''' if is_duration_query else '''🔥 MANDATORY CALCULATION STEPS:
+1. Extract conversation_date from "[Context: This conversation is on DATE]"
+2. Find relative_time word ("yesterday", "last week", etc.)
+3. SUBTRACT to get event_date:
+   - "yesterday" on 8 May → 8 - 1 = 7 May 2023 (ANSWER: 7 May)
+   - "yesterday" on 10 May → 10 - 1 = 9 May 2023 (ANSWER: 9 May)
+   - "last week" on 15 May → 15 - 7 = 8 May 2023 (ANSWER: 8 May)
+
+⚠️ COMMON ERROR: Do NOT return the conversation_date as the answer!
+   If conversation is on "8 May" and event was "yesterday", answer is "7 May" NOT "8 May"!'''}
 
 Step 4 - Verify:
 {"Does the duration make sense?" if is_duration_query else "Does the date make sense? (e.g., May 7 comes before May 8)"}
@@ -109,16 +292,29 @@ Step 5 - Decision:
 - If memory explicitly states duration (e.g., "for 4 years"): Use that directly
 - Answer format: "18 days", "4 years", "6 months", etc. (NOT dates!)
 
+🚨 SELF-CHECK BEFORE ANSWERING:
+- If you found "yesterday" in the memory and conversation_date is "8 May 2023"
+- Your answer MUST be "7 May 2023" (8 minus 1 = 7)
+- If your answer equals the conversation_date, YOU MADE AN ERROR! Redo the calculation.
+
+🚫 ANTI-HALLUCINATION RULES (CRITICAL):
+- If the memories do NOT contain information about the specific event asked → return "Unable to determine", confidence=0.2
+- NEVER guess or invent dates not found in memories
+- NEVER return a date from an unrelated event (e.g., don't return workshop date for museum question)
+- Each question asks about a SPECIFIC event - find THAT event's date, not any random date
+- If unsure which memory relates to the question → return "Unable to determine"
+
 Output JSON only:
 {{
-    "conversation_date": "extracted date or null",
-    "relative_time": "extracted relative expression or null",
-    "calculated_date": "calculated absolute date{' or null if duration query' if is_duration_query else ''}",
+    "conversation_date": "extracted date from [Context:...], e.g. '8 May 2023'",
+    "relative_time": "extracted word like 'yesterday', 'last week', etc. (or null if explicit date given)",
+    "calculation_steps": "SHOW YOUR MATH: '8 May 2023' - 'yesterday' (1 day) = '7 May 2023'",
+    "calculated_date": "result of subtraction{' or null if duration query' if is_duration_query else ''} - THIS IS YOUR ANSWER",
     "duration": "{('extracted or calculated duration (e.g., \'4 years\')' if is_duration_query else 'null')}",
-    "answer": "final answer in requested format ({('duration like \'4 years\' or \'17 days\'' if is_duration_query else 'ABSOLUTE DATE like \'7 May 2023\' (NOT \'yesterday\' or \'-1 day\')')})",
+    "answer": "{('duration like \'4 years\' or \'17 days\'' if is_duration_query else 'THE CALCULATED DATE (must differ from conversation_date if relative time was used!)')}",
     "confidence": 0.0-1.0,
-    "reasoning_chain": ["Memory A: ...", "Memory B: ...", "calculated: ..."],
-    "calculation_steps": "detailed cross-memory calculation",
+    "verification": "Is answer different from conversation_date when relative_time was used? YES/NO - if NO, recalculate!",
+    "reasoning_chain": ["Step 1: conversation_date = X", "Step 2: relative_time = Y means -Z days", "Step 3: X - Z = ANSWER"],
     "refined_query": "query for more context if needed (else null)"
 }}
 """
@@ -165,10 +361,23 @@ Output JSON only:
                     memories_text=memories_text
                 )
 
+            # 🔥 2025-12-13 FIX: 验证答案与问题的相关性
+            # 如果LLM返回的日期在记忆中没有出现，或者与问题不相关，降低置信度
+            answer = result.get('answer', '')
+            if answer and answer != 'Unable to determine':
+                # 检查答案是否在memories_text中有对应内容
+                answer_in_memories = str(answer).lower() in memories_text.lower()
+                # 如果置信度高但答案不在记忆中，可能是幻觉
+                if not answer_in_memories and result.get('confidence', 0) > 0.5:
+                    logger.warning(f"⚠️ Temporal answer '{answer}' not found in memories, reducing confidence")
+                    result['confidence'] = min(result.get('confidence', 0.5), 0.4)
+
             # 双向反馈
             if result.get('confidence', 0) < 0.7 and result.get('refined_query') and hippocampus:
                 logger.debug(f"🔄 Temporal reasoning: Requesting more context from Hippocampus")
-                more_memories = await hippocampus.retrieve(result['refined_query'], k=5)
+                # 修复: hippocampus.retrieve -> hippocampus.search_memories
+                search_result = await hippocampus.search_memories(result['refined_query'], k=5)
+                more_memories = search_result.get('memories', []) if isinstance(search_result, dict) else search_result
                 if more_memories:
                     return await self._temporal_reasoning(query, memories + more_memories, None)
 

@@ -64,10 +64,18 @@ class SemanticRetrievalStrategy(RetrievalStrategy):
         memories = await self._vector_search(query, k)
         fallback_used = False
 
-        # 2. 如果向量检索无结果,尝试BM25关键词检索
-        if not memories and self.db_manager:
-            logger.info("Vector search empty, fallback to BM25 keyword search")
-            memories = await self._bm25_search(query, k)
+        # 2. 如果向量检索结果不足,补充BM25关键词检索
+        # 🔥 2025-12-14: 改进触发条件，从"为空"改为"不足k/2"，提高召回率
+        if len(memories) < k // 2 and self.db_manager:
+            logger.info(f"Vector search insufficient ({len(memories)}/{k}), adding BM25 results")
+            bm25_results = await self._bm25_search(query, k)
+            # 去重合并
+            existing_ids = {m.get('id') or m.get('memory', {}).get('id') for m in memories}
+            for r in bm25_results:
+                rid = r.get('id') or r.get('memory', {}).get('id')
+                if rid and rid not in existing_ids:
+                    memories.append(r)
+                    existing_ids.add(rid)
             fallback_used = True
 
         # 3. 时间范围过滤
@@ -109,11 +117,11 @@ class SemanticRetrievalStrategy(RetrievalStrategy):
             # 生成query embedding
             query_embedding = await self.embedding_service.encode_text(query)
 
-            # 向量检索
+            # 向量检索 - 🔥 2025-12-14: 降低阈值从0.3到0.15，提高召回率
             similar_memories = self.vector_db.search(
                 query_embedding,
                 k=k,
-                threshold=0.3  # 过滤低相似度结果
+                threshold=0.15  # 降低阈值，避免过滤掉语义相关但措辞不同的记忆
             )
 
             logger.info(f"Vector search found {len(similar_memories)} memories")

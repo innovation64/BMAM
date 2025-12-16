@@ -1,0 +1,34 @@
+{
+    "Version": 3,
+    "FileReferences": {
+        "Moc": "test.moc3",
+        "Textures": ["test_texture.png"],
+        "Motions": {
+            "Idle": [
+                {"File": "idle_00.motion3.json"}
+            ],
+            "TapBody": [
+                {"File": "tapbody_00.motion3.json"}
+            ]
+        },
+        "Expressions": [
+            {"Name": "neutral", "File": "exp_neutral.exp3.json"},
+            {"Name": "joy", "File": "exp_joy.exp3.json"}
+        ]
+    },
+    "Groups": [
+        {
+            "Target": "Parameter",
+            "Name": "LipSync",
+            "Ids": ["ParamMouthOpenY"]
+        },
+        {
+            "Target": "Parameter",
+            "Name": "EyeBlink",
+            "Ids": ["ParamEyeLOpen", "ParamEyeROpen"]
+        }
+    ],
+    "HitAreas": [
+        {"Name": "Body", "Id": "HitArea"}
+    ]
+}

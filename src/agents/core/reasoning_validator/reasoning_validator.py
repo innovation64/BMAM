@@ -6,6 +6,10 @@ Reasoning Validator Agent - 推理验证器
 1. 从记忆中提取证据并推理
 2. 与海马体双向反馈(不够就再检索)
 3. 输出结构化推理结果(答案+置信度+推理链)
+
+🔧 2025-12-12: 添加检索反馈回路
+- 当推理置信度低时，通知海马体优化检索策略
+- 支持在线学习 (ContrastiveKeyOptimizer)
 """
 
 import logging
@@ -18,6 +22,8 @@ from .identity_reasoning import IdentityReasoningMixin
 from .temporal_reasoning import TemporalReasoningMixin
 from .multi_hop_reasoning import MultiHopReasoningMixin
 from .general_reasoning import GeneralReasoningMixin
+from .retrieval_feedback import RetrievalFeedbackMixin
+from .retrieval_guidance import RetrievalGuidanceMixin
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +33,9 @@ class ReasoningValidatorAgent(
     IdentityReasoningMixin,
     TemporalReasoningMixin,
     MultiHopReasoningMixin,
-    GeneralReasoningMixin
+    GeneralReasoningMixin,
+    RetrievalFeedbackMixin,
+    RetrievalGuidanceMixin
 ):
     """
     推理验证器: 模拟前额叶的推理功能
@@ -67,6 +75,13 @@ class ReasoningValidatorAgent(
 
         if not query:
             return {'error': 'No query/stimulus provided'}
+
+        # 🔥 2025-12-12: 前额叶检索指导
+        if action == 'provide_guidance':
+            return await self.provide_retrieval_guidance(
+                query=query,
+                context=content.get('context')
+            )
 
         if action == 'validate_reasoning':
             return await self.validate_reasoning(
@@ -130,6 +145,15 @@ class ReasoningValidatorAgent(
             'result': result,
             'timestamp': datetime.now()
         })
+
+        # 🔥 检索反馈: 当推理置信度低时，通知海马体
+        await self._send_retrieval_feedback(
+            query=query,
+            memories=memories,
+            reasoning_result=result,
+            hippocampus_agent=hippocampus_agent,
+            feedback_type="automatic"
+        )
 
         return result
 

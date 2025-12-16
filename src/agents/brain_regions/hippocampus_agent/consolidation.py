@@ -95,23 +95,33 @@ class ConsolidationMixin:
         将重要的情节记忆提取为语义知识
 
         模拟人脑的记忆巩固过程 (睡眠时海马体向新皮层转移记忆)
+
+        🔥 2025-12-13 FIX: 保留原始内容和时间信息
+        - 不再丢弃原文，而是同时保存原文和摘要
+        - 时间信息必须显式保留在内容中
         """
         if not self.temporal_lobe:
             return
 
         try:
-            # 使用LLM提取语义知识
-            prompt = f"""从以下情节记忆中提取核心的语义知识:
+            # 🔥 FIX: 提取事件时间字符串
+            event_time = memory.timestamp
+            event_time_str = event_time.strftime('%d %B %Y')  # e.g., "08 May 2023"
+
+            # 🔥 FIX: 修改 prompt 要求保留时间信息
+            prompt = f"""从以下情节记忆中提取核心的语义知识。
 
 情节内容: {memory.content}
+事件时间: {event_time_str}
 实体: {', '.join(memory.entities)}
 情绪: {', '.join(memory.emotion_tags)} (强度: {memory.emotion_intensity})
 
 请提取:
-1. 核心事实和知识点
+1. 核心事实和知识点（必须包含具体日期 {event_time_str}）
 2. 实体之间的关系
 3. 可复用的经验或模式
 
+⚠️ 重要: 输出必须以 "[{event_time_str}]" 开头，保留具体日期！
 以简洁的语义知识形式输出。"""
 
             knowledge = await self.call_llm(
@@ -120,6 +130,10 @@ class ConsolidationMixin:
                 max_tokens=500,
                 temperature=0.3
             )
+
+            # 🔥 FIX: 确保知识包含时间前缀
+            if not knowledge.startswith(f"[{event_time_str}]"):
+                knowledge = f"[{event_time_str}] {knowledge}"
 
             # 🔥 提取关系三元组 (Plan C完整实现：LLM提取精细关系)
             relations = []
@@ -177,6 +191,7 @@ class ConsolidationMixin:
                             relations.append((memory.entities[i], "related_to", memory.entities[i+1]))
 
             # 发送到TemporalLobe (✅ 保留source_episode_id用于回溯)
+            # 🔥 2025-12-13 FIX: 同时传递原始内容，支持检索时回溯
             await self.temporal_lobe.process_message(AgentMessage(
                 sender='hippocampus',
                 receiver='temporal_lobe',
@@ -192,7 +207,9 @@ class ConsolidationMixin:
                     'metadata': {
                         'source_episode_id': memory.id,  # 🔥 保留源情节记忆ID用于回溯
                         'event_id': memory.event_id,     # 🔥 保留事件ID
-                        'consolidation_time': datetime.now().isoformat()
+                        'consolidation_time': datetime.now().isoformat(),
+                        'original_content': memory.content,  # 🔥 FIX: 保留原始内容用于检索回溯
+                        'event_time_str': event_time_str     # 🔥 FIX: 保留时间字符串
                     }
                 }
             ))

@@ -23,7 +23,8 @@ class StorageMixin:
 
     def _init_persistence(self):
         """Initialize auto-persistence mechanism (SQLite database)"""
-        self.db_path = Path("data/temporal_lobe.db")
+        from src.utils.paths import BMAMPaths
+        self.db_path = BMAMPaths.TEMPORAL_LOBE_DB
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
 
         # Create database schema if not exists

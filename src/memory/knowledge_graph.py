@@ -323,6 +323,38 @@ class LightweightKnowledgeGraph:
         except nx.NetworkXNoPath:
             return []
 
+    def multi_hop_query(self, start_entity: str, max_depth: int = 2) -> List[List[Tuple[str, str, str]]]:
+        """
+        多跳推理查询
+
+        Args:
+            start_entity: 起始实体
+            max_depth: 最大跳数
+
+        Returns:
+            List of paths (each path is a list of triples: (source, relation, target))
+        """
+        if start_entity not in self.graph:
+            return []
+
+        paths = []
+
+        def dfs(entity: str, path: List[Tuple[str, str, str]], depth: int):
+            if depth >= max_depth:
+                if path:
+                    paths.append(path[:])
+                return
+
+            # 获取当前实体的所有出边
+            for target in self.graph.successors(entity):
+                for rel_type in self.graph[entity][target]:
+                    path.append((entity, rel_type, target))
+                    dfs(target, path, depth + 1)
+                    path.pop()
+
+        dfs(start_entity, [], 0)
+        return paths
+
     def find_shortest_path(self, source_id: str, target_id: str) -> Optional[List[str]]:
         """查找最短路径"""
         if source_id not in self.graph or target_id not in self.graph:

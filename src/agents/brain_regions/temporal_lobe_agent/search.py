@@ -88,6 +88,17 @@ class SearchMixin:
             content_words = set(content_clean.lower().split())
             overlap = len(query_words & content_words)
 
+            # 🔥 2025-12-13 FIX: 同时搜索original_content（如果存在）
+            # 这样即使LLM摘要丢失了某些关键词，仍然可以通过原文匹配
+            original_content_overlap = 0
+            if mem.metadata and 'original_content' in mem.metadata:
+                original = mem.metadata['original_content']
+                original_clean = original.translate(str.maketrans('', '', string.punctuation))
+                original_words = set(original_clean.lower().split())
+                original_content_overlap = len(query_words & original_words)
+                # 使用原文和摘要中更高的overlap
+                overlap = max(overlap, original_content_overlap)
+
             # 🔥 BM25分数
             if overlap > 0:
                 bm25_score = overlap / len(query_words)
@@ -95,9 +106,14 @@ class SearchMixin:
                 # 保底分数：基于重要性
                 bm25_score = 0.1 * mem.importance
 
-            # 🔥 对LLM摘要降权（乘以0.5系数）
+            # 🔥 2025-12-13 FIX: 如果通过original_content匹配成功，提升分数而非降权
             if is_llm_summary:
-                bm25_score *= 0.5
+                if original_content_overlap > 0:
+                    # 原文匹配成功，加分
+                    bm25_score *= 1.2
+                else:
+                    # 只匹配摘要，降权
+                    bm25_score *= 0.5
 
             # 🔥 优先级2: Embedding相似度分数（如果可用）
             embedding_score = 0.0

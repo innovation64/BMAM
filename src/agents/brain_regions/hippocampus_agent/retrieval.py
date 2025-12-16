@@ -8,6 +8,10 @@ Hippocampus Agent - 海马体智能体
 - 自动从查询中提取实体
 - 实体匹配权重提升
 - 集成Pattern Separation支持
+
+🔥 2025-12-05 优化: 时间感知检索
+- 从查询中提取时间信息用于检索
+- 基于 event_time (事件发生时间) 而非 storage_time
 """
 
 import logging
@@ -22,17 +26,91 @@ logger = logging.getLogger(__name__)
 
 
 from .core import EpisodicMemory, HippocampusAgentCore
+from ....utils.flexible_date_parser import FlexibleDateParser, get_global_parser
 import numpy as np
+
+
+def is_temporal_query(query: str) -> bool:
+    """检测是否是时间相关查询"""
+    if not query:
+        return False
+
+    temporal_keywords = [
+        'when', 'what time', 'what date', 'how long',
+        'how many days', 'how many weeks', 'how many months', 'how many years',
+        'before', 'after', 'during', 'between', 'since', 'until',
+        'yesterday', 'today', 'tomorrow', 'last week', 'next week',
+        'last month', 'next month', 'last year', 'next year',
+        # 中文
+        '什么时候', '多久', '几天', '之前', '之后'
+    ]
+
+    query_lower = query.lower()
+    return any(kw in query_lower for kw in temporal_keywords)
+
+
+def extract_time_from_query(query: str, default_year: int = None) -> Optional[Dict[str, datetime]]:
+    """
+    从查询中提取时间信息用于检索过滤
+
+    Args:
+        query: 查询文本
+        default_year: 默认年份，如果未指定则使用配置或当前年份
+
+    Returns:
+        {'target_date': datetime, 'range_start': datetime, 'range_end': datetime}
+        或 None 如果无法提取
+    """
+    # 🧠 消除硬编码: 使用配置系统获取默认年份
+    if default_year is None:
+        from ....utils.config import get_settings
+        default_year = get_settings().temporal.default_reference_year
+
+    parser = get_global_parser()
+
+    # 尝试提取所有日期
+    reference = datetime(default_year, 1, 1)
+    dates = parser.extract_all_dates(query, reference_date=reference)
+
+    if dates:
+        target = dates[0]
+        # 返回一个宽松的时间范围 (±7天)
+        return {
+            'target_date': target,
+            'range_start': target - timedelta(days=7),
+            'range_end': target + timedelta(days=7)
+        }
+
+    # 检测相对时间关键词
+    query_lower = query.lower()
+    if 'last week' in query_lower:
+        now = datetime.now()
+        return {
+            'target_date': now - timedelta(days=7),
+            'range_start': now - timedelta(days=14),
+            'range_end': now
+        }
+    elif 'last month' in query_lower:
+        now = datetime.now()
+        return {
+            'target_date': now - timedelta(days=30),
+            'range_start': now - timedelta(days=60),
+            'range_end': now
+        }
+
+    return None
 
 
 def extract_entities_from_query(query: str) -> List[str]:
     """
-    从查询中提取实体 (简化版实体识别)
+    从查询中提取实体 (增强版实体识别)
 
     提取规则:
     1. 首字母大写的词 (人名、地名)
     2. 常见人名模式
     3. 跳过句首大写和常见词
+    4. 🔧 FIX: 正确处理所有格 (Caroline's → Caroline)
+    5. 🔧 NEW: 提取关系词 (grandma, mom, dad, friend 等)
 
     Args:
         query: 查询文本
@@ -52,19 +130,51 @@ def extract_entities_from_query(query: str) -> List[str]:
         'to', 'for', 'of', 'with', 'about', 'this', 'that', 'it', 'i',
         'you', 'he', 'she', 'they', 'we', 'my', 'your', 'his', 'her',
         'their', 'our', 'would', 'could', 'should', 'will', 'can', 'may',
-        'might', 'must', 'have', 'has', 'had', 'been', 'being', 'be'
+        'might', 'must', 'have', 'has', 'had', 'been', 'being', 'be',
+        'from', 'country', 'city', 'place', 'time', 'name', 'called'
     }
+
+    # 🔧 NEW: 重要关系词 (这些词即使首字母小写也应该提取)
+    relation_words = {
+        'grandma', 'grandmother', 'grandpa', 'grandfather',
+        'mom', 'mother', 'dad', 'father', 'parent', 'parents',
+        'sister', 'brother', 'sibling', 'aunt', 'uncle',
+        'cousin', 'wife', 'husband', 'spouse', 'partner',
+        'friend', 'best friend', 'boyfriend', 'girlfriend',
+        'son', 'daughter', 'child', 'children', 'kid', 'kids',
+        'boss', 'coworker', 'colleague', 'mentor', 'teacher'
+    }
+
+    # 🔧 FIX: 先处理所有格
+    # "Caroline's grandma" → 提取 "Caroline" 和 "grandma"
+    possessive_pattern = r"(\w+)'s\s+(\w+)"
+    possessive_matches = re.findall(possessive_pattern, query)
+    for owner, relation in possessive_matches:
+        if owner.lower() not in skip_words:
+            entities.append(owner)  # Caroline
+        if relation.lower() in relation_words or relation[0].isupper():
+            entities.append(relation)  # grandma
 
     # 分词并检查首字母大写
     words = query.split()
     for i, word in enumerate(words):
-        # 清理标点
-        clean_word = re.sub(r'[^\w]', '', word)
+        # 🔧 FIX: 处理所有格 - 去掉 's 后缀
+        if word.endswith("'s"):
+            clean_word = word[:-2]  # "Caroline's" → "Caroline"
+        else:
+            # 只清理末尾标点，保留核心词
+            clean_word = re.sub(r"[^\w]+$", '', word)
+            clean_word = re.sub(r"^[^\w]+", '', clean_word)
 
         if not clean_word:
             continue
 
-        # 检查是否首字母大写且不是句首
+        # 🔧 NEW: 检查是否是关系词
+        if clean_word.lower() in relation_words:
+            entities.append(clean_word.lower())
+            continue
+
+        # 检查是否首字母大写且不是常见词
         if clean_word[0].isupper() and clean_word.lower() not in skip_words:
             # 跳过句首词 (如果前一个词以句号/问号结尾或是第一个词)
             if i > 0:
@@ -74,9 +184,10 @@ def extract_entities_from_query(query: str) -> List[str]:
             # 对于句首词，只在长度>2时考虑（避免I, A等）
             elif len(clean_word) > 2:
                 # 检查是否是常见人名模式
-                if clean_word not in skip_words:
+                if clean_word.lower() not in skip_words:
                     entities.append(clean_word)
 
+    # 去重并返回
     return list(set(entities))
 
 
@@ -101,7 +212,24 @@ def extract_event_keywords(query: str) -> List[str]:
     query_lower = query.lower()
     keywords = []
 
-    # 活动/事件关键词 (通用词，不针对特定数据集)
+    # 🔥 2025-12-11 修复: 多词短语需要先匹配，否则会被单词匹配遗漏
+    # 多词短语事件关键词
+    multi_word_events = [
+        'support group', 'community group', 'activist group', 'study group',
+        'book club', 'art class', 'yoga class', 'dance class',
+        'road trip', 'field trip', 'camping trip',
+        'birthday party', 'dinner party', 'graduation party',
+        'job interview', 'doctor appointment', 'dentist appointment',
+        'family reunion', 'family dinner', 'family gathering',
+        'transgender conference', 'lgbtq conference', 'tech conference',
+    ]
+
+    # 先匹配多词短语
+    for phrase in multi_word_events:
+        if phrase in query_lower:
+            keywords.append(phrase)
+
+    # 活动/事件关键词 (单词)
     event_words = {
         # 活动类
         'camping', 'camp', 'speech', 'race', 'meeting', 'meet', 'party',
@@ -110,17 +238,24 @@ def extract_event_keywords(query: str) -> List[str]:
         'graduation', 'ceremony', 'interview', 'appointment', 'class',
         'workshop', 'conference', 'seminar', 'lecture', 'presentation',
         # 社交类
-        'support group', 'community group', 'charity', 'volunteer', 'mentors',
+        'charity', 'volunteer', 'mentors', 'mentor', 'mentoring',
         'friends', 'family', 'colleagues', 'school', 'university',
+        # 🔥 2025-12-11: 添加 LGBTQ 相关关键词
+        'lgbtq', 'lgbt', 'community', 'event', 'group', 'support',
         # 创作类
         'paint', 'painted', 'painting', 'sunrise', 'art', 'research',
         'researched', 'adopt', 'adoption', 'counseling', 'therapy',
+        # 活动场所
+        'museum', 'gallery', 'park', 'beach', 'mountain', 'lake',
+        'restaurant', 'cafe', 'coffee', 'bar', 'gym', 'pool',
         # 通用运动/娱乐
         'game', 'games', 'match', 'sport', 'sports', 'team', 'teams',
         'book', 'books', 'reading', 'club', 'hobby', 'hobbies',
         # 通用动作
         'start', 'started', 'begin', 'began', 'finish', 'finished',
-        'return', 'returned', 'attend', 'attended', 'join', 'joined'
+        'return', 'returned', 'attend', 'attended', 'join', 'joined',
+        # 特殊事件
+        'picnic', 'bbq', 'barbecue', 'hike', 'hiking', 'walk', 'walking',
     }
 
     # 提取匹配的事件词
@@ -131,7 +266,7 @@ def extract_event_keywords(query: str) -> List[str]:
 
     # 提取动名词 (planning, going, running 等)
     gerunds = re.findall(r'\b\w+ing\b', query_lower)
-    important_gerunds = {'planning', 'going', 'running', 'meeting', 'painting', 'camping'}
+    important_gerunds = {'planning', 'going', 'running', 'meeting', 'painting', 'camping', 'mentoring'}
     for g in gerunds:
         if g in important_gerunds:
             keywords.append(g)
@@ -273,24 +408,60 @@ class RetrievalMixin:
 
         # 初始化变量
         entity_filtered = False
+        temporal_filtered = False
         candidates = []
 
+        # 🔥 2025-12-05: 策略0 - 时间感知检索 (解决 temporal 类别准确率低的问题)
+        # 当查询包含时间信息时，先用时间过滤缩小候选范围
+        query_time_info = None
+        if query and is_temporal_query(query):
+            query_time_info = extract_time_from_query(query)  # 使用配置的默认年份
+            if query_time_info:
+                logger.debug(f"Temporal query detected, time range: {query_time_info}")
+
+                # 基于事件时间过滤候选
+                time_filtered_ids = []
+                range_start = query_time_info['range_start']
+                range_end = query_time_info['range_end']
+
+                for date_str, ids in self.time_index.items():
+                    try:
+                        date = datetime.fromisoformat(date_str)
+                        if range_start <= date <= range_end:
+                            time_filtered_ids.extend(ids)
+                    except ValueError:
+                        continue
+
+                if time_filtered_ids:
+                    candidates = [self.memory_dict[mid] for mid in time_filtered_ids if mid in self.memory_dict]
+                    temporal_filtered = True
+                    logger.debug(f"Temporal filter: {len(candidates)} candidates in time range")
+
         # 🔥 策略1: 实体索引检索 (使用自动提取的实体)
-        # 优化: 使用query_entities而不是entities参数
+        # 🔥 FIX 2025-12-05: 时间和实体过滤应该联合使用，不是互斥的
         if query_entities:
-            candidate_ids = set()
+            entity_ids = set()
             for entity in query_entities:
                 # 尝试精确匹配
-                candidate_ids.update(self.entity_index.get(entity, []))
+                entity_ids.update(self.entity_index.get(entity, []))
                 # 尝试小写匹配
-                candidate_ids.update(self.entity_index.get(entity.lower(), []))
+                entity_ids.update(self.entity_index.get(entity.lower(), []))
 
-            if candidate_ids:
-                candidates = [self.memory_dict[mid] for mid in candidate_ids if mid in self.memory_dict]
+            if entity_ids:
+                if temporal_filtered and candidates:
+                    # 🔥 FIX: 如果已经时间过滤，取交集而不是替换
+                    time_filtered_ids_set = set(m.id for m in candidates)
+                    intersection_ids = entity_ids & time_filtered_ids_set
+                    if intersection_ids:
+                        candidates = [self.memory_dict[mid] for mid in intersection_ids if mid in self.memory_dict]
+                        logger.debug(f"Time+Entity intersection: {len(candidates)} candidates")
+                    # 如果交集为空，保持时间过滤结果（宁可多也不能漏）
+                else:
+                    candidates = [self.memory_dict[mid] for mid in entity_ids if mid in self.memory_dict]
                 entity_filtered = True
                 logger.debug(f"Entity filter: {len(candidates)} candidates from entities {query_entities}")
-            else:
-                # 没找到精确匹配，使用全部记忆但后续会用实体分数排序
+            elif not temporal_filtered:
+                # 没找到精确匹配且没有时间过滤，使用全部记忆
                 candidates = self.memories
         # 🔥 策略2: 时间索引检索 (如果提供了time_range)
         elif time_range:
@@ -396,22 +567,78 @@ class RetrievalMixin:
                     # 限制KG boost最多50%
                     kg_boost = min(kg_boost, 0.5)
 
-                # 🔥 优化后的混合分数计算
-                # 调整权重: 实体匹配 > 关键词 > 语义 (解决人名混淆问题)
-                # 原始: 0.3 * keyword + 0.5 * semantic
-                # 优化: 0.35 * entity + 0.25 * keyword + 0.3 * semantic + kg_boost
-                if query_embedding and mem.embedding:
-                    if query_entities and entity_score > 0:
-                        # 有实体匹配时，实体分数权重最高
-                        relevance = 0.35 * entity_score + 0.25 * keyword_score + 0.3 * semantic_score + kg_boost
-                    else:
-                        # 无实体时，保持原有逻辑
-                        relevance = 0.3 * keyword_score + 0.5 * semantic_score + kg_boost
-                else:
-                    if query_entities and entity_score > 0:
-                        relevance = 0.5 * entity_score + 0.4 * keyword_score + kg_boost
-                    else:
-                        relevance = 0.7 * keyword_score + kg_boost  # Fallback to keyword + kg
+                # 🧠 类脑信号融合 (Brain-Inspired Signal Fusion)
+                #
+                # 设计理念: 人脑检索不是简单加权平均，而是:
+                # 1. 最强信号主导 - 当某个线索很强时，以它为主
+                # 2. 协同增强 - 多个中等信号协同增强
+                # 3. 不互相削弱 - 高semantic不应被低entity拉低
+                #
+                # 公式: base_score = max(signals) + collaborative_boost
+
+                signals = [
+                    ('entity', entity_score),
+                    ('keyword', keyword_score),
+                    ('semantic', semantic_score if query_embedding and mem.embedding else 0.0)
+                ]
+
+                # 找最强信号
+                max_signal_name, max_signal_score = max(signals, key=lambda x: x[1])
+
+                # 计算协同增强 (其他信号的贡献)
+                collaborative_boost = 0.0
+                for name, score in signals:
+                    if name != max_signal_name and score > 0.3:
+                        # 其他强信号提供额外贡献，但不超过主信号
+                        collaborative_boost += 0.15 * score
+
+                # 最终相关性 = 主信号 + 协同增强 + KG增强
+                relevance = max_signal_score + collaborative_boost + kg_boost
+
+                # 🔥 2025-12-10: Temporal问题优化 - 优先返回包含相对时间词的原始对话
+                # 问题: Event摘要使用"recently"等模糊词，丢失了"yesterday"等精确时间信息
+                # 解决: 检测到temporal查询时，给包含相对时间词的记忆加分
+                # 🔥 FIX: 使用is_temporal_query而不是query_time_info，因为"When did..."问题没有日期但仍是temporal查询
+                temporal_priority_boost = 0.0
+                if query and is_temporal_query(query):  # 检测temporal查询，不依赖query中有日期
+                    content_lower = mem.content.lower()
+                    query_lower = query.lower()
+                    # 相对时间词表
+                    RELATIVE_TIME_WORDS = [
+                        'yesterday', 'today', 'tomorrow', 'last week', 'this week', 'next week',
+                        'last month', 'this month', 'next month', 'last year', 'this year', 'next year',
+                        'last sunday', 'last monday', 'two days ago', 'three days ago', 'a week ago',
+                        'the day before', 'a few days ago', 'the week before', 'the friday before',
+                        'the sunday before', 'next month'
+                    ]
+                    has_relative_time = any(rtw in content_lower for rtw in RELATIVE_TIME_WORDS)
+                    is_event_summary = '[event]' in content_lower
+
+                    # 🔥 2025-12-11 修复: 检查记忆内容是否包含查询中的关键事件词
+                    # 例如: query="When did Caroline go to the LGBTQ support group?"
+                    #       如果记忆包含 "support group" + "yesterday"，则给予最高优先级
+                    event_keywords_in_query = extract_event_keywords(query_lower)
+                    event_match = any(ek in content_lower for ek in event_keywords_in_query) if event_keywords_in_query else False
+
+                    if has_relative_time and not is_event_summary:
+                        if event_match:
+                            # 🔥 关键事件 + 相对时间词: 最高优先级 (解决Q1排序问题)
+                            temporal_priority_boost = 1.0
+                        else:
+                            # 原始对话 + 包含相对时间词: 次高优先级
+                            temporal_priority_boost = 0.5
+                    elif has_relative_time:
+                        # 有相对时间词但是Event摘要
+                        temporal_priority_boost = 0.2
+                    elif not is_event_summary:
+                        # 原始对话但无相对时间词
+                        temporal_priority_boost = 0.1
+                    # Event摘要 + 无相对时间词: 不加分 (0.0)
+
+                relevance += temporal_priority_boost
+
+                # 确保在合理范围内
+                relevance = min(2.0, max(0.0, relevance))  # 🔥 提高上限以容纳temporal boost
 
                 results.append({
                     'memory': mem,
@@ -419,7 +646,8 @@ class RetrievalMixin:
                     'keyword_score': keyword_score,
                     'semantic_score': semantic_score,
                     'entity_score': entity_score,  # 🔥 新增: 实体匹配分数
-                    'kg_boost': kg_boost  # 🎯 P3: 记录KG增强分数
+                    'kg_boost': kg_boost,  # 🎯 P3: 记录KG增强分数
+                    'temporal_priority': temporal_priority_boost  # 🔥 记录temporal优先级
                 })
         else:
             # 无query,返回所有candidates

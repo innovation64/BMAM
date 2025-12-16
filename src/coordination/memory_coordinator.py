@@ -4,6 +4,7 @@ Handles memory storage, retrieval, consolidation, and forgetting operations
 """
 
 import asyncio
+import re
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
@@ -12,6 +13,8 @@ from ..memory.memory_system import memory_system
 from ..utils.config import get_logger, get_settings
 from ..monitoring.memory_metrics import get_metrics_collector
 from ..utils.model_selector import select_model_for_task  # 🔥 P1-5: Smart model selection
+from .confidence_calibrator import get_confidence_calibrator, ConfidenceCalibrator  # 🔥 Phase 3: 置信度校准
+from .brain_retrieval_integration import get_brain_retrieval, BrainInspiredRetrieval  # 🔥 Phase 4: 脑仿生检索整合
 
 logger = get_logger(__name__)
 
@@ -47,6 +50,18 @@ class MemoryCoordinator:
         self.amygdala = amygdala
         self.prefrontal_storage = prefrontal_storage
         self.basal_ganglia = basal_ganglia
+
+        # 🔥 Phase 3: 跨脑区置信度校准器
+        self.confidence_calibrator = get_confidence_calibrator()
+
+        # 🔥 Phase 4: 脑仿生检索系统 (快慢路径 + 迭代检索 + 缺口检测)
+        self.brain_retrieval = get_brain_retrieval(
+            memory_coordinator=self,
+            enable_fast_path=True,
+            enable_iterative=True,
+            max_iterations=3
+        )
+        logger.info("MemoryCoordinator: BrainInspiredRetrieval initialized")
 
 
     async def store_long_document(
@@ -380,7 +395,8 @@ class MemoryCoordinator:
         auto_chunk: bool = True,
         chunk_threshold: int = 1000,  # tokens
         chunk_overlap: int = 150,  # overlap tokens between chunks
-        async_summary: bool = False  # 🔥 P1-5: Async summary generation
+        async_summary: bool = False,  # 🔥 P1-5: Async summary generation
+        inherited_event_time: datetime = None  # 🔥 2025-12-16: 继承的事件时间
     ) -> Dict[str, Any]:
         """
         Store memory with custom timestamp (for learning historical conversations)
@@ -395,6 +411,7 @@ class MemoryCoordinator:
             auto_chunk: Enable automatic chunking for long content (default: True)
             chunk_threshold: Max tokens per chunk (default: 1000)
             chunk_overlap: Overlap tokens between chunks (default: 150, ~15%)
+            inherited_event_time: 🔥 继承的事件时间 (用于 [Event] 记忆继承原始对话的精确时间)
 
         Returns:
             {
@@ -517,7 +534,8 @@ class MemoryCoordinator:
                     content=chunk_with_metadata,
                     timestamp=timestamp,
                     speaker=speaker,
-                    importance=importance
+                    importance=importance,
+                    inherited_event_time=inherited_event_time  # 🔥 2025-12-16: 传递继承的事件时间
                 )
                 results.append(result)
 
@@ -540,7 +558,8 @@ class MemoryCoordinator:
                 content=content_with_context,
                 timestamp=timestamp,
                 speaker=speaker,
-                importance=importance
+                importance=importance,
+                inherited_event_time=inherited_event_time  # 🔥 2025-12-16: 传递继承的事件时间
             )
             result['chunks_created'] = 1
 
@@ -1153,28 +1172,40 @@ class MemoryCoordinator:
                 for mem in memories:
                     mem['source'] = 'temporal_lobe'
             elif strategy == 'hybrid':
-                # 🔥 HRM Fix: Use cross_region_retrieval with activation_plan
-                # This enables Thalamus dynamic gating to control which regions are active
-                memories = await self.cross_region_retrieval(
+                # 🔥 Phase 4: Use BrainInspiredRetrieval (integrates all brain-like features)
+                # Features:
+                # - Fast/slow path detection (FastPathDetector)
+                # - Iterative retrieval (HippocampalPrefrontalLoop)
+                # - Gap detection & multi-round retrieval (GapDetector)
+                # - Enhanced multi-strategy retrieval (semantic + keyword + entity)
+
+                brain_result = await self.brain_retrieval.retrieve(
                     query=query,
-                    top_k=k,
-                    activation_plan=activation_plan  # 🔥 Pass activation_plan from HRM
+                    k=k,
+                    context=context,
+                    activation_plan=activation_plan
                 )
 
-                # 🔥 P1-4: KG 覆盖率降级策略
+                memories = brain_result.memories
+
+                # Log brain retrieval stats
+                logger.info(f"🧠 BrainRetrieval: path={brain_result.path_type}, "
+                           f"iterations={brain_result.iterations}, "
+                           f"confidence={brain_result.confidence:.2f}, "
+                           f"time={brain_result.retrieval_time_ms:.1f}ms")
+
+                if brain_result.debug_info.get('gap_types_detected'):
+                    logger.info(f"   Gap types: {brain_result.debug_info['gap_types_detected']}")
+
+                # 🔥 P1-4: KG 覆盖率降级策略 (保留作为额外保障)
                 # Check KG coverage and apply fallback if needed
                 kg_coverage = self._calculate_kg_coverage(memories, query)
 
-                if kg_coverage < 0.95:
-                    logger.warning(f"⚠️ Low KG coverage detected: {kg_coverage:.2%} (threshold: 95%), triggering fallback strategy")
+                if kg_coverage < 0.95 and brain_result.confidence < 0.6:
+                    logger.warning(f"⚠️ Low KG coverage ({kg_coverage:.2%}) + low confidence ({brain_result.confidence:.2f}), triggering additional fallback")
 
-                    # Strategy 1: Increase top_k dynamically
-                    adaptive_k = int(k * (1 + (0.95 - kg_coverage) * 2))  # Scale up based on deficit
-                    adaptive_k = min(adaptive_k, k * 3)  # Cap at 3x original k
-
-                    logger.info(f"   📈 Adaptive top_k: {k} → {adaptive_k} (increased by {adaptive_k - k})")
-
-                    # Strategy 2: Pure semantic fallback (skip KG, use only embeddings)
+                    # Pure semantic fallback (skip KG, use only embeddings)
+                    adaptive_k = int(k * 1.5)
                     fallback_memories = await self._pure_semantic_fallback(
                         query=query,
                         k=adaptive_k,
@@ -1199,13 +1230,8 @@ class MemoryCoordinator:
                         reverse=True
                     )
 
-                    # Limit to adaptive_k
                     memories = unique_memories[:adaptive_k]
-
-                    logger.info(f"   ✅ Fallback complete: {len(memories)} memories after merging and deduplication")
-
-                # cross_region_retrieval already handles all regions and adds 'source' labels
-                # No need for additional processing
+                    logger.info(f"   ✅ Additional fallback: {len(memories)} memories")
             else:
                 # Default to hippocampus
                 result = await self.hippocampus.search_memories(query, k=k)
@@ -1454,10 +1480,36 @@ class MemoryCoordinator:
     # 🔥 Phase 3: Cross-Region Parallel Retrieval & Fusion
     # ========================================================================
 
+    def _is_multi_hop_query(self, query: str) -> bool:
+        """
+        🔥 2025-12-14: 识别需要多跳推理的问题
+
+        多跳问题特征:
+        - 时间/因果关系 (after, before, because)
+        - 计数问题 (how many times)
+        - 比较问题 (compare, difference)
+        - 关系链问题 (X's Y's Z)
+
+        Returns:
+            True 如果是多跳问题
+        """
+        multi_hop_patterns = [
+            r'\b(after|before|since|until|following|prior to)\s+\w+',  # 时间关系
+            r'\b(because|due to|as a result|caused by|led to)\b',       # 因果关系
+            r'\bhow many (times|people|things|events)\b',               # 计数问题
+            r'\bwhat.*and.*what\b',                                     # 多重what
+            r'\brelat(ed|ion|ionship|ive)\b',                          # 关系问题
+            r'\bcompare|difference|similar|both\b',                     # 比较问题
+            r"'s\s+\w+'s\b",                                           # 关系链 (X's Y's)
+            r'\ball\s+(the|of)\b',                                     # 全部枚举
+        ]
+        query_lower = query.lower()
+        return any(re.search(p, query_lower) for p in multi_hop_patterns)
+
     async def cross_region_retrieval(
         self,
         query: str,
-        top_k: int = 5,
+        top_k: int = 20,  # 🔥 2025-12-14: 从5增加到20，提高多跳检索覆盖率
         activation_plan: Optional[Dict[str, bool]] = None
     ) -> List[Dict]:
         """
@@ -1476,6 +1528,14 @@ class MemoryCoordinator:
         Returns:
             List of fused memories with resonance scores
         """
+        # 🔥 2025-12-14: 动态调整 top_k based on query complexity
+        is_multi_hop = self._is_multi_hop_query(query)
+        if is_multi_hop:
+            effective_top_k = max(top_k, 30)  # 多跳问题至少30条
+            logger.info(f"🧠 Phase 3: Multi-hop query detected, using top_k={effective_top_k}")
+        else:
+            effective_top_k = top_k
+
         logger.info(f"🧠 Phase 3: Cross-region retrieval for query: '{query[:50]}...'")
 
         # Default: activate all regions if no plan provided
@@ -1496,7 +1556,7 @@ class MemoryCoordinator:
             async def retrieve_hippocampus():
                 try:
                     # Use search_memories for general query
-                    result = await self.hippocampus.search_memories(query, k=top_k * 2)
+                    result = await self.hippocampus.search_memories(query, k=effective_top_k * 2)
                     return result.get('memories', [])
                 except Exception as e:
                     logger.warning(f"Hippocampus retrieval failed: {e}")
@@ -1635,7 +1695,7 @@ class MemoryCoordinator:
         融合多脑区结果，计算共振分数
 
         Resonance scoring:
-        - Base score: Original relevance score
+        - Base score: Calibrated relevance score (使用置信度校准器)
         - Resonance bonus: +0.15 for each additional region
         - Emotional boost: +0.2 * intensity if from Amygdala
 
@@ -1648,10 +1708,19 @@ class MemoryCoordinator:
         """
         logger.debug("   Fusing cross-region results...")
 
+        # 🔥 Phase 3: 使用置信度校准器进行跨脑区分数校准
+        # 替换原来的简单归一化方法
+        calibrated_region_memories = self.confidence_calibrator.calibrate_scores(
+            region_memories, query
+        )
+
+        # 同时保留简单归一化作为后备（用于新脑区或校准器未初始化时）
+        region_scales = self._calibrate_region_confidence(region_memories)
+
         memory_resonance = {}  # {memory_id: {memory, regions, scores}}
 
         # Aggregate memories across regions
-        for region_name, memories in region_memories.items():
+        for region_name, memories in calibrated_region_memories.items():
             if not memories:
                 continue
 
@@ -1660,12 +1729,20 @@ class MemoryCoordinator:
                 mem_id = self._get_memory_id(mem)
 
                 if mem_id not in memory_resonance:
+                    # 🔥 优先使用校准后的分数，否则使用简单归一化
+                    if 'calibrated_score' in mem:
+                        base_score = mem['calibrated_score']
+                    else:
+                        base_score_raw = self._get_memory_score(mem)
+                        base_score = base_score_raw * region_scales.get(region_name, 1.0)
+
                     memory_resonance[mem_id] = {
                         'memory': mem,
                         'regions': set(),
-                        'base_score': self._get_memory_score(mem),
+                        'base_score': base_score,
                         'emotional_boost': 0.0,
-                        'resonance_score': 0.0
+                        'resonance_score': 0.0,
+                        'calibration_info': mem.get('_calibration', {})
                     }
 
                 # Record which regions contain this memory
@@ -1712,12 +1789,66 @@ class MemoryCoordinator:
                     'regions': list(mem_data['regions']),
                     'resonance_score': mem_data['resonance_score'],
                     'region_count': len(mem_data['regions']),
-                    'emotional_boost': mem_data['emotional_boost']
+                    'emotional_boost': mem_data['emotional_boost'],
+                    'calibration': mem_data.get('calibration_info', {})  # 🔥 添加校准信息
                 }
 
             result_memories.append(memory)
 
         return result_memories
+
+    def record_retrieval_outcome(
+        self,
+        region_name: str,
+        query: str,
+        memories_used: List[Dict],
+        success: bool,
+        feedback_score: Optional[float] = None
+    ) -> None:
+        """
+        🔥 Phase 3: 记录检索结果用于校准学习
+
+        Args:
+            region_name: 脑区名称
+            query: 查询
+            memories_used: 使用的记忆
+            success: 是否成功
+            feedback_score: 反馈分数
+        """
+        self.confidence_calibrator.record_outcome(
+            region_name=region_name,
+            query=query,
+            memories_used=memories_used,
+            success=success,
+            feedback_score=feedback_score
+        )
+
+    def get_calibration_stats(self) -> Dict[str, Any]:
+        """获取校准统计信息"""
+        return self.confidence_calibrator.get_calibration_stats()
+
+    def save_calibration(self) -> bool:
+        """保存校准状态"""
+        return self.confidence_calibrator.save_calibration()
+
+    def _calibrate_region_confidence(self, region_memories: Dict[str, List]) -> Dict[str, float]:
+        """
+        根据各脑区的平均相关度对分值做缩放，减少单一区域打分过高导致的偏置
+        (保留作为后备方法)
+        """
+        averages = {}
+        for region, memories in region_memories.items():
+            if not memories:
+                continue
+            scores = [self._get_memory_score(m) for m in memories]
+            if scores:
+                averages[region] = sum(scores) / len(scores)
+
+        if not averages:
+            return {}
+
+        max_avg = max(averages.values()) or 1.0
+        return {region: (avg / max_avg) for region, avg in averages.items()}
 
     def _get_memory_id(self, memory: Any) -> str:
         """Extract memory ID from various memory formats"""

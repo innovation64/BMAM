@@ -5,9 +5,14 @@ Core Execution for Capability Orchestrator
 
 import logging
 import asyncio
+import os
 from typing import Dict, List, Any
 
 logger = logging.getLogger(__name__)
+
+# 🚀 性能优化配置 (Fix: These must be defined in this module for proper access)
+ENABLE_DYNAMIC_CONSTRAINTS = os.getenv('ENABLE_DYNAMIC_CONSTRAINTS', 'false').lower() == 'true'
+ENABLE_PARALLEL_EXECUTION = os.getenv('ENABLE_PARALLEL_EXECUTION', 'true').lower() == 'true'
 
 
 class CoreExecutionMixin:
@@ -18,7 +23,8 @@ class CoreExecutionMixin:
         query: str,
         capabilities: List[Dict[str, Any]],
         memories: List[Dict],
-        execution_plan: str
+        execution_plan: str,
+        supplementary_context: Dict[str, Any] = None
     ) -> Dict[str, Any]:
         """
         执行推理能力组合
@@ -28,6 +34,7 @@ class CoreExecutionMixin:
             capabilities: CapabilityAnalyzer返回的能力列表
             memories: 检索到的记忆
             execution_plan: 执行计划描述
+            supplementary_context: 补充上下文(如反思模块的模式分析结果)
 
         Returns:
             {
@@ -47,7 +54,7 @@ class CoreExecutionMixin:
                 enhanced_retrieval = await self.hippocampal_loop.iterative_retrieval(
                     query=query,
                     initial_memories=memories,
-                    max_iterations=2  # 最多2轮补充检索
+                    max_iterations=3  # 🔥 优化: 增加迭代次数以提高召回率
                 )
                 memories = enhanced_retrieval['memories']
                 logger.debug(f"✅ Enhanced memories: {len(memories)} (initial: {initial_memory_count}, added: {len(memories) - initial_memory_count})")
@@ -59,8 +66,15 @@ class CoreExecutionMixin:
             'query': query,
             'memories': memories,
             'intermediate_results': {},
-            'reasoning_chain': [f"📋 Initial Plan: {execution_plan}"]
+            'reasoning_chain': [f"📋 Initial Plan: {execution_plan}"],
+            'reflection_hints': supplementary_context or {}  # 🧠 反思模块提供的模式洞察
         }
+
+        # 🧠 Log reflection insights if available
+        if supplementary_context:
+            logger.info(f"🔮 Received reflection insights: patterns={supplementary_context.get('reflection_patterns', [])}")
+            if supplementary_context.get('reflection_hint'):
+                context['reasoning_chain'].append(f"🔮 Reflection hint: {supplementary_context['reflection_hint'][:100]}...")
 
         # 🔥 STEP 2: 动态脑区激活分析 (解决Q5 relationship vs identity)
         try:
@@ -185,6 +199,7 @@ class CoreExecutionMixin:
         query = context['query']
         memories = context['memories']
         intermediate = context['intermediate_results']
+        reflection_hints = context.get('reflection_hints', {})  # 🧠 反思模块的模式洞察
 
         # 🔥 能力实现路由表
         capability_implementations = {
@@ -201,7 +216,10 @@ class CoreExecutionMixin:
             'multi_hop_inference': self._multi_hop_inference
         }
 
-        if capability_name in capability_implementations:
+        # 🧠 对于multi_hop_inference等复杂推理,传递reflection_hints
+        if capability_name == 'multi_hop_inference' and reflection_hints:
+            return await self._multi_hop_inference(query, memories, intermediate, reflection_hints)
+        elif capability_name in capability_implementations:
             return await capability_implementations[capability_name](query, memories, intermediate)
         else:
             logger.warning(f"⚠️ Unknown capability: {capability_name}")

@@ -32,9 +32,35 @@ class BMAMPaths:
     PROJECT_ROOT = BMAM_ROOT.parent
 
     # 🔥 UNIFIED data directory - everything in BMAM/data/
-    DATA_DIR = BMAM_ROOT / "data"
+    # Support BMAM_DATA_DIR env var for parallel testing with isolated data dirs
+    DATA_DIR = Path(os.environ.get('BMAM_DATA_DIR', '')) if os.environ.get('BMAM_DATA_DIR') else BMAM_ROOT / "data"
     PROJECT_DATA_DIR = DATA_DIR  # Legacy alias
     BMAM_DATA_DIR = DATA_DIR     # Legacy alias
+
+    @classmethod
+    def reinitialize_paths(cls):
+        """重新初始化路径 (当环境变量在运行时设置时调用)"""
+        env_data_dir = os.environ.get('BMAM_DATA_DIR', '')
+        if env_data_dir:
+            cls.DATA_DIR = Path(env_data_dir)
+        else:
+            cls.DATA_DIR = cls.BMAM_ROOT / "data"
+        cls.PROJECT_DATA_DIR = cls.DATA_DIR
+        cls.BMAM_DATA_DIR = cls.DATA_DIR
+
+        # 更新所有依赖路径
+        cls.TEMPORAL_LOBE_DB = cls.PROJECT_DATA_DIR / "temporal_lobe.db"
+        cls.BRAIN_MEMORY_DB = cls.PROJECT_DATA_DIR / "brain_memory.db"
+        cls.WORKING_MEMORY_DB = cls.PROJECT_DATA_DIR / "working_memory.db"
+        cls.HIPPOCAMPUS_STATE = cls.PROJECT_DATA_DIR / "hippocampus_state.json"
+        cls.PREFRONTAL_STATE = cls.PROJECT_DATA_DIR / "prefrontal_state.json"
+        cls.AMYGDALA_STATE = cls.PROJECT_DATA_DIR / "amygdala_state.json"
+        cls.BASAL_GANGLIA_STATE = cls.PROJECT_DATA_DIR / "basal_ganglia_state.json"
+        cls.MEMORY_SHAPING_STATE = cls.PROJECT_DATA_DIR / "memory_shaping_state.json"
+        cls.MEMORY_VECTORS_INDEX = cls.BMAM_DATA_DIR / "memory_vectors.index"
+        cls.MEMORY_VECTORS_MAPPING = cls.BMAM_DATA_DIR / "memory_vectors_mappings.json"
+        cls.EMBEDDING_CACHE_DIR = cls.BMAM_DATA_DIR / "embedding_cache"
+        cls.KG_CACHE_DIR = cls.PROJECT_DATA_DIR / "knowledge_graph"
 
     # ============================================================
     # Runtime DB files (in BMAM/data/)

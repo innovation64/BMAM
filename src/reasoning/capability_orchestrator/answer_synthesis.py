@@ -103,7 +103,9 @@ Guidelines:
 4. For "Why?" questions → prefer CAUSAL reasoning over descriptions
 5. For "When?" or "What date?" questions → **ALWAYS prefer temporal_calculation over other capabilities** (even if it shows duration/calculation, it's more relevant than facts)
 6. Temporal answers (dates, times, durations) should be prioritized for time-related questions
-7. Shorter, more direct answers are usually better than verbose explanations
+7. For "Where?" questions → **ALWAYS prefer LOCATION answers** (place names, addresses), NEVER return dates for where questions
+8. Match answer TYPE to question TYPE: "where"→location, "when"→date, "what"→thing/activity, "who"→person
+9. Shorter, more direct answers are usually better than verbose explanations
 
 Respond with ONLY the number (1, 2, 3, etc.) of the best candidate.
 """

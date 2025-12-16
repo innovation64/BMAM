@@ -28,7 +28,11 @@ class EmbeddingFailureError(Exception):
 class EmbeddingCache:
     """嵌入向量缓存 - 内置实现（优化版）"""
 
-    def __init__(self, cache_dir: str = "data/embedding_cache", max_size: int = 10000, ttl_hours: int = 24):
+    def __init__(self, cache_dir: str = None, max_size: int = 10000, ttl_hours: int = 24):
+        # 使用 BMAMPaths 支持并行测试
+        if cache_dir is None:
+            from src.utils.paths import BMAMPaths
+            cache_dir = str(BMAMPaths.EMBEDDING_CACHE_DIR)
         self.cache_dir = get_absolute_path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.cache_file = self.cache_dir / "embeddings.json"

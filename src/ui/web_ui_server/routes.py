@@ -32,6 +32,10 @@ class RoutesMixin:
         app.router.add_post('/api/memory/edit', self.edit_memory_handler)
         app.router.add_get('/api/layout', self.layout_handler)
 
+        # 🔥 2025-12-15: 灵魂导出导入API (跨平台迁移)
+        app.router.add_get('/api/memory/export', self.memory_export_handler)
+        app.router.add_post('/api/memory/import', self.memory_import_handler)
+
         # WebSocket
         app.router.add_get('/ws', self.websocket_handler)
 

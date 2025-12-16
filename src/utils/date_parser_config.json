@@ -1,0 +1,202 @@
+{
+  "description": "Date parsing configuration for multi-locale support",
+  "version": "1.0.0",
+  "default_locale": "en",
+  "locales": {
+    "en": {
+      "name": "English",
+      "months": {
+        "january": 1, "jan": 1,
+        "february": 2, "feb": 2,
+        "march": 3, "mar": 3,
+        "april": 4, "apr": 4,
+        "may": 5,
+        "june": 6, "jun": 6,
+        "july": 7, "jul": 7,
+        "august": 8, "aug": 8,
+        "september": 9, "sep": 9, "sept": 9,
+        "october": 10, "oct": 10,
+        "november": 11, "nov": 11,
+        "december": 12, "dec": 12
+      },
+      "weekdays": {
+        "monday": 0, "mon": 0,
+        "tuesday": 1, "tue": 1, "tues": 1,
+        "wednesday": 2, "wed": 2,
+        "thursday": 3, "thu": 3, "thurs": 3,
+        "friday": 4, "fri": 4,
+        "saturday": 5, "sat": 5,
+        "sunday": 6, "sun": 6
+      },
+      "relative_dates": {
+        "today": 0,
+        "yesterday": -1,
+        "the day before": -1,
+        "day before": -1,
+        "the day before yesterday": -2,
+        "two days ago": -2,
+        "three days ago": -3,
+        "a few days ago": -3,
+        "tomorrow": 1,
+        "the day after": 1,
+        "last week": -7,
+        "a week ago": -7,
+        "next week": 7,
+        "last month": -30,
+        "a month ago": -30,
+        "next month": 30,
+        "last year": -365,
+        "a year ago": -365,
+        "next year": 365,
+        "last monday": -7,
+        "last tuesday": -7,
+        "last wednesday": -7,
+        "last thursday": -7,
+        "last friday": -7,
+        "last saturday": -7,
+        "last sunday": -7
+      },
+      "patterns": [
+        {
+          "name": "dd_month_yyyy",
+          "regex": "(\\d{1,2})\\s+(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec)[,\\s]*(\\d{4})?",
+          "groups": ["day", "month", "year"],
+          "priority": 1
+        },
+        {
+          "name": "yyyy_mm_dd",
+          "regex": "(\\d{4})-(\\d{1,2})-(\\d{1,2})",
+          "groups": ["year", "month", "day"],
+          "priority": 2
+        },
+        {
+          "name": "mm_dd_yyyy",
+          "regex": "(\\d{1,2})/(\\d{1,2})/(\\d{4})",
+          "groups": ["month", "day", "year"],
+          "priority": 3
+        },
+        {
+          "name": "month_dd_yyyy",
+          "regex": "(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec)\\s+(\\d{1,2})[,\\s]*(\\d{4})?",
+          "groups": ["month", "day", "year"],
+          "priority": 4
+        }
+      ]
+    },
+    "zh": {
+      "name": "中文",
+      "months": {
+        "一月": 1, "1月": 1,
+        "二月": 2, "2月": 2,
+        "三月": 3, "3月": 3,
+        "四月": 4, "4月": 4,
+        "五月": 5, "5月": 5,
+        "六月": 6, "6月": 6,
+        "七月": 7, "7月": 7,
+        "八月": 8, "8月": 8,
+        "九月": 9, "9月": 9,
+        "十月": 10, "10月": 10,
+        "十一月": 11, "11月": 11,
+        "十二月": 12, "12月": 12
+      },
+      "weekdays": {
+        "周一": 0, "星期一": 0,
+        "周二": 1, "星期二": 1,
+        "周三": 2, "星期三": 2,
+        "周四": 3, "星期四": 3,
+        "周五": 4, "星期五": 4,
+        "周六": 5, "星期六": 5,
+        "周日": 6, "星期日": 6, "周天": 6
+      },
+      "relative_dates": {
+        "今天": 0, "今日": 0,
+        "昨天": -1, "昨日": -1,
+        "明天": 1, "明日": 1,
+        "上周": -7, "上星期": -7,
+        "下周": 7, "下星期": 7,
+        "上个月": -30,
+        "下个月": 30,
+        "去年": -365,
+        "明年": 365
+      },
+      "patterns": [
+        {
+          "name": "yyyy年mm月dd日",
+          "regex": "(\\d{4})年(\\d{1,2})月(\\d{1,2})日",
+          "groups": ["year", "month", "day"],
+          "priority": 1
+        },
+        {
+          "name": "mm月dd日",
+          "regex": "(\\d{1,2})月(\\d{1,2})日",
+          "groups": ["month", "day"],
+          "priority": 2
+        },
+        {
+          "name": "yyyy-mm-dd",
+          "regex": "(\\d{4})-(\\d{1,2})-(\\d{1,2})",
+          "groups": ["year", "month", "day"],
+          "priority": 3
+        }
+      ]
+    },
+    "es": {
+      "name": "Español",
+      "months": {
+        "enero": 1,
+        "febrero": 2,
+        "marzo": 3,
+        "abril": 4,
+        "mayo": 5,
+        "junio": 6,
+        "julio": 7,
+        "agosto": 8,
+        "septiembre": 9, "sep": 9,
+        "octubre": 10, "oct": 10,
+        "noviembre": 11, "nov": 11,
+        "diciembre": 12, "dic": 12
+      },
+      "weekdays": {
+        "lunes": 0,
+        "martes": 1,
+        "miércoles": 2, "miercoles": 2,
+        "jueves": 3,
+        "viernes": 4,
+        "sábado": 5, "sabado": 5,
+        "domingo": 6
+      },
+      "relative_dates": {
+        "hoy": 0,
+        "ayer": -1,
+        "mañana": 1, "manana": 1,
+        "la semana pasada": -7,
+        "la próxima semana": 7,
+        "el mes pasado": -30,
+        "el próximo mes": 30,
+        "el año pasado": -365,
+        "el próximo año": 365
+      },
+      "patterns": [
+        {
+          "name": "dd_de_month_de_yyyy",
+          "regex": "(\\d{1,2})\\s+de\\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\\s+de\\s+(\\d{4})",
+          "groups": ["day", "month", "year"],
+          "priority": 1
+        },
+        {
+          "name": "dd_month_yyyy",
+          "regex": "(\\d{1,2})\\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)[,\\s]*(\\d{4})?",
+          "groups": ["day", "month", "year"],
+          "priority": 2
+        }
+      ]
+    }
+  },
+  "fallback_parser": "dateparser",
+  "dateparser_settings": {
+    "PREFER_DATES_FROM": "past",
+    "RELATIVE_BASE": "today",
+    "STRICT_PARSING": false,
+    "RETURN_AS_TIMEZONE_AWARE": false
+  }
+}

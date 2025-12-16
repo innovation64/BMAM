@@ -72,7 +72,7 @@ class KGOperationsMixin:
         Returns:
             实体列表
         """
-        return list(self.kg.graph.keys()) if self.kg else []
+        return list(self.kg.graph.nodes()) if self.kg else []
 
     async def query_kg_multi_hop(
         self,
@@ -138,7 +138,7 @@ class KGOperationsMixin:
             query_lower = query.lower()
             matched_entities = []
 
-            for entity in self.kg.graph.keys():
+            for entity in self.kg.graph.nodes():
                 if entity.lower() in query_lower:
                     matched_entities.append(entity)
 

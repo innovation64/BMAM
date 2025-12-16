@@ -34,6 +34,8 @@ from .clean_agent_system import (
 from ..agents.environment import EnvironmentAgent
 from ..agents.core.reasoning_validator import ReasoningValidatorAgent
 from ..memory.memory_system import memory_system
+from ..memory.key_value_stores import KeyValueMemoryStore
+from ..memory.storage_coordinator import get_storage_coordinator
 # Removed: agent_buffer_system (early design flaw - removed 2025-11-12)
 # Removed: NeuralPlasticityEngine (Hebbian learning - no longer used)
 
@@ -62,8 +64,33 @@ from .learning_manager import LearningManager
 from .kg_merge_handler import KGMergeHandler
 from .memory_coordinator import MemoryCoordinator
 from .metrics_collector import MetricsCollector
+from ..brain.active_learning import ActiveLearningManager  # 🔥 2025-12-14: 主动学习集成
+from ..agents.brain_regions.thalamus_agent import ThalamusAgent, Timescale  # 🔥 2025-12-15: HRM集成
+from ..agents.brain_regions.anterior_cingulate_agent import AnteriorCingulateAgent  # 🔥 2025-12-15: ACT集成
+from .result_arbiter import ResultArbiter, LearningCaseLogger  # 🔥 2025-12-15: 结果审查集成
+from .proactive_inquiry import ProactiveInquiryManager  # 🔥 2025-12-16: 主动询问机制
+from .confidence_calibrator import get_confidence_calibrator  # 🔥 2025-12-16: 置信度校准
+from ..agents.core.learnable_router import LearnableAgentRouter  # 🔥 2025-12-15: 可学习路由集成
+from ..agents.brain_regions.amygdala_hrm_extension import AmygdalaHRMExtension  # 🔥 2025-12-15: HRM扩展
+from ..agents.brain_regions.basal_ganglia_hrm_extension import BasalGangliaHRMExtension  # 🔥 2025-12-15: HRM扩展
+from .brain_retrieval_integration import (  # 🔥 2025-12-15: 高级脑仿生检索
+    BrainInspiredRetrieval,
+    BrainRetrievalResult,
+    PrefrontalFeedbackSystem
+)
 
 logger = get_logger(__name__)
+
+
+# 🔥 2025-12-15: HRM Enhanced Agents - 组合基础Agent与HRM扩展
+class AmygdalaAgentHRM(AmygdalaHRMExtension, AmygdalaAgent):
+    """Amygdala Agent with HRM L-module (fast emotional tagging)"""
+    pass
+
+
+class BasalGangliaAgentHRM(BasalGangliaHRMExtension, BasalGangliaAgent):
+    """Basal Ganglia Agent with HRM fixed-point detection"""
+    pass
 
 
 class _LegacyMemoryManagerAdapter:
@@ -289,7 +316,9 @@ class BrainInspiredCoordinator:
             plasticity_engine=self.plasticity_engine,
             continuous_learner=self.continuous_learner,
             conflict_detector=self.conflict_detector,
-            brain_network=getattr(self, 'brain_network', None)
+            brain_network=getattr(self, 'brain_network', None),
+            routing_manager=self.routing_manager,  # 🔥 FIX: Pass routing_manager for weight updates
+            coordinator=None  # 🔥 2025-12-15: 稍后设置，因为此时 coordinator 尚未完全初始化
         )
         logger.info("✅ [7/10] LearningManager initialized")
 
@@ -330,6 +359,134 @@ class BrainInspiredCoordinator:
             self.stimulus_processor = None
             self.contextual_integrator = None
         logger.info("✅ [10/10] Environment stimulus processor ready")
+
+        # 🔥 2025-12-14: Initialize Active Learning Manager
+        logger.info("🔧 [11/12] Initializing ActiveLearningManager...")
+        try:
+            self.active_learning = ActiveLearningManager(config={
+                'active_learning_enabled': True,
+                'active_learning_threshold': 0.5,  # 低于此置信度时考虑提问
+                'curiosity_level': 0.6
+            })
+            logger.info("✅ [11/12] ActiveLearningManager initialized")
+        except Exception as e:
+            logger.warning(f"⚠️ ActiveLearningManager not available: {e}")
+            self.active_learning = None
+
+        # 🔥 2025-12-15: Initialize HRM (Hierarchical Reasoning Model) components
+        logger.info("🔧 [12/12] Initializing HRM (Thalamus + AnteriorCingulate)...")
+        try:
+            # Thalamus: 多时间尺度协调器
+            # 不同脑区以不同频率更新 (τ=1 快速, τ=3 中速, τ=10 慢速)
+            brain_regions = {
+                'hippocampus': self.hippocampus,
+                'temporal_lobe': self.temporal_lobe,
+                'prefrontal': self.prefrontal_storage,
+                'amygdala': self.amygdala,
+                'basal_ganglia': self.basal_ganglia
+            }
+            thalamus_config = {
+                'custom_timescales': {
+                    'hippocampus': Timescale.HIPPOCAMPUS,      # τ=1, 每次都更新 (情景记忆)
+                    'temporal_lobe': Timescale.HIPPOCAMPUS,    # τ=1, 每次都更新 (语义记忆)
+                    'prefrontal': Timescale.PREFRONTAL,        # τ=10, 慢更新 (执行控制)
+                    'amygdala': Timescale.AMYGDALA,            # τ=1, 快速响应 (情绪)
+                    'basal_ganglia': Timescale.BASAL_GANGLIA   # τ=3, 中速 (习惯/程序记忆)
+                },
+                'sync_threshold': 0.8  # 脑区间同步阈值
+            }
+            self.thalamus = ThalamusAgent(brain_regions, thalamus_config)
+
+            # AnteriorCingulate: 自适应计算时间 (ACT)
+            # 决定何时停止思考，平衡速度与准确性
+            act_config = {
+                'min_iterations': 1,
+                'max_iterations': 5,
+                'confidence_threshold': 0.85,
+                'ponder_cost': 0.01  # 每次迭代的计算成本
+            }
+            self.anterior_cingulate = AnteriorCingulateAgent(act_config)
+
+            logger.info("✅ [12/13] HRM initialized")
+            logger.info(f"   🔗 Thalamus managing {len(brain_regions)} brain regions")
+            logger.info(f"   🧠 AnteriorCingulate ACT enabled (threshold={act_config['confidence_threshold']})")
+        except Exception as e:
+            logger.warning(f"⚠️ HRM initialization failed: {e}")
+            self.thalamus = None
+            self.anterior_cingulate = None
+
+        # 🔥 2025-12-15: Initialize Result Arbiter (结果审查机制)
+        logger.info("🔧 [13/14] Initializing ResultArbiter...")
+        try:
+            self.result_arbiter = ResultArbiter(
+                prefrontal_agent=self.prefrontal_storage,
+                environment_agent=getattr(self, 'environment', None)
+            )
+            self.learning_case_logger = LearningCaseLogger()
+            logger.info("✅ [13/14] ResultArbiter initialized")
+        except Exception as e:
+            logger.warning(f"⚠️ ResultArbiter initialization failed: {e}")
+            self.result_arbiter = None
+            self.learning_case_logger = None
+
+        # 🔥 2025-12-16: Initialize Proactive Inquiry Manager (主动询问机制)
+        logger.info("🔧 [13.5/14] Initializing ProactiveInquiryManager...")
+        try:
+            self.proactive_inquiry = ProactiveInquiryManager(
+                prefrontal_agent=self.prefrontal_storage,
+                result_arbiter=self.result_arbiter
+            )
+            logger.info("✅ [13.5/14] ProactiveInquiryManager initialized")
+        except Exception as e:
+            logger.warning(f"⚠️ ProactiveInquiryManager initialization failed: {e}")
+            self.proactive_inquiry = None
+
+        # 🔥 2025-12-15: Initialize Learnable Router (可学习脑区路由)
+        logger.info("🔧 [14/15] Initializing LearnableAgentRouter...")
+        try:
+            brain_region_names = [
+                'hippocampus', 'temporal_lobe', 'prefrontal', 'amygdala', 'basal_ganglia',
+                'memory_retrieval', 'consolidation', 'reflection', 'reasoning_validator'
+            ]
+            self.learnable_router = LearnableAgentRouter(
+                agent_names=brain_region_names,
+                learning_rate=0.05,
+                checkpoint_dir="data/checkpoints"
+            )
+            logger.info(f"✅ [14/15] LearnableAgentRouter initialized ({len(brain_region_names)} agents)")
+        except Exception as e:
+            logger.warning(f"⚠️ LearnableAgentRouter initialization failed: {e}")
+            self.learnable_router = None
+
+        # 🔥 2025-12-15: Initialize Brain-Inspired Retrieval (高级脑仿生检索)
+        # 整合: 快慢路径分离 + 前额叶反馈 + 杏仁核注意力 + 脑区协作循环
+        logger.info("🔧 [15/15] Initializing BrainInspiredRetrieval...")
+        try:
+            from ..services.shared_openai_client import shared_client_manager
+            self.brain_inspired_retrieval = BrainInspiredRetrieval(
+                memory_coordinator=self.memory_coordinator,
+                llm_client=shared_client_manager,
+                enable_fast_path=False,   # 🔥 关闭快速路径，强制深度检索
+                enable_iterative=True,    # 启用迭代检索
+                max_iterations=5          # 最多5轮迭代
+            )
+            # 独立的前额叶反馈系统 (用于策略学习)
+            self.prefrontal_feedback = PrefrontalFeedbackSystem()
+            logger.info("✅ [15/15] BrainInspiredRetrieval initialized")
+            logger.info("   🧠 Features: Prefrontal Feedback + Brain Region Collaboration")
+            logger.info("   🔁 Iterative retrieval enabled (max 5 iterations)")
+        except Exception as e:
+            logger.warning(f"⚠️ BrainInspiredRetrieval initialization failed: {e}")
+            import traceback
+            logger.warning(f"   Traceback: {traceback.format_exc()}")
+            self.brain_inspired_retrieval = None
+            self.prefrontal_feedback = None
+
+        # 🔥 2025-12-15: 设置 LearningManager 的 coordinator 引用
+        # 此时所有组件已初始化完成，可以安全地传递 self
+        if self.learning_manager:
+            self.learning_manager._coordinator = self
+            logger.debug("  ✅ LearningManager coordinator reference set")
 
         logger.info("🎉 BrainInspiredCoordinator initialization COMPLETE!")
 
@@ -429,6 +586,14 @@ class BrainInspiredCoordinator:
             kg_instance=self.unified_kg
         )
 
+        # 🔥 2025-12-13: 创建统一的KV分离存储系统
+        # 基于论文 "Key-value memory in the brain" - 键值分离提高检索效率
+        self.kv_memory_store = KeyValueMemoryStore(
+            value_store_path="data/kv_value_store.db",
+            enable_vector_index=True
+        )
+        logger.info("✅ KV分离存储系统已初始化")
+
         self.temporal_lobe = TemporalLobeAgent(
             capacity=70000,
             embedding_service=embedding_service,
@@ -441,10 +606,12 @@ class BrainInspiredCoordinator:
             temporal_lobe_agent=self.temporal_lobe,
             embedding_service=embedding_service,
             kg_builder=self.knowledge_graph_builder,
-            memory_system=self.memory_system  # 🔥 Pass MemorySystem for consolidation
+            memory_system=self.kv_memory_store,  # 🔥 使用KV分离存储代替碎片化存储
+            use_global_storage=True  # 🔥 FIX: Enable global storage delegation
         )
 
-        self.amygdala = AmygdalaAgent(
+        # 🔥 2025-12-15: 使用HRM增强版Agent (带快速情绪标记)
+        self.amygdala = AmygdalaAgentHRM(
             capacity=1000,
             hippocampus_agent=self.hippocampus,
             temporal_lobe_agent=self.temporal_lobe
@@ -452,7 +619,9 @@ class BrainInspiredCoordinator:
 
         self.prefrontal_storage = PrefrontalAgent(capacity=10, brain_coordinator=None)
         self.prefrontal_agent = self.prefrontal_storage  # Alias for functional brain regions test
-        self.basal_ganglia = BasalGangliaAgent(capacity=500)
+
+        # 🔥 2025-12-15: 使用HRM增强版Agent (带不动点检测)
+        self.basal_ganglia = BasalGangliaAgentHRM(capacity=500)
 
 
         # 8 Core Memory Processing Agents
@@ -542,6 +711,45 @@ class BrainInspiredCoordinator:
 
         self.is_running = True
 
+        # 🔥 NEW: Initialize version manager for persistent memory management
+        from ..memory.memory_version_manager import MemoryVersionManager
+        self.version_manager = MemoryVersionManager(
+            coordinator=self,
+            auto_save_enabled=True
+        )
+
+        # 🔥 FIX: Auto-load latest memory state on startup (断点续传)
+        logger.info("📥 Checking for existing memory state...")
+        try:
+            loaded = await self.version_manager.auto_load()
+            if loaded:
+                logger.info("✅ Restored previous memory state (断点续传成功)")
+            else:
+                logger.info("📝 No previous state found, starting fresh")
+        except Exception as e:
+            logger.warning(f"⚠️ Auto-load failed: {e}, starting fresh")
+
+        # 🔥 NEW: Sync hippocampus with global storage on startup
+        # This ensures local cache reflects the actual global state
+        logger.info("🔄 Syncing brain regions with global storage...")
+        try:
+            sync_result = await self.hippocampus.ensure_global_sync()
+            logger.info(f"✅ Hippocampus global sync: {sync_result}")
+        except Exception as e:
+            logger.warning(f"⚠️ Hippocampus global sync failed: {e}")
+
+        # 🔥 P0 FIX: Sync Hippocampus memories to VectorDB
+        # This fixes the issue where historical memories from JSON are not indexed in FAISS
+        logger.info("🔄 Syncing Hippocampus memories to VectorDB...")
+        try:
+            vectordb_sync = await self.hippocampus.sync_to_global_vectordb(
+                memory_system=self.memory_system,
+                batch_size=50  # Process in batches to avoid memory issues
+            )
+            logger.info(f"✅ VectorDB sync complete: {vectordb_sync}")
+        except Exception as e:
+            logger.warning(f"⚠️ VectorDB sync failed: {e}")
+
         # Start message bus
         await self.message_bus_manager.start()
 
@@ -551,6 +759,8 @@ class BrainInspiredCoordinator:
 
         # Start continuous learning loop
         await self.learning_manager.start_continuous_learning_loop()
+
+        logger.info("✅ Brain coordination system started")
 
     def configure_test_mode(self, enabled: bool = True):
         """Configure test mode with accelerated timing"""
@@ -570,6 +780,15 @@ class BrainInspiredCoordinator:
         """Stop the coordination system"""
         self.is_running = False
 
+        # 🔥 NEW: Auto-save memory state before shutdown
+        if hasattr(self, 'version_manager') and self.version_manager:
+            logger.info("💾 Auto-saving memory state before shutdown...")
+            try:
+                await self.version_manager.auto_save()
+                logger.info("✅ Memory state saved")
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to auto-save: {e}")
+
         # Stop learning loop
         await self.learning_manager.stop_continuous_learning_loop()
 
@@ -580,8 +799,7 @@ class BrainInspiredCoordinator:
         # Stop message bus
         await self.message_bus_manager.stop()
 
-        # Plasticity engine removed (no longer needed)
-        # Previously: await self.plasticity_engine.stop_plasticity_engine()
+        logger.info("✅ Brain coordination system stopped")
 
 
     async def shutdown(self):
@@ -623,11 +841,13 @@ class BrainInspiredCoordinator:
         content: str,
         timestamp: datetime,
         speaker: str = None,
-        importance: float = 0.5
+        importance: float = 0.5,
+        inherited_event_time: datetime = None  # 🔥 2025-12-16: 继承的事件时间
     ) -> Dict[str, Any]:
         """Delegate to MemoryCoordinator"""
         return await self.memory_coordinator.store_memory_with_timestamp(
-            content, timestamp, speaker, importance
+            content, timestamp, speaker, importance,
+            inherited_event_time=inherited_event_time
         )
 
     async def smart_retrieve(
@@ -639,6 +859,74 @@ class BrainInspiredCoordinator:
     ) -> List[Dict[str, Any]]:
         """Delegate to MemoryCoordinator"""
         return await self.memory_coordinator.smart_retrieve(query, k, strategy, context)
+
+    async def brain_retrieve(
+        self,
+        query: str,
+        k: int = 10,
+        context: Dict[str, Any] = None,
+        activation_plan: Optional[Dict[str, bool]] = None,
+        force_slow_path: bool = False
+    ) -> BrainRetrievalResult:
+        """
+        🧠 高级脑仿生检索 - 使用完整的脑区协作流程
+
+        特性:
+        1. 快慢路径分离 (FastPathDetector) - 简单查询快速返回
+        2. 脑区协作循环 - 海马→前额叶→杏仁核→颞叶循环
+        3. 前额叶反馈学习 - 根据检索质量调整策略
+        4. 杏仁核注意力调节 - 情绪相关记忆优先
+        5. 颞叶语义补充 - 概念知识增强
+
+        Args:
+            query: 查询文本
+            k: 返回结果数量
+            context: 上下文信息
+            activation_plan: 脑区激活计划 (来自Thalamus)
+            force_slow_path: 强制使用深度检索
+
+        Returns:
+            BrainRetrievalResult: 包含检索结果、路径类型、迭代次数等
+        """
+        if not self.brain_inspired_retrieval:
+            # Fallback to simple retrieval
+            logger.warning("BrainInspiredRetrieval not available, using smart_retrieve fallback")
+            memories = await self.smart_retrieve(query, k, 'auto', context)
+            return BrainRetrievalResult(
+                memories=memories,
+                path_type='fallback',
+                iterations=1,
+                gaps_detected=[],
+                confidence=0.5,
+                retrieval_time_ms=0,
+                debug_info={'fallback': True}
+            )
+
+        # 获取 Thalamus 激活计划 (如果可用)
+        if activation_plan is None and self.thalamus:
+            try:
+                thalamus_plan = await self.thalamus.get_activation_plan(query, context or {})
+                activation_plan = thalamus_plan.get('regions', {})
+            except Exception as e:
+                logger.debug(f"Thalamus activation plan failed: {e}")
+
+        # 执行脑仿生检索
+        result = await self.brain_inspired_retrieval.retrieve(
+            query=query,
+            k=k,
+            context=context,
+            activation_plan=activation_plan,
+            force_slow_path=force_slow_path
+        )
+
+        # 记录统计信息
+        self.processing_stats['retrieval_calls'] = self.processing_stats.get('retrieval_calls', 0) + 1
+        if result.path_type == 'fast':
+            self.processing_stats['fast_path_hits'] = self.processing_stats.get('fast_path_hits', 0) + 1
+        else:
+            self.processing_stats['slow_path_calls'] = self.processing_stats.get('slow_path_calls', 0) + 1
+
+        return result
 
     # ============================================================================
     # Memory Archive Management (BMA Format)
@@ -1075,8 +1363,41 @@ class BrainInspiredCoordinator:
             # 1. Query analysis via RoutingManager
             query_features = await self._analyze_query_features(user_input, context)
 
-            # 2. Memory retrieval via MemoryCoordinator
-            memories = await self.smart_retrieve(user_input, k=10, context=context)
+            # 🔥 2025-12-15: Learnable Router - 可学习的脑区路由
+            learnable_routing_result = None
+            if self.learnable_router:
+                try:
+                    learnable_routing_result = await self.learnable_router.route(user_input, top_k=4)
+                    query_features['learnable_selected_agents'] = learnable_routing_result['selected_agents']
+                    query_features['learnable_scores'] = learnable_routing_result['scores']
+                    logger.debug(f"🧭 LearnableRouter: {learnable_routing_result['selected_agents'][:3]}")
+                except Exception as e:
+                    logger.debug(f"LearnableRouter routing skipped: {e}")
+
+            # 2. Memory retrieval via BrainInspiredRetrieval (脑仿生检索)
+            # 🔥 2025-12-15: 使用完整的脑区协作检索流程
+            brain_retrieval_result = None
+            if self.brain_inspired_retrieval:
+                try:
+                    brain_retrieval_result = await self.brain_retrieve(
+                        query=user_input,
+                        k=10,
+                        context=context,
+                        force_slow_path=False  # 让系统自动判断快慢路径
+                    )
+                    memories = brain_retrieval_result.memories
+                    logger.info(
+                        f"🧠 BrainRetrieval: {len(memories)} memories, "
+                        f"path={brain_retrieval_result.path_type}, "
+                        f"iterations={brain_retrieval_result.iterations}, "
+                        f"confidence={brain_retrieval_result.confidence:.2f}"
+                    )
+                except Exception as e:
+                    logger.warning(f"⚠️ BrainInspiredRetrieval failed, using fallback: {e}")
+                    memories = await self.smart_retrieve(user_input, k=10, context=context)
+            else:
+                # Fallback to simple retrieval
+                memories = await self.smart_retrieve(user_input, k=10, context=context)
 
             # 2.5. Enhanced reasoning chain retrieval (for complex inference questions)
             use_reasoning_chain = False
@@ -1107,8 +1428,87 @@ class BrainInspiredCoordinator:
                 )
                 memories = self.kg_handler.merge_kg_memories(memories, kg_facts)
 
+            # 🔥 3.5 Temporal Reasoning for date/duration questions
+            # 2025-12-12: 集成temporal推理到主流程
+            temporal_reasoning_result = None
+            if self.reasoning_validator and memories:
+                try:
+                    # 检测temporal问题 (when, what date, how long等)
+                    query_lower = user_input.lower().strip()
+                    temporal_keywords = [
+                        'when', 'what date', 'what day', 'how long', 'how many days',
+                        'how many years', 'how many months', 'how many weeks',
+                        'duration', 'before', 'after', 'ago'
+                    ]
+                    # 排除Who/What person类问题
+                    non_temporal_prefixes = ['who ', 'who\'s ', 'what is ', 'what are ']
+                    is_non_temporal = any(query_lower.startswith(p) for p in non_temporal_prefixes)
+                    is_temporal_query = any(kw in query_lower for kw in temporal_keywords) and not is_non_temporal
+
+                    if is_temporal_query:
+                        logger.info("⏰ Activating Temporal Reasoning...")
+
+                        # 🔥 2025-12-13: 提取查询中的实体用于过滤
+                        query_entities = []
+                        query_words = user_input.lower().split()
+                        # 查找可能的实体名（首字母大写的词，或者特定关键词后的词）
+                        for word in user_input.split():
+                            if word[0].isupper() and word.lower() not in ['when', 'what', 'how', 'where', 'did', 'the', 'a', 'an', 'to']:
+                                query_entities.append(word.lower())
+
+                        # 🔥 优先级排序：包含查询实体的记忆优先
+                        def relevance_score(mem):
+                            content = (mem.content if hasattr(mem, 'content') else mem.get('content', '')).lower()
+                            score = 0
+                            for entity in query_entities:
+                                if entity in content:
+                                    score += 10
+                            # 如果包含相对时间词，增加分数
+                            if any(w in content for w in ['yesterday', 'today', 'last week', 'ago', 'before']):
+                                score += 5
+                            return score
+
+                        sorted_memories = sorted(memories, key=relevance_score, reverse=True)
+
+                        # 格式化记忆供temporal推理使用
+                        memory_dicts = []
+                        for mem in sorted_memories[:20]:
+                            if hasattr(mem, 'content'):
+                                mem_dict = {'content': mem.content}
+                                if hasattr(mem, 'timestamp'):
+                                    mem_dict['timestamp'] = str(mem.timestamp)
+                                if hasattr(mem, 'metadata') and mem.metadata:
+                                    mem_dict['metadata'] = mem.metadata
+                                    if 'event_time' in mem.metadata:
+                                        mem_dict['event_time'] = mem.metadata['event_time']
+                                memory_dicts.append(mem_dict)
+                            elif isinstance(mem, dict):
+                                mem_dict = mem.copy()
+                                metadata = mem.get('metadata', {})
+                                if metadata and 'event_time' in metadata:
+                                    mem_dict['event_time'] = metadata['event_time']
+                                memory_dicts.append(mem_dict)
+
+                        # 调用temporal推理
+                        temporal_reasoning_result = await self.reasoning_validator._temporal_reasoning(
+                            query=user_input,
+                            memories=memory_dicts,
+                            hippocampus=self.hippocampus if hasattr(self, 'hippocampus') else None
+                        )
+
+                        if temporal_reasoning_result and temporal_reasoning_result.get('answer'):
+                            confidence = temporal_reasoning_result.get('confidence', 0)
+                            logger.info(f"✅ Temporal reasoning: answer='{temporal_reasoning_result['answer']}' (confidence={confidence:.2f})")
+                except Exception as e:
+                    logger.warning(f"⚠️ Temporal reasoning failed: {e}")
+
             # 4. Generate response
-            if use_reasoning_chain and reasoning_chain_result:
+            # 🔥 优先使用temporal推理结果（如果置信度足够高）
+            # 2025-12-13: 降低阈值到0.35，因为temporal reasoning计算相对日期时置信度会被降低
+            if temporal_reasoning_result and temporal_reasoning_result.get('answer') and temporal_reasoning_result.get('confidence', 0) >= 0.35:
+                response = temporal_reasoning_result['answer']
+                logger.info(f"⏰ Using Temporal Reasoning answer")
+            elif use_reasoning_chain and reasoning_chain_result:
                 # Use reasoning chain answer directly
                 response = reasoning_chain_result['answer']
                 logger.info("📝 Using reasoning chain answer")
@@ -1285,6 +1685,415 @@ class BrainInspiredCoordinator:
             processing_time = (datetime.now() - start_time).total_seconds()
             self.metrics_collector.record_request(success=True, processing_time=processing_time)
 
+            # 🔥 NEW: Record retrieval outcome for learning feedback
+            if hasattr(self, 'learning_manager') and self.learning_manager:
+                try:
+                    # Determine retrieval strategy used
+                    strategy = query_features.get('recommended_strategy', 'hybrid')
+                    # Evaluate success based on: got memories AND reasonable confidence
+                    retrieval_success = len(memories) > 0
+                    # Use reasoning chain confidence if available, else estimate
+                    confidence = 0.5
+                    if use_reasoning_chain and reasoning_chain_result:
+                        confidence = reasoning_chain_result.get('confidence', 0.5)
+                    elif memories:
+                        # Simple heuristic: more memories = higher confidence (capped)
+                        confidence = min(0.3 + len(memories) * 0.1, 0.9)
+
+                    self.learning_manager.record_retrieval_outcome(
+                        strategy=strategy,
+                        query=user_input,
+                        success=retrieval_success,
+                        confidence=confidence,
+                        memory_count=len(memories)
+                    )
+                except Exception as e:
+                    logger.debug(f"Failed to record retrieval outcome: {e}")
+
+            # 🔥 2025-12-14: Active Learning - 低置信度时考虑提问
+            # 🔥 2025-12-16: 增强不确定性验证机制 (P0)
+            active_learning_question = None
+            uncertainty_verification = None
+
+            # 不确定性验证阈值 (0.6 = 60% 置信度以下触发验证请求)
+            UNCERTAINTY_THRESHOLD = 0.6
+
+            if confidence < UNCERTAINTY_THRESHOLD:
+                confidence_pct = int(confidence * 100)
+
+                # 🔥 方案1: 使用 Active Learning 模块生成智能问题
+                if self.active_learning:
+                    try:
+                        generated_question = await self.active_learning.check_and_generate_question(
+                            query=user_input,
+                            current_response=response,
+                            confidence=confidence,
+                            context={'memories_count': len(memories), 'strategy': strategy}
+                        )
+                        if generated_question:
+                            active_learning_question = generated_question.content
+                            # 格式化不确定性验证请求
+                            uncertainty_verification = {
+                                'triggered': True,
+                                'confidence': confidence,
+                                'confidence_pct': confidence_pct,
+                                'question': active_learning_question,
+                                'reason': 'low_confidence'
+                            }
+                            response = (
+                                f"{response}\n\n"
+                                f"💭 **不确定性提示** (置信度: {confidence_pct}%)\n"
+                                f"我对这个回答不太确定。{active_learning_question}"
+                            )
+                            logger.info(f"💭 Uncertainty verification: confidence={confidence_pct}%, question='{active_learning_question[:50]}...'")
+                    except Exception as e:
+                        logger.debug(f"Active learning check failed: {e}")
+
+                # 🔥 方案2: 如果没有 Active Learning 或生成失败，使用简单的验证请求
+                if not active_learning_question:
+                    uncertainty_verification = {
+                        'triggered': True,
+                        'confidence': confidence,
+                        'confidence_pct': confidence_pct,
+                        'question': None,
+                        'reason': 'low_confidence'
+                    }
+                    response = (
+                        f"{response}\n\n"
+                        f"💭 **不确定性提示** (置信度: {confidence_pct}%)\n"
+                        f"我对这个回答只有 {confidence_pct}% 的把握。如果有误，请告诉我正确的信息。"
+                    )
+                    logger.info(f"💭 Uncertainty verification (simple): confidence={confidence_pct}%")
+
+            # 🔥 2025-12-15: HRM (Hierarchical Reasoning Model) 协调
+            # Thalamus: 按不同时间尺度更新脑区
+            hrm_coordination_result = None
+            if self.thalamus:
+                try:
+                    # 执行一次协调步骤
+                    hrm_coordination_result = await self.thalamus.coordinate_step(
+                        input_data={
+                            'query': user_input,
+                            'response': response,
+                            'memories': memories,
+                            'confidence': confidence,
+                            'step': getattr(self, '_hrm_step_counter', 0)
+                        }
+                    )
+                    self._hrm_step_counter = getattr(self, '_hrm_step_counter', 0) + 1
+                    updated_regions = hrm_coordination_result.get('updated_regions', [])
+                    if updated_regions:
+                        logger.debug(f"🔗 Thalamus coordinated: {updated_regions}")
+                except Exception as e:
+                    logger.debug(f"Thalamus coordination skipped: {e}")
+
+            # AnteriorCingulate: 记录处理结果 (用于未来自适应计算)
+            if self.anterior_cingulate:
+                try:
+                    self.anterior_cingulate.record_feedback_result({
+                        'query_complexity': query_features.get('complexity', 'simple'),
+                        'memory_count': len(memories),
+                        'confidence': confidence,
+                        'processing_time': processing_time,
+                        'success': True
+                    })
+                except Exception as e:
+                    logger.debug(f"AnteriorCingulate recording skipped: {e}")
+
+            # 🔥 2025-12-15: HRM Extension - BasalGanglia 收敛监控 (不动点检测)
+            convergence_result = None
+            if hasattr(self.basal_ganglia, 'monitor_convergence'):
+                try:
+                    region_outputs = {
+                        'hippocampus': {'converged': len(memories) > 0, 'memories': len(memories)},
+                        'temporal_lobe': {'converged': bool(query_features.get('entities')), 'response': response[:100]},
+                        'prefrontal': {'converged': confidence > 0.5, 'confidence': confidence},
+                        'amygdala': {'converged': True, 'response': 'emotional_check'},
+                        'basal_ganglia': {'converged': True, 'response': 'skill_check'}
+                    }
+                    convergence_result = await self.basal_ganglia.monitor_convergence(
+                        step=getattr(self, '_hrm_step_counter', 0),
+                        region_outputs=region_outputs
+                    )
+                    if convergence_result.get('is_fixed_point'):
+                        logger.info(f"🎯 BasalGanglia detected fixed point: {convergence_result.get('fixed_point_id')}")
+                        # 学习收敛模式
+                        query_type = query_features.get('query_type', 'general')
+                        await self.basal_ganglia.learn_convergence_pattern(
+                            query_type=query_type,
+                            convergence_step=convergence_result.get('step', 0)
+                        )
+                except Exception as e:
+                    logger.debug(f"BasalGanglia convergence monitoring skipped: {e}")
+
+            # 🔥 2025-12-15: HRM Extension - Amygdala 快速情绪标记 (每步更新)
+            if hasattr(self.amygdala, 'fast_emotional_tagging') and memory_stored:
+                try:
+                    # 为新存储的记忆执行快速情绪标记
+                    latest_memory_id = 'unknown'
+                    if hasattr(self, 'hippocampus') and hasattr(self.hippocampus, 'memories') and self.hippocampus.memories:
+                        latest_memory_id = self.hippocampus.memories[-1].id
+
+                    emotional_result = await self.amygdala.fast_emotional_tagging({
+                        'memory_id': latest_memory_id,
+                        'content': user_input,
+                        'context': {'confidence': confidence, 'response': response[:100]}
+                    })
+                    if emotional_result.get('converged'):
+                        logger.debug(f"🎭 Amygdala emotional convergence: {emotional_result.get('emotion_tags')}")
+                except Exception as e:
+                    logger.debug(f"Amygdala fast emotional tagging skipped: {e}")
+
+            # 🔥 2025-12-15: Result Arbiter - 结果质量审查
+            review_result = None
+            if self.result_arbiter:
+                try:
+                    review_result = await self.result_arbiter.review_answer(
+                        query=user_input,
+                        answer=response,
+                        memories=[{'content': m.content if hasattr(m, 'content') else m.get('content', ''),
+                                   'id': getattr(m, 'id', m.get('id', '')),
+                                   'metadata': getattr(m, 'metadata', m.get('metadata', {}))}
+                                  for m in memories],
+                        confidence=confidence,
+                        query_features=query_features
+                    )
+
+                    # 如果有质量问题，调整置信度
+                    if review_result.has_issues:
+                        original_confidence = confidence
+                        confidence *= review_result.confidence_adjustment
+                        logger.info(f"📊 ResultArbiter: {len(review_result.issues)} issues found, "
+                                   f"confidence adjusted {original_confidence:.2f} → {confidence:.2f}")
+
+                        # 如果需要重试且这是第一次尝试
+                        if review_result.should_retry and not context.get('_retry_attempt'):
+                            logger.info(f"🔄 ResultArbiter recommends retry: {review_result.retry_strategy}")
+
+                            # 🔥 2025-12-16: EnvironmentAgent 外部探索触发
+                            # 🔥 2025-12-16 FIX: 评估模式下不修改响应，避免污染答案
+                            if review_result.retry_strategy == 'environment_exploration' and hasattr(self, 'environment'):
+                                try:
+                                    exploration_result = await self.environment.explore_external(
+                                        query=user_input,
+                                        exploration_type="web_search",
+                                        query_type=query_features.get('query_type', 'general'),
+                                        max_results=3,
+                                        priority="high"
+                                    )
+                                    if exploration_result.get('exploration_complete'):
+                                        external_results = exploration_result.get('results', [])
+                                        if external_results:
+                                            # 将外部探索结果添加到响应 (非评估模式)
+                                            if not context.get('evaluation_mode', False):
+                                                external_info = "\n\n📚 **补充信息** (来自外部探索):\n"
+                                                for i, result in enumerate(external_results[:2], 1):
+                                                    title = result.get('title', result.get('snippet', ''))[:50]
+                                                    external_info += f"{i}. {title}...\n"
+                                                response = response + external_info
+                                            logger.info(f"🌐 EnvironmentAgent exploration: {len(external_results)} results")
+                                except Exception as e:
+                                    logger.debug(f"Environment exploration failed: {e}")
+
+                            if self.learning_case_logger:
+                                await self.learning_case_logger.log_failure_case(
+                                    query=user_input,
+                                    answer=response,
+                                    memories_used=[{'content': m.content if hasattr(m, 'content') else m.get('content', ''),
+                                                   'id': getattr(m, 'id', m.get('id', ''))}
+                                                  for m in memories[:5]],
+                                    review_result=review_result
+                                )
+                    else:
+                        # 成功案例记录
+                        if self.learning_case_logger and confidence > 0.7:
+                            await self.learning_case_logger.log_success_case(
+                                query=user_input,
+                                answer=response,
+                                memories_used=[{'id': getattr(m, 'id', m.get('id', ''))} for m in memories],
+                                confidence=confidence
+                            )
+                except Exception as e:
+                    logger.debug(f"ResultArbiter review skipped: {e}")
+
+            # 🔥 2025-12-15: LearnableRouter Feedback Learning - 从结果学习
+            if self.learnable_router and learnable_routing_result:
+                try:
+                    # 根据review_result和confidence确定success
+                    routing_success = confidence > 0.5 and (review_result is None or not review_result.has_issues)
+                    # 计算满意度分数
+                    satisfaction = min(confidence * 1.2, 1.0) if routing_success else max(0.0, confidence - 0.2)
+
+                    await self.learnable_router.update_from_feedback(
+                        query=user_input,
+                        selected_agents=learnable_routing_result['selected_agents'],
+                        success=routing_success,
+                        satisfaction=satisfaction
+                    )
+                    logger.debug(f"🎓 LearnableRouter feedback: success={routing_success}, satisfaction={satisfaction:.2f}")
+                except Exception as e:
+                    logger.debug(f"LearnableRouter feedback skipped: {e}")
+
+            # 🔥 2025-12-16: ConfidenceCalibrator Feedback Learning - 跨脑区置信度校准学习
+            # 根据响应质量更新各脑区的校准因子
+            try:
+                calibrator = get_confidence_calibrator()
+                retrieval_success = confidence > 0.5 and (review_result is None or not review_result.has_issues)
+
+                # 识别使用的记忆来源（脑区）
+                memory_sources = set()
+                for mem in memories:
+                    # 从记忆的 calibration_info 或 source 字段获取来源
+                    calibration_info = mem.get('_calibration', {}) if isinstance(mem, dict) else getattr(mem, '_calibration', {})
+                    source = calibration_info.get('region') or mem.get('source', 'hippocampus') if isinstance(mem, dict) else getattr(mem, 'source', 'hippocampus')
+                    memory_sources.add(source)
+
+                # 为每个使用的脑区记录反馈
+                for region in memory_sources:
+                    calibrator.record_outcome(
+                        region_name=region,
+                        query=user_input,
+                        memories_used=[m if isinstance(m, dict) else {'content': getattr(m, 'content', '')} for m in memories],
+                        success=retrieval_success,
+                        feedback_score=confidence
+                    )
+
+                # 定期保存校准状态（每100次查询保存一次）
+                total_queries = sum(s.total_queries for s in calibrator.region_states.values())
+                if total_queries % 100 == 0:
+                    calibrator.save_calibration()
+                    logger.info(f"📊 ConfidenceCalibrator saved (total_queries={total_queries})")
+
+                logger.debug(f"📈 ConfidenceCalibrator feedback: regions={list(memory_sources)}, success={retrieval_success}")
+            except Exception as e:
+                logger.debug(f"ConfidenceCalibrator feedback skipped: {e}")
+
+            # 🔥 2025-12-15: Prefrontal Feedback Learning - 前额叶策略学习
+            # 根据结果质量调整检索策略权重
+            if self.prefrontal_feedback and brain_retrieval_result:
+                try:
+                    # 评估检索质量
+                    quality_assessment = self.prefrontal_feedback.evaluate_retrieval_quality(
+                        query=user_input,
+                        memories=memories,
+                        query_type=query_features.get('query_type', 'general')
+                    )
+
+                    # 根据 ResultArbiter 结果调整奖励信号
+                    reward_signal = quality_assessment['reward_signal']
+                    if review_result:
+                        if review_result.has_issues:
+                            reward_signal = min(reward_signal, -0.3)  # 有问题则惩罚
+                        elif confidence > 0.7:
+                            reward_signal = max(reward_signal, 0.3)   # 高置信度则奖励
+
+                    # 应用反馈学习
+                    self.prefrontal_feedback.apply_feedback(
+                        query_type=query_features.get('query_type', 'general'),
+                        reward_signal=reward_signal
+                    )
+                    logger.debug(
+                        f"🧠 Prefrontal feedback: quality={quality_assessment['quality_score']:.2f}, "
+                        f"reward={reward_signal:.2f}, issues={quality_assessment.get('issues', [])}"
+                    )
+                except Exception as e:
+                    logger.debug(f"Prefrontal feedback skipped: {e}")
+
+            # 🔥 2025-12-16: Proactive Inquiry - 主动询问机制 (矛盾检测 + 知识缺口)
+            proactive_inquiry_result = None
+            if self.proactive_inquiry:
+                try:
+                    # 格式化记忆供主动询问分析
+                    formatted_memories = [
+                        {
+                            'content': m.content if hasattr(m, 'content') else m.get('content', ''),
+                            'entities': getattr(m, 'entities', m.get('entities', [])),
+                            'metadata': getattr(m, 'metadata', m.get('metadata', {})),
+                            'timestamp': str(getattr(m, 'timestamp', m.get('timestamp', '')))
+                        }
+                        for m in memories
+                    ]
+
+                    proactive_inquiry_result = await self.proactive_inquiry.analyze_for_inquiry(
+                        query=user_input,
+                        memories=formatted_memories,
+                        confidence=confidence,
+                        response_draft=response
+                    )
+
+                    if proactive_inquiry_result.should_inquire and proactive_inquiry_result.formatted_prompt:
+                        # 将主动询问添加到响应 (非评估模式)
+                        # 🔥 2025-12-16 FIX: 评估模式下不修改响应，避免污染答案
+                        if not context.get('evaluation_mode', False):
+                            response = response + proactive_inquiry_result.formatted_prompt
+                        logger.info(
+                            f"💬 ProactiveInquiry triggered: {len(proactive_inquiry_result.inquiries)} inquiries, "
+                            f"types={[inq.inquiry_type.value for inq in proactive_inquiry_result.inquiries]}"
+                        )
+                except Exception as e:
+                    logger.debug(f"ProactiveInquiry analysis skipped: {e}")
+
+            # 🔥 2025-12-16: 构建 insights，包含不确定性验证和主动询问信息
+            insights = {}
+            if active_learning_question:
+                insights['active_learning_question'] = active_learning_question
+            if uncertainty_verification:
+                insights['uncertainty_verification'] = uncertainty_verification
+            if proactive_inquiry_result and proactive_inquiry_result.should_inquire:
+                insights['proactive_inquiry'] = {
+                    'triggered': True,
+                    'inquiry_count': len(proactive_inquiry_result.inquiries),
+                    'inquiry_types': [inq.inquiry_type.value for inq in proactive_inquiry_result.inquiries],
+                    'bypass_response': proactive_inquiry_result.bypass_response
+                }
+
+            # 🔥 2025-12-16: EnvironmentAgent 奖励信号闭环
+            # 基于响应质量自动发放奖励，强化学习记忆权重
+            if hasattr(self, 'environment') and memory_stored:
+                try:
+                    from src.agents.environment.environment_agent.data_models import RewardType
+
+                    # 计算奖励值：基于置信度和质量审查结果
+                    reward_value = 0.0
+                    reward_type = RewardType.NEUTRAL
+
+                    if confidence >= 0.7 and (review_result is None or not review_result.has_issues):
+                        # 高质量响应 → 正奖励
+                        reward_value = min(confidence, 0.8)
+                        reward_type = RewardType.POSITIVE
+                        reward_reason = f"High quality response (confidence={confidence:.2f})"
+                    elif confidence < 0.4 or (review_result and review_result.has_issues):
+                        # 低质量响应 → 负奖励
+                        reward_value = -0.3
+                        reward_type = RewardType.NEGATIVE
+                        reward_reason = f"Low quality response (confidence={confidence:.2f}, issues={review_result.has_issues if review_result else False})"
+                    else:
+                        # 中等质量 → 小正奖励
+                        reward_value = 0.1
+                        reward_type = RewardType.NEUTRAL
+                        reward_reason = f"Moderate quality response (confidence={confidence:.2f})"
+
+                    # 获取最新记忆ID
+                    latest_memory_id = None
+                    if hasattr(self, 'hippocampus') and hasattr(self.hippocampus, 'memories') and self.hippocampus.memories:
+                        latest_memory_id = self.hippocampus.memories[-1].id
+
+                    await self.environment.issue_reward(
+                        reward_type=reward_type,
+                        reward_value=reward_value,
+                        reason=reward_reason,
+                        associated_memory_id=latest_memory_id
+                    )
+                    logger.debug(f"🎯 EnvironmentAgent reward: {reward_type.value} ({reward_value:.2f})")
+
+                    insights['environment_reward'] = {
+                        'reward_type': reward_type.value,
+                        'reward_value': reward_value,
+                        'reason': reward_reason
+                    }
+                except Exception as e:
+                    logger.debug(f"Environment reward skipped: {e}")
+
             return ProcessingResult(
                 response=response,
                 routing_decision=query_features,
@@ -1293,7 +2102,7 @@ class BrainInspiredCoordinator:
                 memory_stored=memory_stored,
                 processing_time=processing_time,
                 agent_logs={},
-                insights={},
+                insights=insights,
                 success=True
             )
 

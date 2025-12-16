@@ -7,6 +7,7 @@ Environment Agent Module - Exploration Manager
 
 import logging
 import asyncio
+import time
 from typing import Dict, Any, Optional, List
 from datetime import datetime
 
@@ -23,55 +24,85 @@ class ExplorationManagerMixin:
     async def explore_external(
         self,
         query: str,
+        exploration_type: str = "web_search",
         query_type: str = "general",
         max_results: int = 5,
-        priority: str = "normal"
+        priority: str = "normal",
+        metadata: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
-        """探索外部数据源"""
+        """
+        探索外部数据源 (使用注册的可用数据源，默认Mock)
+        """
         self.exploration_count += 1
+        start_time = time.perf_counter()
+
+        try:
+            priority_enum = DataSourcePriority[priority.upper()]
+        except KeyError:
+            priority_enum = DataSourcePriority.MEDIUM
+
+        meta = dict(metadata or {})
+        meta.setdefault('priority', priority_enum.name.lower())
 
         exploration_query = ExplorationQuery(
             query=query,
             query_type=query_type,
             max_results=max_results,
-            priority=DataSourcePriority[priority.upper()]
+            metadata=meta
         )
 
         # Select appropriate data source
-        data_source = await self._select_data_source(exploration_query)
+        data_source = await self._select_data_source(
+            exploration_query,
+            preferred_type=exploration_type
+        )
         if not data_source:
             return {'error': 'No suitable data source available'}
 
         # Execute query
         try:
-            result = await data_source.query(exploration_query)
-
-            # Store to memory if significant
-            if result.total_results > 0 and self.brain_coordinator:
-                await self._store_exploration_to_memory(exploration_query, result)
-
-            # Log exploration
-            await self._log_exploration_event(exploration_query, result, data_source.source_type)
+            search_results = await data_source.search(exploration_query)
+            result_dicts = [
+                r.to_dict() if hasattr(r, "to_dict") else r
+                for r in (search_results or [])
+            ]
+            duration_ms = (time.perf_counter() - start_time) * 1000
 
             return {
+                'exploration_id': f"exploration_{int(time.time() * 1000)}",
                 'exploration_complete': True,
                 'query': query,
+                'exploration_type': exploration_type,
+                'source': data_source.source_name,
                 'source_type': data_source.source_type.value,
-                'total_results': result.total_results,
-                'results': result.results[:max_results],
-                'confidence': result.confidence
+                'result_count': len(result_dicts),
+                'results': result_dicts[:max_results],
+                'duration_ms': duration_ms,
             }
 
         except Exception as e:
             logger.error(f"Exploration failed: {e}")
             return {'error': f'Exploration failed: {str(e)}'}
 
-    async def _select_data_source(self, query: ExplorationQuery):
+    async def _select_data_source(
+        self,
+        query: ExplorationQuery,
+        preferred_type: Optional[str] = None
+    ):
         """选择合适的数据源"""
         available_sources = self.data_source_registry.get_available_sources()
 
+        preferred_type = (preferred_type or "").lower()
+        if preferred_type:
+            for source in available_sources:
+                if source.is_available and (
+                    source.source_type.value == preferred_type
+                    or source.source_type.name.lower() == preferred_type
+                ):
+                    return source
+
         for source in available_sources:
-            if source.is_available():
+            if source.is_available:
                 return source
 
         return None

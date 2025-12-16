@@ -11,18 +11,30 @@
 - 前额叶gap analysis: 识别信息缺失
 - 迭代检索: 多轮检索补充信息
 
-解决问题:
-- Q2: "What fields would Person pursue?" 只检索到部分记忆,
-  缺少相关context → 需要迭代补充
+🔥 Phase 3 Enhancement:
+- Dynamic iteration limit based on query complexity
+- Confidence-based early stopping
+- Diminishing returns detection
 
 Author: BMAM Team
 """
 
 import logging
+import time
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
+
+# 🔥 NEW: Configuration for loop behavior
+LOOP_CONFIG = {
+    'min_iterations': 2,           # Minimum iterations for any query
+    'max_iterations': 5,           # Maximum iterations for complex queries
+    'default_iterations': 3,       # Default for medium complexity
+    'confidence_stop_threshold': 0.85,  # Stop early if confidence is high
+    'diminishing_return_threshold': 0.1,  # Stop if improvement < 10%
+    'max_time_seconds': 45,        # Time budget for the entire loop
+}
 
 
 @dataclass
@@ -48,7 +60,54 @@ class HippocampalPrefrontalLoop:
     def __init__(self, memory_system=None, llm_client=None):
         self.memory_system = memory_system
         self.llm_client = llm_client
-        self.max_iterations = 3  # 最大迭代次数
+        self.max_iterations = LOOP_CONFIG['default_iterations']  # 默认迭代次数
+
+    def _estimate_query_complexity(self, query: str) -> str:
+        """
+        Estimate query complexity to determine iteration limit
+        估计查询复杂度以决定迭代上限
+
+        Returns: 'simple', 'medium', 'complex'
+        """
+        query_lower = query.lower()
+
+        # Complexity indicators
+        complex_indicators = [
+            'why', 'how', 'explain', 'analyze', 'compare',
+            'what fields', 'what would', 'what should',
+            'relationship between', 'connection', 'infer'
+        ]
+        simple_indicators = [
+            'what is', 'who is', 'when did', 'where', 'name'
+        ]
+
+        # Count indicators
+        complex_count = sum(1 for ind in complex_indicators if ind in query_lower)
+        simple_count = sum(1 for ind in simple_indicators if ind in query_lower)
+
+        # Word count factor
+        word_count = len(query.split())
+
+        if complex_count >= 2 or word_count > 15:
+            return 'complex'
+        elif simple_count >= 1 and word_count < 8:
+            return 'simple'
+        else:
+            return 'medium'
+
+    def _get_dynamic_max_iterations(self, query: str) -> int:
+        """
+        Get dynamic max iterations based on query complexity
+        基于查询复杂度获取动态迭代上限
+        """
+        complexity = self._estimate_query_complexity(query)
+
+        if complexity == 'complex':
+            return LOOP_CONFIG['max_iterations']  # 5
+        elif complexity == 'simple':
+            return LOOP_CONFIG['min_iterations']  # 2
+        else:
+            return LOOP_CONFIG['default_iterations']  # 3
 
     async def iterative_retrieval(
         self,
@@ -62,7 +121,7 @@ class HippocampalPrefrontalLoop:
         Args:
             query: 用户问题
             initial_memories: 初始检索的记忆
-            max_iterations: 最大迭代次数
+            max_iterations: 最大迭代次数 (None = 动态决定)
 
         Returns:
             {
@@ -70,10 +129,26 @@ class HippocampalPrefrontalLoop:
                 'iterations': 迭代次数,
                 'gap_analysis': 最终缺口分析
             }
+
+        🔥 Phase 3 Enhancements:
+        - Dynamic iteration limit based on query complexity
+        - Time budget enforcement
+        - Confidence-based early stopping
+        - Diminishing returns detection
         """
-        max_iter = max_iterations or self.max_iterations
+        # 🔥 Dynamic iteration limit
+        if max_iterations is not None:
+            max_iter = max_iterations
+        else:
+            max_iter = self._get_dynamic_max_iterations(query)
+            complexity = self._estimate_query_complexity(query)
+            logger.debug(f"📊 Query complexity: {complexity} → max_iterations={max_iter}")
+
         current_memories = initial_memories
         all_memory_ids = set()
+        start_time = time.time()
+        prev_confidence = 0.0
+        gap_analysis = None
 
         # 记录已有的memory ID (去重)
         for mem in initial_memories:
@@ -84,7 +159,13 @@ class HippocampalPrefrontalLoop:
         logger.info(f"📦 Initial memories: {len(initial_memories)}")
 
         for iteration in range(max_iter):
-            logger.info(f"\n--- Iteration {iteration + 1}/{max_iter} ---")
+            # 🔥 Time budget check
+            elapsed = time.time() - start_time
+            if elapsed > LOOP_CONFIG['max_time_seconds']:
+                logger.warning(f"⏱️ Time budget exceeded ({elapsed:.1f}s), stopping at iteration {iteration}")
+                break
+
+            logger.info(f"\n--- Iteration {iteration + 1}/{max_iter} (elapsed: {elapsed:.1f}s) ---")
 
             # 前额叶分析当前记忆
             gap_analysis = await self._analyze_memory_gaps(
@@ -95,6 +176,17 @@ class HippocampalPrefrontalLoop:
             logger.debug(f"🧩 Gap analysis: sufficient={gap_analysis.is_sufficient}, "
                        f"confidence={gap_analysis.confidence:.2f}")
 
+            # 🔥 Confidence-based early stopping
+            if gap_analysis.confidence >= LOOP_CONFIG['confidence_stop_threshold']:
+                logger.info(f"✅ High confidence ({gap_analysis.confidence:.2f}), stopping early")
+                return {
+                    'memories': current_memories,
+                    'iterations': iteration + 1,
+                    'gap_analysis': gap_analysis,
+                    'complete': True,
+                    'early_stop': 'high_confidence'
+                }
+
             # 如果已经足够,退出循环
             if gap_analysis.is_sufficient:
                 logger.debug(f"✅ Memory complete after {iteration + 1} iterations")
@@ -104,6 +196,13 @@ class HippocampalPrefrontalLoop:
                     'gap_analysis': gap_analysis,
                     'complete': True
                 }
+
+            # 🔥 Diminishing returns check
+            confidence_improvement = gap_analysis.confidence - prev_confidence
+            if iteration > 0 and confidence_improvement < LOOP_CONFIG['diminishing_return_threshold']:
+                logger.info(f"📉 Diminishing returns (improvement={confidence_improvement:.2f}), stopping")
+                break
+            prev_confidence = gap_analysis.confidence
 
             # 识别缺失信息
             missing_aspects = gap_analysis.missing_aspects
@@ -141,12 +240,14 @@ class HippocampalPrefrontalLoop:
                 break
 
         # 最终返回
-        logger.info(f"🏁 Iterative retrieval complete: {len(current_memories)} memories")
+        total_time = time.time() - start_time
+        logger.info(f"🏁 Iterative retrieval complete: {len(current_memories)} memories in {total_time:.1f}s")
         return {
             'memories': current_memories,
-            'iterations': max_iter,
+            'iterations': iteration + 1 if 'iteration' in dir() else 0,
             'gap_analysis': gap_analysis,
-            'complete': False  # 没有在循环内完成
+            'complete': False,  # 没有在循环内完成
+            'total_time': total_time
         }
 
     async def _analyze_memory_gaps(
@@ -283,11 +384,12 @@ Output JSON:
 
             try:
                 # 调用memory_system检索
+                # 🔥 FIX 2025-12-05: 参数名 limit→k, min_similarity→threshold
                 memories = await self.memory_system.search_memories(
                     query=aspect_query,
                     search_type='semantic',
-                    limit=3,
-                    min_similarity=0.6
+                    k=8,  # 🔥 优化: 增加检索数量
+                    threshold=0.35  # 🔥 优化: 降低阈值提高召回率
                 )
 
                 # 过滤已有的记忆
@@ -323,11 +425,12 @@ Output JSON:
 
         # 策略1: 语义检索
         try:
+            # 🔥 FIX 2025-12-05: 参数名 limit→k, min_similarity→threshold
             semantic_mems = await self.memory_system.search_memories(
                 query=query,
                 search_type='semantic',
-                limit=top_k,
-                min_similarity=0.6
+                k=top_k + 3,  # 🔥 优化: 增加检索数量
+                threshold=0.4  # 🔥 优化: 降低阈值提高召回率
             )
             for mem in semantic_mems:
                 mem_id = mem.get('id') if isinstance(mem, dict) else None
@@ -342,11 +445,12 @@ Output JSON:
         if keywords:
             try:
                 keyword_query = " ".join(keywords)
+                # 🔥 FIX 2025-12-05: 参数名 limit→k, min_similarity→threshold
                 keyword_mems = await self.memory_system.search_memories(
                     query=keyword_query,
                     search_type='semantic',
-                    limit=3,
-                    min_similarity=0.5
+                    k=5,
+                    threshold=0.4  # 关键词检索用更低阈值
                 )
                 for mem in keyword_mems:
                     mem_id = mem.get('id') if isinstance(mem, dict) else None

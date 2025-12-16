@@ -57,10 +57,13 @@ class FAISSVectorDatabase:
             index_path: Path to index file (default: from env/config)
         """
         self.dimension = dimension or 1536
+        # 使用 BMAMPaths 支持并行测试
+        from src.utils.paths import BMAMPaths
+        default_index_path = str(BMAMPaths.MEMORY_VECTORS_INDEX)
         self.index_path = str(get_absolute_path(
             index_path or os.getenv(
                 "VECTOR_INDEX_PATH",
-                "data/memory_vectors.index"
+                default_index_path
             )
         ))
 

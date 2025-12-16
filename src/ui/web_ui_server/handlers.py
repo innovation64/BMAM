@@ -4,6 +4,7 @@ HTTP请求处理器
 """
 
 import logging
+import json
 from typing import Dict, Any
 from pathlib import Path
 from datetime import datetime
@@ -132,18 +133,21 @@ class HandlersMixin:
                 }
             }
 
-            if hasattr(self.coordinator, 'brain_regions'):
+            if hasattr(self.coordinator, 'agents'):
                 total_capacity = 0
                 total_usage = 0
                 active_count = 0
 
-                for agent_id, agent in self.coordinator.brain_regions.items():
-                    # Only include brain regions
-                    if agent_id not in ['hippocampus', 'temporal_lobe', 'prefrontal', 'amygdala', 'basal_ganglia']:
+                for agent_id, agent in self.coordinator.agents.items():
+                    # Skip if no capacity attribute (functional agents without storage)
+                    if not hasattr(agent, 'capacity'):
                         continue
 
                     # Get capacity and usage
-                    capacity = getattr(agent, 'capacity', 1000)
+                    capacity = getattr(agent, 'capacity', 0)
+                    if capacity <= 0:
+                        continue
+                        
                     current = 0
                     if hasattr(agent, 'storage'):
                         current = len(agent.storage)
@@ -208,17 +212,28 @@ class HandlersMixin:
     async def dataflow_handler(self, request):
         """Get data flow statistics"""
         try:
-            # Mock data for now, or get from metrics collector if available
+            # 🔥 2025-12-16: 使用真实的 MetricsCollector 数据
             data = {
                 'total_events': 0,
                 'event_type_counts': {},
                 'flows': [],
                 'top_flows': []
             }
-            
+
             if hasattr(self.coordinator, 'metrics_collector'):
-                # TODO: Implement real metrics collection
-                pass
+                mc = self.coordinator.metrics_collector
+                stats = mc.get_statistics()
+                data = {
+                    'total_events': stats.get('total_requests', 0),
+                    'event_type_counts': {
+                        'memory_ops': stats.get('memory_operations', 0),
+                        'kg_ops': stats.get('kg_operations', 0),
+                        'consolidation_ops': stats.get('consolidation_operations', 0),
+                        'forgetting_ops': stats.get('forgetting_operations', 0)
+                    },
+                    'flows': [],
+                    'top_flows': mc.get_most_active_agents(5)
+                }
 
             return web.json_response({
                 'success': True,
@@ -231,6 +246,7 @@ class HandlersMixin:
     async def performance_handler(self, request):
         """Get performance metrics"""
         try:
+            # 🔥 2025-12-16: 使用真实的 MetricsCollector 数据
             data = {
                 'total_calls': 0,
                 'success_rate': 100.0,
@@ -238,11 +254,18 @@ class HandlersMixin:
                 'error_count': 0,
                 'slowest_functions': []
             }
-            
-            if hasattr(self.coordinator, 'processing_stats'):
-                stats = self.coordinator.processing_stats
-                # Extract stats...
-                
+
+            if hasattr(self.coordinator, 'metrics_collector'):
+                mc = self.coordinator.metrics_collector
+                stats = mc.get_statistics()
+                data = {
+                    'total_calls': stats.get('total_requests', 0),
+                    'success_rate': mc.get_success_rate(),
+                    'avg_duration_ms': mc.get_average_response_time() * 1000,  # 转换为毫秒
+                    'error_count': stats.get('failed_requests', 0),
+                    'slowest_functions': []  # 可扩展
+                }
+
             return web.json_response({
                 'success': True,
                 'data': data
@@ -267,8 +290,31 @@ class HandlersMixin:
     async def recent_events_handler(self, request):
         """Get recent events"""
         try:
+            # 🔥 2025-12-16: 从 MetricsCollector 获取最近事件
             events = []
-            # TODO: Get from event log
+
+            if hasattr(self.coordinator, 'metrics_collector'):
+                mc = self.coordinator.metrics_collector
+                # 获取最近的请求统计
+                stats = mc.get_statistics()
+                events.append({
+                    'type': 'stats_snapshot',
+                    'data': {
+                        'total_requests': stats.get('total_requests', 0),
+                        'success_rate': mc.get_success_rate(),
+                        'avg_response_time': mc.get_average_response_time()
+                    }
+                })
+
+                # 获取最活跃的 agents
+                top_agents = mc.get_most_active_agents(3)
+                for agent, count in top_agents:
+                    events.append({
+                        'type': 'agent_activity',
+                        'agent': agent,
+                        'activation_count': count
+                    })
+
             return web.json_response({
                 'success': True,
                 'data': events
@@ -280,15 +326,184 @@ class HandlersMixin:
     async def feedback_stats_handler(self, request):
         """Get learning feedback stats"""
         try:
+            # 🔥 2025-12-16: 从 LearnableRouter 获取反馈统计
             data = {
                 'stats': [],
                 'summary': {}
             }
-            # TODO: Get from learning manager
+
+            # 从 LearnableRouter 获取统计
+            if hasattr(self.coordinator, 'learnable_router') and self.coordinator.learnable_router:
+                router = self.coordinator.learnable_router
+                router_stats = router.get_statistics()
+                data['summary']['learnable_router'] = {
+                    'total_routes': router_stats.get('total_routes', 0),
+                    'total_feedbacks': router_stats.get('total_feedbacks', 0),
+                    'agent_success_rates': router_stats.get('agent_success_rates', {}),
+                    'routing_distribution': router_stats.get('routing_distribution', {})
+                }
+
+            # 从 PrefrontalFeedback 获取统计
+            if hasattr(self.coordinator, 'prefrontal_feedback') and self.coordinator.prefrontal_feedback:
+                pf = self.coordinator.prefrontal_feedback
+                if hasattr(pf, 'get_statistics'):
+                    data['summary']['prefrontal_feedback'] = pf.get_statistics()
+
+            # 从 ConfidenceCalibrator 获取统计
+            try:
+                from src.coordination.confidence_calibrator import get_confidence_calibrator
+                calibrator = get_confidence_calibrator()
+                calibrator_stats = {}
+                for region, state in calibrator.region_states.items():
+                    calibrator_stats[region] = {
+                        'calibration_factor': state.calibration_factor,
+                        'total_queries': state.total_queries,
+                        'success_rate': state.success_rate
+                    }
+                data['summary']['confidence_calibrator'] = calibrator_stats
+            except Exception:
+                pass
+
             return web.json_response({
                 'success': True,
                 'data': data
             })
         except Exception as e:
             logger.error(f"Feedback stats error: {e}")
+            return web.json_response({'success': False, 'error': str(e)})
+
+    # 🔥 2025-12-15: 灵魂导出导入API (跨平台迁移)
+    async def memory_export_handler(self, request):
+        """导出完整记忆体 (灵魂迁移) - 返回 .bma.tar.gz 归档"""
+        try:
+            import tarfile
+            import tempfile
+            from src.memory.memory_transfer import MemoryTransferSystem
+
+            # 获取coordinator
+            coordinator = getattr(self.ui, 'coordinator', None)
+            if not coordinator:
+                return web.json_response({
+                    'success': False,
+                    'error': 'Coordinator not available'
+                })
+
+            transfer = MemoryTransferSystem(coordinator)
+
+            # 导出到临时目录
+            output_dir = Path('data/exports')
+            output_dir.mkdir(parents=True, exist_ok=True)
+
+            name = f"soul_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            report = await transfer.export_memory(
+                output_dir=output_dir,
+                name=name,
+                description="Exported via Web UI"
+            )
+
+            if report.success and report.archive_path and report.archive_path.exists():
+                # 将 .bma 目录打包成 tar.gz
+                tar_path = output_dir / f"{name}.bma.tar.gz"
+                with tarfile.open(tar_path, "w:gz") as tar:
+                    tar.add(report.archive_path, arcname=report.archive_path.name)
+
+                # 返回文件下载
+                return web.FileResponse(
+                    tar_path,
+                    headers={
+                        'Content-Disposition': f'attachment; filename="{name}.bma.tar.gz"'
+                    }
+                )
+
+            return web.json_response({
+                'success': False,
+                'error': '; '.join(report.errors) if report.errors else 'Export failed'
+            })
+
+        except Exception as e:
+            logger.error(f"Memory export error: {e}")
+            return web.json_response({'success': False, 'error': str(e)})
+
+    async def memory_import_handler(self, request):
+        """导入完整记忆体 (灵魂迁移) - 接收 .bma.tar.gz 归档"""
+        try:
+            import tarfile
+            import tempfile
+            from src.memory.memory_transfer import MemoryTransferSystem
+
+            # 获取coordinator
+            coordinator = getattr(self.ui, 'coordinator', None)
+            if not coordinator:
+                return web.json_response({
+                    'success': False,
+                    'error': 'Coordinator not available'
+                })
+
+            # 接收上传的文件
+            reader = await request.multipart()
+            field = await reader.next()
+
+            if field is None or field.name != 'file':
+                return web.json_response({
+                    'success': False,
+                    'error': 'No file uploaded. Use multipart/form-data with field name "file"'
+                })
+
+            # 保存上传的tar.gz文件
+            import_dir = Path('data/imports')
+            import_dir.mkdir(parents=True, exist_ok=True)
+
+            filename = field.filename or f"import_{datetime.now().strftime('%Y%m%d_%H%M%S')}.bma.tar.gz"
+            tar_path = import_dir / filename
+
+            # 写入文件
+            with open(tar_path, 'wb') as f:
+                while True:
+                    chunk = await field.read_chunk()
+                    if not chunk:
+                        break
+                    f.write(chunk)
+
+            # 解压 tar.gz
+            extract_dir = import_dir / f"extract_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            extract_dir.mkdir(parents=True, exist_ok=True)
+
+            with tarfile.open(tar_path, "r:gz") as tar:
+                tar.extractall(extract_dir)
+
+            # 找到 .bma 目录
+            bma_dirs = list(extract_dir.glob("*.bma"))
+            if not bma_dirs:
+                return web.json_response({
+                    'success': False,
+                    'error': 'No .bma directory found in archive'
+                })
+
+            bma_path = bma_dirs[0]
+
+            # 执行导入
+            transfer = MemoryTransferSystem(coordinator)
+            report = await transfer.import_memory(
+                archive_path=bma_path,
+                create_backup=True,
+                validate_before_import=True
+            )
+
+            if report.success:
+                return web.json_response({
+                    'success': True,
+                    'message': f'Successfully imported {report.total_memories} memories',
+                    'stats': {
+                        'total_memories': report.total_memories,
+                        'by_region': report.memories_by_region
+                    }
+                })
+
+            return web.json_response({
+                'success': False,
+                'error': '; '.join(report.errors) if report.errors else 'Import failed'
+            })
+
+        except Exception as e:
+            logger.error(f"Memory import error: {e}")
             return web.json_response({'success': False, 'error': str(e)})

@@ -150,6 +150,152 @@ def require_env(key: str) -> str:
     return value
 
 
+from datetime import datetime
+from typing import List, Dict, Tuple
+
+# ============================================================================
+# 🧠 统一配置系统 - 消除所有硬编码
+# ============================================================================
+
+@dataclass(frozen=True)
+class TemporalConfig:
+    """时间相关配置 - 消除时间硬编码"""
+    # 使用当前年份而非硬编码的2023
+    default_reference_year: int = datetime.now().year
+
+    # 时间窗口配置
+    time_range_buffer_days: int = 7  # 时间检索的±天数缓冲
+    context_window_hours: float = 6.0  # 事件上下文窗口（小时）
+
+    # 相对时间解析
+    days_per_month: int = 30  # 月份近似天数
+    days_per_year: int = 365  # 年份近似天数
+
+
+@dataclass(frozen=True)
+class ThresholdConfig:
+    """阈值配置 - 消除魔数硬编码"""
+    # 语义搜索阈值
+    min_semantic_threshold: float = 0.25
+    max_semantic_threshold: float = 0.75
+    fallback_thresholds: Tuple[float, ...] = (0.3, 0.15, 0.05)
+
+    # 相关性阈值
+    entity_match_min_score: float = 0.3
+    collaborative_boost_threshold: float = 0.3
+    kg_relation_boost: float = 0.15
+    kg_type_boost: float = 0.1
+    max_kg_boost: float = 0.5
+
+    # 情绪阈值
+    high_emotion_threshold: float = 0.5
+    medium_intensity_threshold: float = 0.6
+    high_intensity_threshold: float = 0.9
+
+    # 显著性阈值
+    saliency_very_high: float = 0.8
+    saliency_high: float = 0.6
+    saliency_medium: float = 0.4
+    saliency_low: float = 0.2
+
+    # 响应时间阈值
+    fast_response_time: float = 0.5
+    slow_response_time: float = 3.0
+
+    # 收敛阈值
+    high_convergence_ratio: float = 0.8
+    medium_convergence_ratio: float = 0.5
+
+
+@dataclass(frozen=True)
+class CapacityConfig:
+    """容量配置 - 消除容量硬编码"""
+    # 嵌入服务
+    embedding_cache_max_size: int = 10000
+    embedding_cache_ttl_hours: int = 24
+    embedding_batch_size: int = 100
+    embedding_write_threshold: int = 10
+
+    # 脑区容量
+    prefrontal_max_items: int = 10
+    prefrontal_context_items: int = 7  # Miller's Law
+    hippocampus_max_items: int = 20000
+    hippocampus_context_items: int = 50
+    temporal_max_items: int = 50000
+    temporal_context_items: int = 100
+    amygdala_max_items: int = 5000
+    amygdala_context_items: int = 20
+    basal_ganglia_max_items: int = 1000
+    basal_ganglia_context_items: int = 10
+
+    # 检索限制
+    default_search_k: int = 10
+    expanded_search_k: int = 50
+    min_results: int = 3
+
+
+@dataclass(frozen=True)
+class WeightConfig:
+    """权重配置 - 消除权重硬编码"""
+    # 显著性权重
+    saliency_novelty: float = 0.3
+    saliency_intensity: float = 0.25
+    saliency_relevance: float = 0.25
+    saliency_emotional: float = 0.2
+
+    # 路由评分权重
+    routing_word_count: float = 0.3
+    routing_question_word: float = 0.15
+    routing_relation_word: float = 0.3
+    routing_multi_entity: float = 0.2
+
+    # 事件关键词增强
+    event_keyword_boost_per_match: float = 0.2
+    event_keyword_max_boost: float = 0.5
+
+
+@dataclass(frozen=True)
+class HRMConfig:
+    """HRM(Hierarchical Reasoning Model)配置"""
+    fixed_point_threshold: int = 3  # 固定点出现次数阈值
+    convergence_window: int = 5  # 收敛检查步数
+    learning_rate: float = 0.3
+    initial_confidence: float = 0.5
+    top_k_fixed_points: int = 5
+
+    # 收敛预测步数
+    fast_convergence_steps: int = 1
+    medium_convergence_steps: int = 3
+    slow_convergence_steps: int = 5
+
+
+@dataclass(frozen=True)
+class AgentRetryConfig:
+    """Agent重试配置"""
+    base_delay: float = 1.0
+    max_retries: int = 3
+    default_max_tokens: int = 1500
+    default_temperature: float = 0.7
+
+
+@dataclass(frozen=True)
+class SilentEngramConfig:
+    """Silent Engram配置"""
+    activation_threshold: float = 0.85
+    base_threshold: float = 0.85
+    min_threshold: float = 0.6
+    default_importance: float = 0.5
+    default_emotion_intensity: float = 0.0
+
+
+@dataclass(frozen=True)
+class KnowledgeGraphConfig:
+    """知识图谱配置"""
+    default_node_importance: float = 0.5
+    default_edge_strength: float = 0.5
+    default_confidence: float = 0.7
+
+
 @dataclass(frozen=True)
 class SystemSettings:
     parallel_phase_timeout: float
@@ -182,6 +328,16 @@ class SystemSettings:
     fast_llm_model: str
     heavy_llm_model: str
 
+    # 🧠 扩展配置（消除硬编码）
+    temporal: TemporalConfig = None
+    thresholds: ThresholdConfig = None
+    capacity: CapacityConfig = None
+    weights: WeightConfig = None
+    hrm: HRMConfig = None
+    agent_retry: AgentRetryConfig = None
+    silent_engram: SilentEngramConfig = None
+    knowledge_graph: KnowledgeGraphConfig = None
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> SystemSettings:
@@ -190,6 +346,73 @@ def get_settings() -> SystemSettings:
     default_model = get_env("DEFAULT_MODEL", "gpt-4o-mini")
     fast_model = get_env("FAST_MODEL", default_model)
     heavy_model = get_env("HEAVY_MODEL", fast_model)
+
+    # 🧠 初始化扩展配置（消除硬编码）
+    temporal_config = TemporalConfig(
+        default_reference_year=int(get_env("DEFAULT_REFERENCE_YEAR", str(datetime.now().year))),
+        time_range_buffer_days=int(get_env("TIME_RANGE_BUFFER_DAYS", "7")),
+        context_window_hours=float(get_env("CONTEXT_WINDOW_HOURS", "6.0")),
+    )
+
+    threshold_config = ThresholdConfig(
+        min_semantic_threshold=float(get_env("MIN_SEMANTIC_THRESHOLD", "0.25")),
+        max_semantic_threshold=float(get_env("MAX_SEMANTIC_THRESHOLD", "0.75")),
+        entity_match_min_score=float(get_env("ENTITY_MATCH_MIN_SCORE", "0.3")),
+        collaborative_boost_threshold=float(get_env("COLLABORATIVE_BOOST_THRESHOLD", "0.3")),
+        kg_relation_boost=float(get_env("KG_RELATION_BOOST", "0.15")),
+        max_kg_boost=float(get_env("MAX_KG_BOOST", "0.5")),
+        high_emotion_threshold=float(get_env("HIGH_EMOTION_THRESHOLD", "0.5")),
+        saliency_very_high=float(get_env("SALIENCY_VERY_HIGH", "0.8")),
+        saliency_high=float(get_env("SALIENCY_HIGH", "0.6")),
+        saliency_medium=float(get_env("SALIENCY_MEDIUM", "0.4")),
+        saliency_low=float(get_env("SALIENCY_LOW", "0.2")),
+    )
+
+    capacity_config = CapacityConfig(
+        embedding_cache_max_size=int(get_env("EMBEDDING_CACHE_MAX_SIZE", "10000")),
+        embedding_cache_ttl_hours=int(get_env("EMBEDDING_CACHE_TTL_HOURS", "24")),
+        embedding_batch_size=int(get_env("EMBEDDING_BATCH_SIZE", "100")),
+        hippocampus_max_items=int(get_env("HIPPOCAMPUS_MAX_ITEMS", "20000")),
+        hippocampus_context_items=int(get_env("HIPPOCAMPUS_CONTEXT_ITEMS", "50")),
+        default_search_k=int(get_env("DEFAULT_SEARCH_K", "10")),
+        expanded_search_k=int(get_env("EXPANDED_SEARCH_K", "50")),
+    )
+
+    weight_config = WeightConfig(
+        saliency_novelty=float(get_env("SALIENCY_NOVELTY_WEIGHT", "0.3")),
+        saliency_intensity=float(get_env("SALIENCY_INTENSITY_WEIGHT", "0.25")),
+        saliency_relevance=float(get_env("SALIENCY_RELEVANCE_WEIGHT", "0.25")),
+        saliency_emotional=float(get_env("SALIENCY_EMOTIONAL_WEIGHT", "0.2")),
+        event_keyword_boost_per_match=float(get_env("EVENT_KEYWORD_BOOST", "0.2")),
+        event_keyword_max_boost=float(get_env("EVENT_KEYWORD_MAX_BOOST", "0.5")),
+    )
+
+    hrm_config = HRMConfig(
+        fixed_point_threshold=int(get_env("HRM_FIXED_POINT_THRESHOLD", "3")),
+        convergence_window=int(get_env("HRM_CONVERGENCE_WINDOW", "5")),
+        learning_rate=float(get_env("HRM_LEARNING_RATE", "0.3")),
+        initial_confidence=float(get_env("HRM_INITIAL_CONFIDENCE", "0.5")),
+        top_k_fixed_points=int(get_env("HRM_TOP_K_FIXED_POINTS", "5")),
+    )
+
+    agent_retry_config = AgentRetryConfig(
+        base_delay=float(get_env("AGENT_RETRY_DELAY", "1.0")),
+        max_retries=int(get_env("AGENT_MAX_RETRIES", "3")),
+        default_max_tokens=int(get_env("DEFAULT_MAX_TOKENS", "1500")),
+        default_temperature=float(get_env("DEFAULT_TEMPERATURE", "0.7")),
+    )
+
+    silent_engram_config = SilentEngramConfig(
+        activation_threshold=float(get_env("SILENT_ENGRAM_ACTIVATION", "0.85")),
+        min_threshold=float(get_env("SILENT_ENGRAM_MIN_THRESHOLD", "0.6")),
+        default_importance=float(get_env("DEFAULT_IMPORTANCE", "0.5")),
+    )
+
+    kg_config = KnowledgeGraphConfig(
+        default_node_importance=float(get_env("KG_NODE_IMPORTANCE", "0.5")),
+        default_edge_strength=float(get_env("KG_EDGE_STRENGTH", "0.5")),
+        default_confidence=float(get_env("KG_DEFAULT_CONFIDENCE", "0.7")),
+    )
 
     return SystemSettings(
         parallel_phase_timeout=float(get_env("PARALLEL_PHASE_TIMEOUT", "15.0")),
@@ -213,11 +436,21 @@ def get_settings() -> SystemSettings:
         enable_llm_cache=get_env("ENABLE_LLM_CACHE", "true").lower() == "true",
         llm_cache_max_size=int(get_env("LLM_CACHE_MAX_SIZE", "1000")),
         llm_cache_ttl_seconds=int(get_env("LLM_CACHE_TTL_SECONDS", "3600")),  # 1 hour
-        llm_cache_similarity_threshold=float(get_env("LLM_CACHE_SIMILARITY_THRESHOLD", "0.95")),
+        llm_cache_similarity_threshold=float(get_env("LLM_CACHE_SIMILARITY_THRESHOLD", "0.99")),
         enable_retrieval_cache=get_env("ENABLE_RETRIEVAL_CACHE", "true").lower() == "true",
         retrieval_cache_max_size=int(get_env("RETRIEVAL_CACHE_MAX_SIZE", "2000")),
         retrieval_cache_ttl_seconds=int(get_env("RETRIEVAL_CACHE_TTL_SECONDS", "300")),  # 5 minutes
         default_llm_model=default_model,
         fast_llm_model=fast_model,
         heavy_llm_model=heavy_model,
+
+        # 🧠 扩展配置（消除硬编码）
+        temporal=temporal_config,
+        thresholds=threshold_config,
+        capacity=capacity_config,
+        weights=weight_config,
+        hrm=hrm_config,
+        agent_retry=agent_retry_config,
+        silent_engram=silent_engram_config,
+        knowledge_graph=kg_config,
     )

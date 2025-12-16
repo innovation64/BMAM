@@ -600,12 +600,14 @@ class ContinuousLearner:
         }
 
         for rec in adjustments.get('recommendations', []):
-            # 这里可以实际应用优化
-            # 例如: 调整检索阈值、修改巩固策略等
+            # 🔥 2025-12-15: 优化建议由 LearningManager.apply_learning_to_weights() 实际应用
+            # ContinuousLearner 只负责生成建议，不直接执行
             optimization['optimizations_applied'].append({
                 'type': rec['type'],
                 'action': rec['action'],
-                'status': 'simulated'  # 实际系统中会真正应用
+                'priority': rec.get('priority', 'medium'),
+                'status': 'pending_application',  # 等待 LearningManager 应用
+                'conflicts': rec.get('conflicts', [])  # 传递冲突信息供实际解决
             })
 
 

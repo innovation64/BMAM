@@ -128,6 +128,42 @@ class ThalamusAgent(IAgent):
 
         logger.info(f"ThalamusAgent initialized with {len(brain_regions)} brain regions")
 
+    # ========================================================================
+    # IAgent 接口实现
+    # ========================================================================
+
+    @property
+    def agent_id(self) -> str:
+        """唯一智能体标识符"""
+        return "thalamus"
+
+    @property
+    def brain_region(self) -> str:
+        """关联的大脑区域"""
+        return "thalamus"
+
+    async def process_message(self, message) -> Dict[str, Any]:
+        """处理传入消息"""
+        # 提取查询内容
+        query = message.content.get('query', '') if hasattr(message, 'content') else str(message)
+        # 使用 process 方法处理
+        result = await self.process(query)
+        return {'response': result, 'status': 'success'}
+
+    async def initialize(self):
+        """初始化智能体资源"""
+        logger.info("ThalamusAgent initialized")
+        return True
+
+    async def shutdown(self):
+        """清理智能体资源"""
+        logger.info("ThalamusAgent shutdown")
+        return True
+
+    # ========================================================================
+    # 原有方法
+    # ========================================================================
+
     def register_brain_region(
         self,
         region_name: str,
@@ -253,11 +289,22 @@ class ThalamusAgent(IAgent):
         self.global_step = 0
         self.global_converged = False
 
+        # 🔥 2025-12-11 修复: 计算任务复杂度用于动态脑区激活
+        # 简单启发式：基于查询长度和特征
+        task_complexity = min(1.0, len(user_input) / 200)
+        # 检测复杂查询特征
+        user_lower = user_input.lower()
+        if any(w in user_lower for w in ['when', 'before', 'after', 'during', 'how long']):
+            task_complexity = max(task_complexity, 0.5)  # 时间推理查询
+        if any(w in user_lower for w in ['why', 'explain', 'analyze', 'compare']):
+            task_complexity = max(task_complexity, 0.6)  # 需要深度推理
+
         # Convert to dict format for coordination
         input_data = {
             'query': user_input,
             'step': 0,
-            'context': {}
+            'context': {},
+            'task_complexity': task_complexity  # 🔥 添加任务复杂度
         }
 
         # Coordinate until convergence or max iterations
@@ -305,7 +352,10 @@ class ThalamusAgent(IAgent):
         logger.debug(f"Thalamus Step {self.global_step}: Coordinating brain regions")
 
         # Step 1: Determine active regions this step
-        active_regions = self._get_active_regions()
+        # 🔥 2025-12-11 修复: 从 input_data 中提取 query 和 task_complexity
+        query = input_data.get('query', input_data.get('input', ''))
+        task_complexity = input_data.get('task_complexity', input_data.get('complexity'))
+        active_regions = self._get_active_regions(query=query, task_complexity=task_complexity)
 
         results = {
             'step': self.global_step,
@@ -379,22 +429,50 @@ class ThalamusAgent(IAgent):
 
         return results
 
-    def _get_active_regions(self) -> List[str]:
+    def _get_active_regions(self, query: str = None, task_complexity: float = None) -> List[str]:
         """
         Determine which regions should update this step
         确定本步骤应更新的脑区
+
+        🔥 2025-12-11 优化: 不仅考虑时间尺度，还考虑任务复杂度和查询类型
+
+        Args:
+            query: 当前查询（可选，用于根据查询类型动态调整）
+            task_complexity: 任务复杂度 0-1（可选，高复杂度激活更多脑区）
 
         Returns:
             List of region names to update
         """
         active = []
 
+        # 基于时间尺度的默认激活
         for region_name, state in self.region_states.items():
-            # Check if enough steps have passed since last update
             steps_since_update = self.global_step - state.last_update_step
 
             if steps_since_update >= state.timescale:
                 active.append(region_name)
+
+        # 🔥 基于查询类型的动态激活
+        if query:
+            query_lower = query.lower()
+            # 时间相关问题 → 强制激活 hippocampus
+            if any(kw in query_lower for kw in ['when', 'how long', 'date', 'time', 'yesterday', 'ago']):
+                if 'hippocampus' not in active:
+                    active.append('hippocampus')
+            # 情感相关问题 → 强制激活 amygdala
+            if any(kw in query_lower for kw in ['feel', 'emotion', 'happy', 'sad', 'angry', 'love']):
+                if 'amygdala' not in active:
+                    active.append('amygdala')
+            # 程序/技能问题 → 强制激活 basal_ganglia
+            if any(kw in query_lower for kw in ['how to', 'steps', 'procedure', 'method']):
+                if 'basal_ganglia' not in active:
+                    active.append('basal_ganglia')
+
+        # 🔥 高复杂度任务激活所有脑区
+        if task_complexity and task_complexity > 0.7:
+            for region_name in self.region_states.keys():
+                if region_name not in active:
+                    active.append(region_name)
 
         logger.debug(f"Active regions at step {self.global_step}: {active}")
         return active
@@ -417,19 +495,47 @@ class ThalamusAgent(IAgent):
         """
         region = self.brain_regions[region_name]
         state = self.region_states[region_name]
+        query = str(input_data.get('query', ''))
 
-        # Call region's process method
-        # Note: Regions should have enhanced methods for HRM integration
-        if hasattr(region, 'fast_iteration'):
-            # Fast region with HRM support
-            output = await region.fast_iteration(input_data)
-        elif hasattr(region, 'strategic_update'):
-            # Slow region with HRM support
-            output = await region.strategic_update(input_data)
-        else:
-            # Legacy region - fallback to process
-            response = await region.process(str(input_data.get('query', '')))
-            output = {'response': response}
+        # 🔥 2025-12-16 修复: 智能检测脑区可用方法
+        # Call region's process method based on available interfaces
+        try:
+            if hasattr(region, 'fast_iteration'):
+                # Fast region with HRM support (e.g., HippocampusHRMExtension)
+                output = await region.fast_iteration(input_data)
+            elif hasattr(region, 'strategic_update'):
+                # Slow region with HRM support (e.g., PrefrontalAgent)
+                output = await region.strategic_update(input_data)
+            elif hasattr(region, 'search_memories'):
+                # Memory-based region (Hippocampus, Temporal Lobe, Amygdala)
+                result = await region.search_memories(query, k=5)
+                memories = result.get('memories', [])
+                output = {
+                    'response': f"Retrieved {len(memories)} memories",
+                    'memories': memories,
+                    'converged': len(memories) > 0
+                }
+            elif hasattr(region, 'process'):
+                # Legacy region with process method
+                response = await region.process(query)
+                output = {'response': response}
+            elif hasattr(region, 'process_message'):
+                # Agent with process_message (most IAgent implementations)
+                from src.core.interfaces.message_interface import AgentMessage
+                message = AgentMessage(
+                    sender="thalamus",
+                    receiver=region_name,
+                    content={'query': query, 'action': 'search_episodes'},
+                    message_type="request"
+                )
+                output = await region.process_message(message)
+            else:
+                # Last resort: just log and return empty
+                logger.warning(f"Region '{region_name}' has no compatible method")
+                output = {'response': None, 'error': 'no_compatible_method'}
+        except Exception as e:
+            logger.error(f"Error calling region '{region_name}': {e}")
+            output = {'response': None, 'error': str(e)}
 
         # Update region state
         state.last_update_step = self.global_step
