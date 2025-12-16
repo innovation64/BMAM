@@ -1428,10 +1428,27 @@ class BrainInspiredCoordinator:
                 )
                 memories = self.kg_handler.merge_kg_memories(memories, kg_facts)
 
+            # 🎭 3.4 Theory of Mind Pre-check: 对抗性问题检测
+            # 2025-12-17: 集成 ToM 模块检测欺骗性问题
+            adversarial_result = None
+            if self.reasoning_validator and memories:
+                try:
+                    adversarial_result = await self.reasoning_validator.check_adversarial_before_reasoning(
+                        query=user_input,
+                        memories=[
+                            {'content': m.content if hasattr(m, 'content') else m.get('content', '')}
+                            for m in memories[:15]
+                        ]
+                    )
+                    if adversarial_result:
+                        logger.info(f"🎭 Adversarial question detected by ToM: {adversarial_result.get('adversarial_type')}")
+                except Exception as e:
+                    logger.debug(f"ToM check skipped: {e}")
+
             # 🔥 3.5 Temporal Reasoning for date/duration questions
             # 2025-12-12: 集成temporal推理到主流程
             temporal_reasoning_result = None
-            if self.reasoning_validator and memories:
+            if self.reasoning_validator and memories and not adversarial_result:
                 try:
                     # 检测temporal问题 (when, what date, how long等)
                     query_lower = user_input.lower().strip()
@@ -1503,9 +1520,13 @@ class BrainInspiredCoordinator:
                     logger.warning(f"⚠️ Temporal reasoning failed: {e}")
 
             # 4. Generate response
-            # 🔥 优先使用temporal推理结果（如果置信度足够高）
+            # 🎭 优先使用ToM对抗性检测结果（如果检测到欺骗性问题）
+            if adversarial_result and adversarial_result.get('answer'):
+                response = adversarial_result['answer']
+                logger.info(f"🎭 Using ToM Adversarial answer (type={adversarial_result.get('adversarial_type')})")
+            # 🔥 然后使用temporal推理结果（如果置信度足够高）
             # 2025-12-13: 降低阈值到0.35，因为temporal reasoning计算相对日期时置信度会被降低
-            if temporal_reasoning_result and temporal_reasoning_result.get('answer') and temporal_reasoning_result.get('confidence', 0) >= 0.35:
+            elif temporal_reasoning_result and temporal_reasoning_result.get('answer') and temporal_reasoning_result.get('confidence', 0) >= 0.35:
                 response = temporal_reasoning_result['answer']
                 logger.info(f"⏰ Using Temporal Reasoning answer")
             elif use_reasoning_chain and reasoning_chain_result:

@@ -24,6 +24,7 @@ from .multi_hop_reasoning import MultiHopReasoningMixin
 from .general_reasoning import GeneralReasoningMixin
 from .retrieval_feedback import RetrievalFeedbackMixin
 from .retrieval_guidance import RetrievalGuidanceMixin
+from .adversarial_reasoning import AdversarialReasoningMixin
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +36,8 @@ class ReasoningValidatorAgent(
     MultiHopReasoningMixin,
     GeneralReasoningMixin,
     RetrievalFeedbackMixin,
-    RetrievalGuidanceMixin
+    RetrievalGuidanceMixin,
+    AdversarialReasoningMixin
 ):
     """
     推理验证器: 模拟前额叶的推理功能
@@ -123,6 +125,12 @@ class ReasoningValidatorAgent(
         """
         logger.debug(f"🧠 Reasoning Validator: {question_type} question")
 
+        # 🎭 ToM Pre-check: 检查对抗性问题 (在正常推理前)
+        adversarial_result = await self.check_adversarial_before_reasoning(query, memories)
+        if adversarial_result:
+            logger.info(f"🎭 Adversarial question handled by ToM: {query[:50]}...")
+            return adversarial_result
+
         # 根据问题类型选择推理策略
         if question_type == 'identity':
             result = await self._identity_reasoning(query, memories, hippocampus_agent, memories_by_region)
@@ -135,6 +143,9 @@ class ReasoningValidatorAgent(
             result = await self._general_reasoning(query, memories)
         elif question_type == 'multi_hop':
             result = await self._multi_hop_reasoning(query, memories, hippocampus_agent, memories_by_region)
+        elif question_type == 'adversarial':
+            # 显式对抗性问题处理
+            result = await self._adversarial_reasoning(query, memories, hippocampus_agent, memories_by_region)
         else:
             result = await self._general_reasoning(query, memories)
 

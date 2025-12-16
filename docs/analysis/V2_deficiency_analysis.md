@@ -1,8 +1,8 @@
 # BMAM V2.0 缺陷分析报告
 
-**日期**: 2025-12-17
-**当前精度**: 74.87% (149/199)
-**目标精度**: 100% (还需提升 25%)
+**日期**: 2025-12-17 (更新)
+**当前精度**: 75.38% (150/199)
+**目标精度**: 100% (还需提升 ~25%)
 
 ---
 
@@ -12,7 +12,7 @@
 |------|------|------|
 | **StoryArc / Narrative** | ✅ 已实现 | `src/memory/story_arc.py` - 时间线索引 |
 | **持续学习** | ✅ 已实现 | `src/coordination/learning_manager.py` - 不再是 simulated |
-| **Theory of Mind** | ❌ 未实现 | 需要新增模块 |
+| **Theory of Mind** | ✅ 已实现 | `src/agents/brain_regions/theory_of_mind_agent.py` - 意图推断+欺骗检测 |
 | **分布式脑区存储** | ⚠️ 部分 | Hippocampus 603条, Amygdala 31条, 其他脑区为空 |
 
 ### 持续学习验证
