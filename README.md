@@ -1,68 +1,138 @@
 # BMAM - Brain-inspired Multi-Agent Memory System
 
-**生物启发式多智能体记忆系统**
+**生物启发式多智能体记忆系统 V2.0**
 
 一个模拟人脑记忆机制的AI记忆管理系统，实现了从感知编码、短期记忆、长期巩固到主动遗忘的完整记忆闭环。
 
 ---
 
-## 🧠 核心特性
+## 🎯 最新状态 (2025-12-17)
 
-### 五脑区架构 (Five Brain Regions)
-- **Hippocampus** (海马体) - 情节记忆存储与检索
-- **Temporal Lobe** (颞叶) - 语义记忆与知识图谱
-- **Amygdala** (杏仁核) - 情绪标记与调节
-- **Prefrontal Cortex** (前额叶) - 工作记忆与任务规划
-- **Basal Ganglia** (基底节) - 程序记忆与技能学习
+### V2.0 发布: Theory of Mind + StoryArc
+
+| 版本 | LoCoMo 准确率 | 说明 |
+|------|--------------|------|
+| MemOS 基准 | 73.31% | 对比基准 |
+| BMAM V1 | 71.86% | 初始版本 |
+| **BMAM V2** | **75.38%** | +3.52% 提升 |
+
+**V2.0 新增模块**:
+- ✅ **StoryArc** - 时间线索引与时间推理增强
+- ✅ **Theory of Mind** - 意图推断与对抗性问题检测
+- ✅ **持续学习** - 在线学习与适应性巩固
+
+---
+
+## 🧠 核心架构
+
+### 五大脑区智能体 (Five Brain Region Agents)
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                     BrainInspiredCoordinator                      │
+├──────────────────────────────────────────────────────────────────┤
+│                                                                   │
+│  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐      │
+│  │  Hippocampus   │  │ Temporal Lobe  │  │    Amygdala    │      │
+│  │    (海马体)    │  │     (颞叶)     │  │    (杏仁核)    │      │
+│  │   情节记忆     │  │  语义记忆+KG   │  │   情绪标记     │      │
+│  └────────────────┘  └────────────────┘  └────────────────┘      │
+│                                                                   │
+│  ┌────────────────────────────────┐  ┌────────────────┐          │
+│  │     Prefrontal Cortex (PFC)    │  │ Basal Ganglia  │          │
+│  │          (前额叶皮层)          │  │    (基底节)    │          │
+│  │  ┌─────────────┬─────────────┐ │  │   程序记忆     │          │
+│  │  │ 工作记忆    │ ToM (mPFC)  │ │  │   技能模式     │          │
+│  │  │ Working Mem │ 意图推断    │ │  └────────────────┘          │
+│  │  │             │ 欺骗检测    │ │                              │
+│  │  └─────────────┴─────────────┘ │                              │
+│  └────────────────────────────────┘                              │
+│                                                                   │
+├──────────────────────────────────────────────────────────────────┤
+│   StoryArc (时间线)  │  ReasoningValidator  │  LearningManager   │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+> **神经科学对应**: 内侧前额叶皮层 (mPFC) 是前额叶的一部分，负责心智理论 (Theory of Mind)。
+> 在本系统中，ToM 功能作为 Prefrontal Agent 的子模块实现。
 
 ### 完整的记忆闭环
-- **感知编码** (Encoding) - 自动提取实体和关系
-- **巩固流程** (Consolidation) - Hippocampus → Temporal Lobe
-- **记忆检索** (Retrieval) - 混合检索策略 (BM25 + 向量 + 知识图谱)
-- **自动持久化** (Persistence) - SQLite + JSON 双重保存
-- **记忆塑造** (Memory Shaping) - 自适应巩固与遗忘
-- **检查点管理** (Checkpoint) - 版本管理与时间旅行
+
+1. **感知编码** (Encoding) - 自动提取实体、关系和时间信息
+2. **记忆存储** (Storage) - 分布式存储到对应脑区
+3. **记忆巩固** (Consolidation) - Hippocampus → Temporal Lobe
+4. **记忆检索** (Retrieval) - 混合检索 (BM25 + 向量 + KG)
+5. **时间推理** (Temporal Reasoning) - StoryArc 时间线索引
+6. **对抗检测** (Adversarial Detection) - Theory of Mind 欺骗识别
+7. **自动持久化** (Persistence) - SQLite + JSON 双重保存
 
 ---
 
-## 🎯 最新状态 (2025-11-13)
+## 📂 项目结构
 
-### ✅ Phase 4 P1 完成: 关键Bug修复
-
-**修复内容**:
-- ✅ 实体关系提取逻辑修复 (从metadata正确读取)
-- ✅ AgentStorageProxy属性访问安全性增强
-- ✅ 配置文件补全 (relational_keywords, relation_keywords)
-- ✅ 统一KG架构实现 (LightweightKnowledgeGraph跨脑区共享)
-- ✅ KG API兼容层 (add_triple方法)
-
-**端到端验证**:
-- 批量巩固测试: 20条记忆, 100%成功率 ✅
-- 实体提取: 平均4.0个实体/记忆 ✅
-- KG增长: +17节点, 统一实例工作正常 ✅
-- 回归测试: 9/9通过 ✅
-
-**当前记忆状态**:
-- Hippocampus: 137条情节记忆
-- TemporalLobe: 44条语义记忆 (包含实体和关系)
-- Unified KG: 1045节点, 963边
-- Amygdala: 31条情绪记忆
-- **所有记忆跨重启持久保存** ✅
-
----
-
-## 📊 性能指标
-
-### LoCoMo 长上下文记忆基准
-
-| 指标 | Phase 3a | Phase 4 P0 | 改进 |
-|------|---------|------------|------|
-| **5Q平均准确率** | 78% | **94%** | +16% ⬆️ |
-| Q2 时间推理 | 79% | **93%** | +14% |
-| Q3 多跳推理 | 81% | **95%** | +14% |
-| Q4 汇总能力 | 73% | **94%** | +21% |
-
-**测试集**: LoCoMo-10 子集 (10 sessions, 1,986轮QA)
+```
+BMAM/
+├── src/                           # 源代码
+│   ├── agents/                    # 智能体模块
+│   │   ├── brain_regions/         # 脑区智能体
+│   │   │   ├── hippocampus_agent/      # 海马体 (情节记忆)
+│   │   │   ├── temporal_lobe_agent/    # 颞叶 (语义记忆+KG)
+│   │   │   ├── prefrontal_agent/       # 前额叶 (工作记忆)
+│   │   │   ├── amygdala_agent.py       # 杏仁核 (情绪标记)
+│   │   │   └── basal_ganglia_agent.py  # 基底节 (程序记忆)
+│   │   │   # ToM 作为 prefrontal_agent 的子模块 (mPFC) [V2.0]
+│   │   ├── core/                  # 核心智能体
+│   │   │   ├── reasoning_validator/    # 推理验证器
+│   │   │   ├── memory_retrieval/       # 记忆检索
+│   │   │   └── consolidation/          # 巩固管理
+│   │   └── base.py                # 基类
+│   │
+│   ├── memory/                    # 记忆系统
+│   │   ├── story_arc.py           # 时间线管理 [V2.0]
+│   │   ├── memory_consolidation_pipeline.py
+│   │   ├── adaptive_memory_shaping.py
+│   │   └── memory_version_manager.py
+│   │
+│   ├── coordination/              # 协调层
+│   │   ├── brain_coordinator_refactored.py  # 主协调器
+│   │   └── learning_manager.py    # 学习管理器
+│   │
+│   ├── reasoning/                 # 推理模块
+│   │   └── input_analyzer.py      # 问题分析器
+│   │
+│   └── utils/                     # 工具模块
+│
+├── data/                          # 数据目录
+│   ├── hippocampus_state.json     # 海马体状态
+│   ├── temporal_lobe.db           # 颞叶数据库
+│   ├── story_arc_state.json       # 时间线索引 [V2.0]
+│   ├── tom_state.json             # ToM状态 [V2.0]
+│   └── ...
+│
+├── docs/                          # 文档
+│   ├── analysis/                  # 分析报告
+│   │   └── V2_deficiency_analysis.md
+│   ├── changelog/                 # 变更日志
+│   │   └── 2025-12-17_StoryArc_V2.md
+│   ├── architecture/              # 架构文档
+│   ├── guides/                    # 使用指南
+│   └── development/               # 开发文档
+│
+├── experiments/                   # 实验
+│   └── benchmarks/
+│       └── locomo/                # LoCoMo 基准测试
+│           └── test_sequential.py
+│
+├── scripts/                       # 脚本
+│   ├── migrate_to_story_arc.py    # 迁移工具
+│   └── evaluation/                # 评测脚本
+│
+├── tests/                         # 测试
+│   └── ...
+│
+└── config/                        # 配置
+    └── ...
+```
 
 ---
 
@@ -73,140 +143,126 @@
 pip install -r requirements.txt
 ```
 
+### 环境配置
+```bash
+cp .env.example .env
+# 编辑 .env 设置 OPENAI_API_KEY
+```
+
 ### 基础使用
 ```python
 from src.coordination.brain_coordinator_refactored import BrainInspiredCoordinator
 
 # 初始化系统 (自动加载历史记忆)
 coordinator = BrainInspiredCoordinator()
-await coordinator.start_system()
+await coordinator.initialize()
 
 # 处理用户输入
 result = await coordinator.process_user_input("你好，记住我的名字是李阳")
 
 # 系统会自动:
 # 1. 存储到 Hippocampus (情节记忆)
-# 2. 提取实体和关系
-# 3. 触发情绪标记 (如果有情绪内容)
-# 4. 累积达到阈值后巩固到 TemporalLobe
-# 5. 自动持久化到数据库
+# 2. 提取实体、关系和时间信息
+# 3. 更新 StoryArc 时间线索引
+# 4. 触发情绪标记 (如果有情绪内容)
+# 5. 累积达到阈值后巩固到 TemporalLobe
+# 6. 自动持久化到数据库
 ```
 
-### 记忆检查点管理
-```python
-from src.memory.memory_version_manager import MemoryVersionManager
-
-vm = MemoryVersionManager(coordinator=coordinator)
-
-# 创建检查点 (备份当前记忆状态)
-checkpoint = await vm.create_checkpoint(
-    name="stable_day30",
-    description="30天后的稳定状态",
-    tags=["stable", "milestone"]
-)
-
-# 切换到历史检查点 (会自动备份当前状态)
-await vm.restore_from_checkpoint("stable_day30")
-
-# 列出所有检查点
-checkpoints = vm.list_checkpoints()
-```
-
-### 运行测试
+### 运行 LoCoMo 评测
 ```bash
-# 记忆巩固测试
-python test_consolidation_debug.py
+# 设置数据集路径
+export LOCOMO_DATASET_PATH=/path/to/locomo10.json
 
-# LoCoMo评测
-python scripts/evaluation/run_bmam_memos_eval.py
+# 运行评测
+python experiments/benchmarks/locomo/test_sequential.py --groups 1
 ```
 
 ---
 
-## 📂 项目结构
+## 🔬 V2.0 新功能详解
 
+### 1. StoryArc 时间线模块
+
+```python
+from src.memory.story_arc import get_story_arc_manager
+
+story_arc = get_story_arc_manager()
+
+# 查询事件时间
+result = await story_arc.query_event_time(
+    entity="Caroline",
+    event_keywords=["museum", "visit"]
+)
+# {'formatted_date': '5 July 2023', 'confidence': 0.95}
+
+# 计算时间跨度
+duration = await story_arc.calculate_duration(
+    entity="Caroline",
+    reference="friends"
+)
+# {'duration': '4 years', 'start_date': date(2019, 5, 8)}
 ```
-BMAM/
-├── src/                          # 源代码
-│   ├── agents/                   # 智能体模块
-│   │   ├── brain_regions/       # 五脑区智能体
-│   │   │   ├── hippocampus_agent/      # 海马体
-│   │   │   ├── temporal_lobe_agent/    # 颞叶
-│   │   │   ├── amygdala_agent.py       # 杏仁核
-│   │   │   ├── prefrontal_agent/       # 前额叶
-│   │   │   └── basal_ganglia_agent.py  # 基底节
-│   │   └── core/                # 核心智能体
-│   ├── memory/                   # 记忆系统
-│   │   ├── memory_consolidation_pipeline.py
-│   │   ├── adaptive_memory_shaping.py
-│   │   ├── background_memory_processes.py
-│   │   ├── memory_version_manager.py
-│   │   └── agent_storage_proxy.py
-│   ├── coordination/             # 协调器
-│   │   └── brain_coordinator_refactored.py
-│   └── services/                 # 服务层
-├── data/                         # 数据目录
-│   ├── hippocampus_state.json   # 海马体状态
-│   ├── temporal_lobe.db         # 颞叶数据库
-│   ├── amygdala_state.json      # 杏仁核状态
-│   ├── prefrontal_state.json    # 前额叶状态
-│   ├── basal_ganglia_state.json # 基底节状态
-│   └── checkpoints/             # 检查点归档
-├── docs/                         # 文档
-│   ├── archived/                # 历史文档
-│   ├── guides/                  # 使用指南
-│   ├── development/             # 开发文档
-│   └── reports/                 # 评测报告
-├── tests/                        # 测试
-└── scripts/                      # 脚本
+
+### 2. Theory of Mind 模块
+
+```python
+from src.agents.brain_regions import get_theory_of_mind_agent
+
+tom = get_theory_of_mind_agent()
+
+# 意图推断
+intent = await tom.infer_intent(
+    query="Did Caroline attend the parade with her sister?",
+    context=["Caroline is a community activist", "..."]
+)
+# is_adversarial=True, adversarial_type='false_premise'
+
+# 欺骗检测
+deception = await tom.detect_deception(query, known_facts)
+# is_deceptive=True, suggested_response="The question assumes..."
 ```
 
 ---
 
-## 🎨 架构特点
+## 📊 性能指标
 
-### 1. 生物启发式设计
-- **脑区映射**: 每个智能体对应真实脑区功能
-- **记忆分层**: 情节记忆 (Hippocampus) → 语义记忆 (Temporal Lobe)
-- **情绪调节**: Amygdala 标记重要记忆
-- **工作记忆**: Prefrontal 管理短期任务
+### LoCoMo 长上下文记忆基准 (Conv-26, 199题)
 
-### 2. 自动持久化机制
-- **实时保存**: 每次操作立即写入数据库
-- **启动加载**: 自动恢复所有历史记忆
-- **跨会话**: 记忆在程序重启后保留
-- **版本管理**: 支持创建检查点和时间旅行
+| 版本 | 准确率 | 正确题数 | 变化 |
+|------|--------|----------|------|
+| MemOS 基准 | 73.31% | - | - |
+| BMAM V1 | 71.86% | 143/199 | -1.45% |
+| BMAM V2 (StoryArc) | 74.87% | 149/199 | +3.01% |
+| **BMAM V2 (+ ToM)** | **75.38%** | **150/199** | **+3.52%** |
 
-### 3. 记忆塑造 (Memory Shaping)
-- **AdaptiveShaping**: 根据记忆累积量自适应触发巩固
-- **BackgroundProcesses**: 定期巩固、遗忘、重巩固
-- **双重触发**: 事件驱动 + 定时兜底
+### 按问题类别准确率 (预估)
 
-### 4. 代码质量
-- **模块化**: 高内聚低耦合
-- **类型提示**: 100%覆盖
-- **文档**: 完整的docstring
-- **测试**: 集成测试 + 单元测试
+| 类别 | 题数 | V1 准确率 | V2 准确率 |
+|------|------|-----------|-----------|
+| open-domain | 70 | ~75% | ~80% |
+| adversarial | 47 | ~60% | ~65% |
+| temporal | 37 | ~35% | ~60% |
+| single-hop | 32 | ~85% | ~90% |
+| multi-hop | 13 | ~50% | ~55% |
 
 ---
 
-## 📚 文档导航
+## 🛠 开发路线图
 
-### 快速入门
-- [快速开始指南](docs/guides/) - 5分钟上手
-- [检查点管理指南](docs/guides/) - 记忆版本控制
+### ✅ 已完成
+- Phase 1-3: 基础架构与记忆闭环
+- Phase 4: LoCoMo 评测与优化
+- **V2.0: StoryArc + Theory of Mind** ← 最新
 
-### 开发文档
-- [架构设计](docs/development/) - 系统架构详解
-- [记忆系统实现](docs/development/) - 巩固流程实现
-- [持久化机制](docs/development/) - 数据库设计
+### 🔄 进行中
+- 跨脑区协作增强
+- 多跳推理优化
 
-### 评测报告
-- [LoCoMo评测报告](docs/reports/) - 94%准确率验证
-- [记忆塑造验证](docs/reports/) - 功能完整性测试
-
-### 历史文档
-- [Phase 1-4 报告](docs/archived/) - 开发历史记录
+### 📋 计划中
+- 分布式存储优化
+- 多模态记忆扩展
+- 生产部署优化
 
 ---
 
@@ -220,43 +276,9 @@ BMAM/
 
 ---
 
-## 📈 开发路线图
-
-### ✅ 已完成
-- Phase 1-2: 基础架构
-- Phase 3: 记忆闭环
-- Phase 4 P0: LoCoMo 94%准确率
-- **Phase 4 P1: 关键Bug修复与统一KG** ← 最新完成
-
-### 🔄 进行中
-- Phase 4 P2: 配置优化 (pattern configs)
-- Phase 5: 统一知识图谱
-
-### 📋 计划中
-- Phase 6: 性能优化与生产部署
-- Phase 7: 多模态记忆扩展
-
----
-
-## 🤝 贡献
-
-欢迎提交Issue和Pull Request！
-
----
-
 ## 📄 许可证
 
-[MIT License]
-
----
-
-## 🙏 致谢
-
-感谢所有贡献者和测试者！
-
----
-
-**"记忆塑造人格，代码塑造系统。" 🧠✨**
+MIT License
 
 ---
 
@@ -264,14 +286,13 @@ BMAM/
 
 1. **首次运行**: 系统会自动创建 `data/` 目录并初始化数据库
 2. **记忆持久化**: 所有记忆自动保存，程序重启后自动加载
-3. **检查点备份**: 建议定期创建检查点备份重要状态
-4. **环境变量**: 需要设置 `OPENAI_API_KEY`
+3. **环境变量**: 需要设置 `OPENAI_API_KEY`
 
 ---
 
-**最后更新**: 2025-11-13
-**版本**: Phase 4 P1 (Critical Bugs Fixed + Unified KG)
+**最后更新**: 2025-12-17
+**版本**: V2.0 (StoryArc + Theory of Mind)
 **状态**: ✅ Production Ready
 
-**变更日志**: 详见 [CHANGELOG.md](CHANGELOG.md)
-**技术分析**: 详见 [docs/development/CONSENSUS_FIX_ANALYSIS.md](docs/development/CONSENSUS_FIX_ANALYSIS.md)
+**变更日志**: 详见 [docs/changelog/](docs/changelog/)
+**缺陷分析**: 详见 [docs/analysis/V2_deficiency_analysis.md](docs/analysis/V2_deficiency_analysis.md)

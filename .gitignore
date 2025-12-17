@@ -98,3 +98,24 @@ experiments/benchmarks/metrics/
 
 # Broken code backups
 **/broken_code_backup*/
+
+# =====================
+# Legacy/Archived Files (Do not commit)
+# =====================
+/archived/
+/locomo_checkpoints/
+
+# Root-level test files (legacy)
+/test_*.py
+/process_locomo_*.py
+/diagnose_*.py
+/verify_*.py
+
+# Legacy docs at root
+/KG_COVERAGE_*.md
+/MBTI_*.txt
+/*.sh
+!/scripts/*.sh
+
+# Project management (internal)
+/project_management/
