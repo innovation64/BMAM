@@ -17,7 +17,7 @@ from datetime import datetime
 
 from ..utils.config import get_logger, get_settings
 from ..utils.paths import BMAMPaths
-from ..utils.memory_signal_config import load_memory_signal_config, DEFAULT_MEMORY_SIGNAL_CONFIG
+from ..utils.memory_signal_config import load_memory_signal_config
 from ..utils.knowledge_graph_builder import KnowledgeGraphBuilder
 from ..utils.pattern_config import pattern_config
 from ..utils.flexible_date_parser import FlexibleDateParser
@@ -35,8 +35,7 @@ from .clean_agent_system import (
 from ..agents.environment import EnvironmentAgent
 from ..agents.core.reasoning_validator import ReasoningValidatorAgent
 from ..memory.memory_system import memory_system
-from ..memory.key_value_stores import KeyValueMemoryStore
-from ..memory.storage_coordinator import get_storage_coordinator
+# Note: KeyValueMemoryStore and get_storage_coordinator removed (unused)
 
 from ..agents.brain_regions import (
     HippocampusAgent,
@@ -45,7 +44,7 @@ from ..agents.brain_regions import (
     AmygdalaAgent,
     BasalGangliaAgent
 )
-from ..agents.brain_regions.temporal_lobe_agent import MemoryType
+# Note: MemoryType removed (unused)
 
 from ..optimization import (
     get_capacity_manager,
@@ -69,7 +68,7 @@ from ..agents.brain_regions.anterior_cingulate_agent import AnteriorCingulateAge
 from .result_arbiter import ResultArbiter, LearningCaseLogger  # 🔥 2025-12-15: 结果审查集成
 from .proactive_inquiry import ProactiveInquiryManager  # 🔥 2025-12-16: 主动询问机制
 from .memory_archive_manager import MemoryArchiveManager  # 🔥 2025-12-19: 归档操作提取
-from .soul_state import get_soul_state, Insight, ValueGap  # 🔥 2025-12-19: 自省与洞察库 + 价值观
+from .soul_state import get_soul_state, ValueGap  # Note: Insight removed (unused)
 from .confidence_calibrator import get_confidence_calibrator  # 🔥 2025-12-16: 置信度校准
 from ..agents.core.learnable_router import LearnableAgentRouter  # 🔥 2025-12-15: 可学习路由集成
 from ..agents.brain_regions.amygdala_hrm_extension import AmygdalaHRMExtension  # 🔥 2025-12-15: HRM扩展
@@ -884,10 +883,25 @@ class BrainInspiredCoordinator:
         query: str,
         k: int = 10,
         strategy: str = 'auto',
-        context: Dict[str, Any] = None
+        context: Dict[str, Any] = None,
+        activation_plan: Optional[Dict[str, bool]] = None
     ) -> List[Dict[str, Any]]:
-        """Delegate to MemoryCoordinator"""
-        return await self.memory_coordinator.smart_retrieve(query, k, strategy, context)
+        """
+        Delegate to MemoryCoordinator with activation_plan support.
+
+        If activation_plan is None, uses a sensible default that prioritizes
+        episodic and semantic regions (hippocampus + temporal_lobe).
+        """
+        # Default activation: focus on core memory regions for retrieval
+        if activation_plan is None:
+            activation_plan = {
+                'hippocampus': True,      # Episodic memory (essential)
+                'temporal_lobe': True,    # Semantic memory (essential)
+                'prefrontal': False,      # Skip working memory in basic retrieval
+                'amygdala': False,        # Skip emotional tagging in basic retrieval
+                'basal_ganglia': False    # Skip procedural patterns in basic retrieval
+            }
+        return await self.memory_coordinator.smart_retrieve(query, k, strategy, context, activation_plan)
 
     async def brain_retrieve(
         self,
@@ -918,9 +932,9 @@ class BrainInspiredCoordinator:
             BrainRetrievalResult: 包含检索结果、路径类型、迭代次数等
         """
         if not self.brain_inspired_retrieval:
-            # Fallback to simple retrieval
+            # Fallback to simple retrieval with activation_plan support
             logger.warning("BrainInspiredRetrieval not available, using smart_retrieve fallback")
-            memories = await self.smart_retrieve(query, k, 'auto', context)
+            memories = await self.smart_retrieve(query, k, 'auto', context, activation_plan)
             return BrainRetrievalResult(
                 memories=memories,
                 path_type='fallback',
