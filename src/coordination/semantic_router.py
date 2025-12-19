@@ -52,7 +52,8 @@ class SemanticRouter:
 
             model = select_model_for_task('fast_classification')  # Use fast model
             if not model:
-                model = "gpt-4o-mini"  # Fallback model
+                from ..core.constants import DEFAULT_LLM_MODEL
+                model = DEFAULT_LLM_MODEL  # Fallback model
 
             prompt = f"""
             Analyze the following content and assign routing weights (0.0 to 1.0) for these brain regions:

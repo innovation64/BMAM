@@ -24,9 +24,12 @@ class PrefrontalController:
     负责协调记忆检索和元认知监控
     """
     
-    def __init__(self, persistence_path: Optional[str] = "data/metamemory_state.json"):
+    def __init__(self, persistence_path: Optional[str] = None):
+        # 🔥 使用 BMAMPaths 统一路径管理
+        from ..utils.paths import BMAMPaths
+        actual_path = persistence_path if persistence_path else str(BMAMPaths.METAMEMORY_STATE)
         # 初始化元记忆监控器
-        self.monitor = MetamemoryMonitor(persistence_path=persistence_path)
+        self.monitor = MetamemoryMonitor(persistence_path=actual_path)
         self.meta_controller = MetamemoryController(monitor=self.monitor)
         
     async def route_query(

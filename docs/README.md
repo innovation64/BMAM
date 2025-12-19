@@ -1,37 +1,53 @@
-# BMAM 文档索引
+# BMAM Documentation Index
 
-本目录包含BMAM项目的所有文档，已按类别整理。
+Brain-inspired Multi-Agent Memory Framework Documentation
 
 ---
 
-## 📂 目录结构
+## Quick Links
+
+| Document | Description |
+|----------|-------------|
+| [QUICKSTART.md](QUICKSTART.md) | Get started in 5 minutes |
+| [API.md](API.md) | Complete API reference |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | System design & neuroscience basis |
+| [BENCHMARKS.md](BENCHMARKS.md) | Evaluation results & reproducibility |
+| [../CONTRIBUTING.md](../CONTRIBUTING.md) | Contribution guidelines |
+
+---
+
+## 📂 Directory Structure
 
 ```
 docs/
-├── archived/          # 历史文档与开发记录
-├── guides/            # 使用指南与快速参考
-├── development/       # 开发文档与设计文档
-└── reports/           # 评测报告与验证报告
+├── API.md             # API Reference
+├── ARCHITECTURE.md    # System Architecture
+├── BENCHMARKS.md      # Evaluation Results
+├── QUICKSTART.md      # Quick Start Guide
+├── archived/          # Historical documents
+├── guides/            # Usage guides
+├── development/       # Development docs
+└── reports/           # Evaluation reports
 ```
 
 ---
 
-## 📖 推荐阅读路径
+## 📖 Reading Path
 
-### 新用户
-1. [主README](../README.md) - 项目概述
-2. [快速开始指南](guides/) - 5分钟上手
-3. [LoCoMo测试指南](guides/) - 运行评测
+### New Users
+1. [Quick Start Guide](QUICKSTART.md) - 5 minutes to get started
+2. [Main README](../README.md) - Project overview
+3. [API Reference](API.md) - How to use the system
 
-### 开发者
-1. [架构设计文档](development/) - 系统架构
-2. [记忆系统实现](development/) - 巩固流程
-3. [API文档](development/) - 接口说明
+### Developers
+1. [Architecture](ARCHITECTURE.md) - System design
+2. [API Reference](API.md) - Interface documentation
+3. [Contributing Guide](../CONTRIBUTING.md) - How to contribute
 
-### 研究者
-1. [LoCoMo评测报告](reports/) - 性能指标
-2. [记忆塑造验证](reports/) - 功能验证
-3. [Phase 1-4 完整报告](archived/) - 开发历程
+### Researchers
+1. [Architecture](ARCHITECTURE.md) - Neuroscience foundations
+2. [Benchmarks](BENCHMARKS.md) - LoCoMo evaluation
+3. [Phase 1-4 Reports](archived/) - Development history
 
 ---
 

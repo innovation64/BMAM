@@ -8,7 +8,7 @@ import json
 import time
 from datetime import datetime
 from typing import List, Dict, Any
-from src.coordination.brain_coordinator import BrainInspiredCoordinator
+from src.coordination.brain_coordinator_refactored import BrainInspiredCoordinator
 from src.agents.agent_message import AgentMessage
 
 

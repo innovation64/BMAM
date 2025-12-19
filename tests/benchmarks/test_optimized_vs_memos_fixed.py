@@ -18,7 +18,7 @@ import time
 import os
 import re
 
-from src.coordination.brain_coordinator import BrainInspiredCoordinator
+from src.coordination.brain_coordinator_refactored import BrainInspiredCoordinator
 from src.utils.context_budget_manager import get_budget_manager, Priority
 
 # 配置日志

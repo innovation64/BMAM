@@ -10,9 +10,12 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-sys.path.insert(0, '/Users/liyang/Desktop/testversion/BMAM')
+# Use relative path instead of hardcoded absolute path
+_BMAM_ROOT = Path(__file__).parent.parent.parent.resolve()
+sys.path.insert(0, str(_BMAM_ROOT))
 
-from src.coordination.brain_coordinator import BrainInspiredCoordinator
+from src.coordination.brain_coordinator_refactored import BrainInspiredCoordinator
+from src.utils.paths import BMAMPaths
 from evaluation.llm_judge_locomo import LoCoMoLLMJudge
 
 
@@ -26,7 +29,8 @@ def load_locomo_dataset(num_samples=None):
     Returns:
         List of samples with conversation and QA pairs
     """
-    dataset_path = Path('/Users/liyang/Desktop/testversion/BMAM/data/benchmarks/locomo/locomo10.json')
+    # Use centralized path management instead of hardcoded path
+    dataset_path = BMAMPaths.LOCOMO_DATASET
 
     with open(dataset_path, 'r', encoding='utf-8') as f:
         data = json.load(f)

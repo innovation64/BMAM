@@ -10,7 +10,7 @@ Enables:
 """
 
 from typing import Dict, Any, List, Optional, Tuple, Set
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from enum import Enum
 from pathlib import Path
 import logging
@@ -18,6 +18,8 @@ import json
 import uuid
 import hashlib
 from datetime import datetime
+
+from ..utils.paths import BMAMPaths
 
 logger = logging.getLogger(__name__)
 
@@ -119,6 +121,13 @@ class MemoryMigrationManager:
         # Track relationships for validation
         self.relationships: List[Tuple[str, str, str]] = []  # (source_id, relation, target_id)
 
+        # Migration history for persistence
+        self._migration_history: List[MigrationReport] = []
+        self._history_file = BMAMPaths.STATE_DIR / "migration_history.json"
+
+        # Load existing history
+        self._load_history()
+
         logger.info("MemoryMigrationManager initialized")
 
     async def import_memory(
@@ -182,8 +191,10 @@ class MemoryMigrationManager:
                 return report
 
             # Step 4: Load archive data
+            # 🔥 使用 BMAMPaths 统一路径管理
+            from ..utils.paths import BMAMPaths
             archive_data = archive.load(
-                target_dir=Path("data/temp_import"),
+                target_dir=BMAMPaths.TEMP_DIR,
                 validate=True
             )
 
@@ -532,8 +543,10 @@ class MemoryMigrationManager:
     async def _create_backup(self) -> Path:
         """Create backup before migration"""
         from .memory_archive import MemoryArchive
+        # 🔥 使用 BMAMPaths 统一路径管理
+        from ..utils.paths import BMAMPaths
 
-        backup_dir = Path("data/migration_backups")
+        backup_dir = BMAMPaths.MIGRATION_BACKUPS_DIR
         backup_dir.mkdir(parents=True, exist_ok=True)
 
         backup_name = f"pre_migration_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
@@ -555,14 +568,66 @@ class MemoryMigrationManager:
         # Load backup
         from .memory_archive import MemoryArchive
         archive = MemoryArchive(backup_path)
-        archive.load(target_dir=Path("data/"), force=True)
+        # 🔥 使用 BMAMPaths 统一路径管理
+        from ..utils.paths import BMAMPaths
+        archive.load(target_dir=BMAMPaths.DATA_DIR, force=True)
 
         logger.info("✅ Rollback complete")
 
+    def _load_history(self) -> None:
+        """Load migration history from persistent storage"""
+        if not self._history_file.exists():
+            self._migration_history = []
+            return
+
+        try:
+            with open(self._history_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+
+            self._migration_history = []
+            for item in data:
+                # Convert timestamp string back to datetime
+                item['timestamp'] = datetime.fromisoformat(item['timestamp'])
+                # Convert backup_path string back to Path if present
+                if item.get('backup_path'):
+                    item['backup_path'] = Path(item['backup_path'])
+                self._migration_history.append(MigrationReport(**item))
+
+            logger.debug(f"Loaded {len(self._migration_history)} migration reports")
+        except Exception as e:
+            logger.warning(f"Failed to load migration history: {e}")
+            self._migration_history = []
+
+    def _save_history(self) -> None:
+        """Save migration history to persistent storage"""
+        try:
+            self._history_file.parent.mkdir(parents=True, exist_ok=True)
+
+            data = []
+            for report in self._migration_history:
+                item = asdict(report)
+                # Convert datetime to ISO string
+                item['timestamp'] = report.timestamp.isoformat()
+                # Convert Path to string if present
+                if item.get('backup_path'):
+                    item['backup_path'] = str(item['backup_path'])
+                data.append(item)
+
+            with open(self._history_file, 'w', encoding='utf-8') as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+
+            logger.debug(f"Saved {len(data)} migration reports")
+        except Exception as e:
+            logger.error(f"Failed to save migration history: {e}")
+
+    def add_migration_report(self, report: MigrationReport) -> None:
+        """Add a migration report and persist"""
+        self._migration_history.append(report)
+        self._save_history()
+
     def get_migration_history(self) -> List[MigrationReport]:
-        """Get migration history"""
-        # TODO: Persist migration reports
-        return []
+        """Get migration history (persisted)"""
+        return self._migration_history.copy()
 
     async def switch_snapshot(self, snapshot_id: str) -> bool:
         """
@@ -570,7 +635,7 @@ class MemoryMigrationManager:
         切换到不同的记忆快照
 
         Args:
-            snapshot_id: Snapshot identifier
+            snapshot_id: Snapshot identifier (backup_path from MigrationReport)
 
         Returns:
             True if successful
@@ -578,8 +643,40 @@ class MemoryMigrationManager:
         logger.info(f"🔀 Switching to snapshot: {snapshot_id}")
 
         # Find snapshot in migration history
-        # Load snapshot memories
-        # Replace current memories
+        target_report = None
+        for report in self._migration_history:
+            if report.backup_path and str(report.backup_path) == snapshot_id:
+                target_report = report
+                break
 
-        # TODO: Implement snapshot switching
-        return False
+        if not target_report or not target_report.backup_path:
+            logger.error(f"Snapshot not found: {snapshot_id}")
+            return False
+
+        backup_path = Path(target_report.backup_path)
+        if not backup_path.exists():
+            logger.error(f"Backup archive not found: {backup_path}")
+            return False
+
+        try:
+            # Create a backup of current state before switching
+            current_backup = BMAMPaths.MIGRATION_BACKUPS_DIR / f"pre_switch_{datetime.now().strftime('%Y%m%d_%H%M%S')}.bma"
+            from .memory_archive import MemoryArchive
+
+            # Export current state
+            current_archive = MemoryArchive(current_backup)
+            current_archive.save(
+                source_dir=BMAMPaths.DATA_DIR,
+                metadata={"reason": f"pre-switch backup before loading {snapshot_id}"}
+            )
+
+            # Load the target snapshot
+            target_archive = MemoryArchive(backup_path)
+            target_archive.load(target_dir=BMAMPaths.DATA_DIR, force=True)
+
+            logger.info(f"✅ Successfully switched to snapshot: {snapshot_id}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to switch snapshot: {e}")
+            return False

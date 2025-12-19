@@ -37,6 +37,38 @@ class MemorySystemMetrics:
     last_forgetting_memory_count: int
 
 
+@dataclass
+class ShapingOperationStats:
+    """
+    记忆塑造操作统计 - 用于指标追踪和反馈路径
+    🔥 2025-12-19: 新增，实现P2技术债务修复
+    """
+    # 触发计数
+    consolidation_triggers: int = 0
+    consolidation_successes: int = 0
+    reflection_triggers: int = 0
+    reflection_successes: int = 0
+    forgetting_triggers: int = 0
+    forgetting_successes: int = 0
+
+    # 检索相关
+    retrieval_failures_since_last_forget: int = 0
+    memories_forgotten_due_to_retrieval: int = 0
+
+    # Insights 统计
+    total_insights_generated: int = 0
+    memories_strengthened: int = 0
+
+    def get_success_rates(self) -> Dict[str, float]:
+        """计算各操作成功率"""
+        def safe_div(a, b): return a / b if b > 0 else 0.0
+        return {
+            'consolidation': safe_div(self.consolidation_successes, self.consolidation_triggers),
+            'reflection': safe_div(self.reflection_successes, self.reflection_triggers),
+            'forgetting': safe_div(self.forgetting_successes, self.forgetting_triggers),
+        }
+
+
 class AdaptiveMemoryShapingManager:
     """
     自适应记忆塑造管理器
@@ -81,6 +113,12 @@ class AdaptiveMemoryShapingManager:
 
         # 累积的KG关系数
         self.accumulated_kg_relations = 0
+
+        # 🔥 2025-12-19: 操作统计跟踪器
+        self.stats = ShapingOperationStats()
+
+        # 🔥 2025-12-19: 检索失败记忆ID列表 (用于检索导致的遗忘)
+        self._retrieval_failure_memory_ids: list = []
 
         logger.info("✅ AdaptiveMemoryShapingManager initialized")
 
@@ -195,6 +233,7 @@ class AdaptiveMemoryShapingManager:
 
     async def _trigger_consolidation(self, memory_id: str, reason: str):
         """触发单条记忆巩固"""
+        self.stats.consolidation_triggers += 1
         try:
             if hasattr(self.coordinator, 'consolidation'):
                 from ..coordination.clean_agent_system import AgentMessage
@@ -205,12 +244,15 @@ class AdaptiveMemoryShapingManager:
                     content={'action': 'consolidate_memory', 'memory_id': memory_id, 'reason': reason}
                 )
                 result = await self.coordinator._activate_agent('consolidation', msg)
+                self.stats.consolidation_successes += 1
                 logger.info(f"   ✅ Consolidation completed for {memory_id[:8]}")
 
                 # 🔥 2025-12-14: 巩固闭环 - 将巩固结果反馈到脑区连接强度
                 if result and hasattr(self.coordinator, 'learning_manager'):
                     try:
                         strengthened = result.get('strengthened', False)
+                        if strengthened:
+                            self.stats.memories_strengthened += 1
                         learning_manager = self.coordinator.learning_manager
                         if strengthened and learning_manager and hasattr(learning_manager, 'routing_manager'):
                             # 记忆被强化说明检索策略有效
@@ -232,6 +274,7 @@ class AdaptiveMemoryShapingManager:
 
     async def _trigger_reflection(self, reason: str):
         """触发模式反思"""
+        self.stats.reflection_triggers += 1
         try:
             if hasattr(self.coordinator, 'reflection') and hasattr(self.coordinator, 'hippocampus'):
                 from ..coordination.clean_agent_system import AgentMessage
@@ -248,6 +291,8 @@ class AdaptiveMemoryShapingManager:
                 )
                 result = await self.coordinator._activate_agent('reflection', msg)
                 insights = result.get('insights_generated', 0)
+                self.stats.reflection_successes += 1
+                self.stats.total_insights_generated += insights
                 logger.info(f"   ✅ Reflection completed, {insights} insights generated")
 
                 # 🔥 2025-12-14: 反思闭环 - 将insights反馈到策略权重
@@ -267,6 +312,7 @@ class AdaptiveMemoryShapingManager:
 
     async def _trigger_forgetting(self, reason: str):
         """触发选择性遗忘"""
+        self.stats.forgetting_triggers += 1
         try:
             if hasattr(self.coordinator, 'forgetting'):
                 from ..coordination.clean_agent_system import AgentMessage
@@ -277,6 +323,7 @@ class AdaptiveMemoryShapingManager:
                     content={'action': 'forget_low_importance', 'reason': reason}
                 )
                 await self.coordinator._activate_agent('forgetting', msg)
+                self.stats.forgetting_successes += 1
                 logger.info(f"   ✅ Forgetting completed")
         except Exception as e:
             logger.warning(f"   ❌ Forgetting failed: {e}")
@@ -284,3 +331,103 @@ class AdaptiveMemoryShapingManager:
     def on_kg_relation_added(self, relation_count: int = 1):
         """KG关系添加的回调"""
         self.accumulated_kg_relations += relation_count
+
+    # ============================================================================
+    # 🔥 2025-12-19: 新增方法 - 检索导致的遗忘和指标追踪
+    # ============================================================================
+
+    def on_retrieval_failure(self, memory_id: str, query: str):
+        """
+        检索失败回调 - 记录导致检索失败的记忆ID
+
+        当记忆被检索但未能提供有效答案时调用。
+        累积足够失败后触发检索导致的遗忘。
+
+        Args:
+            memory_id: 检索到但失败的记忆ID
+            query: 原始查询
+        """
+        if memory_id not in self._retrieval_failure_memory_ids:
+            self._retrieval_failure_memory_ids.append(memory_id)
+            self.stats.retrieval_failures_since_last_forget += 1
+            logger.debug(f"🔖 Retrieval failure recorded: {memory_id[:8]} for query '{query[:30]}...'")
+
+    async def check_retrieval_based_forgetting(self, threshold: int = 5):
+        """
+        检查是否需要基于检索失败触发遗忘
+
+        当同一记忆多次检索失败，说明它可能是:
+        1. 过时信息
+        2. 误导性信息
+        3. 与当前上下文不相关
+
+        Args:
+            threshold: 触发遗忘的失败次数阈值
+        """
+        if self.stats.retrieval_failures_since_last_forget >= threshold:
+            logger.info(f"🗑️  [Retrieval-based Forgetting] {len(self._retrieval_failure_memory_ids)} memories with retrieval failures")
+
+            if hasattr(self.coordinator, 'forgetting') and self._retrieval_failure_memory_ids:
+                try:
+                    from ..coordination.clean_agent_system import AgentMessage
+                    msg = AgentMessage(
+                        sender='adaptive_shaping',
+                        receiver='forgetting',
+                        message_type='request',
+                        content={
+                            'action': 'forget_specific_memories',
+                            'memory_ids': self._retrieval_failure_memory_ids[:10],  # 每次最多遗忘10个
+                            'reason': 'retrieval_failure'
+                        }
+                    )
+                    await self.coordinator._activate_agent('forgetting', msg)
+                    forgotten_count = min(10, len(self._retrieval_failure_memory_ids))
+                    self.stats.memories_forgotten_due_to_retrieval += forgotten_count
+                    self._retrieval_failure_memory_ids = self._retrieval_failure_memory_ids[10:]
+                    self.stats.retrieval_failures_since_last_forget = 0
+                    logger.info(f"   ✅ Retrieval-based forgetting: {forgotten_count} memories processed")
+                except Exception as e:
+                    logger.warning(f"   ❌ Retrieval-based forgetting failed: {e}")
+
+    def get_shaping_stats(self) -> Dict[str, Any]:
+        """
+        获取记忆塑造统计信息
+
+        Returns:
+            Dict containing:
+            - operation_counts: 各操作触发/成功次数
+            - success_rates: 各操作成功率
+            - retrieval_stats: 检索相关统计
+            - insight_stats: Insight生成统计
+        """
+        return {
+            'operation_counts': {
+                'consolidation': {
+                    'triggers': self.stats.consolidation_triggers,
+                    'successes': self.stats.consolidation_successes,
+                },
+                'reflection': {
+                    'triggers': self.stats.reflection_triggers,
+                    'successes': self.stats.reflection_successes,
+                },
+                'forgetting': {
+                    'triggers': self.stats.forgetting_triggers,
+                    'successes': self.stats.forgetting_successes,
+                },
+            },
+            'success_rates': self.stats.get_success_rates(),
+            'retrieval_stats': {
+                'pending_failures': len(self._retrieval_failure_memory_ids),
+                'total_forgotten_due_to_retrieval': self.stats.memories_forgotten_due_to_retrieval,
+            },
+            'insight_stats': {
+                'total_generated': self.stats.total_insights_generated,
+                'memories_strengthened': self.stats.memories_strengthened,
+            },
+        }
+
+    def reset_stats(self):
+        """重置统计信息（用于测试或新周期）"""
+        self.stats = ShapingOperationStats()
+        self._retrieval_failure_memory_ids = []
+        logger.info("🔄 ShapingOperationStats reset")

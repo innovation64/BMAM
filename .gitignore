@@ -1,4 +1,6 @@
+# =====================
 # Python
+# =====================
 __pycache__/
 *.py[cod]
 *$py.class
@@ -24,7 +26,9 @@ wheels/
 .installed.cfg
 *.egg
 
-# Testing
+# =====================
+# Testing & Coverage
+# =====================
 .tox/
 .coverage
 .coverage.*
@@ -32,10 +36,13 @@ wheels/
 .pytest_cache/
 nosetests.xml
 coverage.xml
+htmlcov/
 *.cover
 .hypothesis/
 
-# IDE
+# =====================
+# IDE & Editor
+# =====================
 .idea/
 .vscode/
 *.swp
@@ -43,79 +50,110 @@ coverage.xml
 *~
 .DS_Store
 
-# Environment
+# =====================
+# Environment & Secrets (NEVER commit)
+# =====================
 .env
+.env.local
+.env.*.local
+*.log
+secrets/
+credentials/
+
+# =====================
+# Claude Code Configuration (local only)
+# =====================
+.claude/
+
+# =====================
+# Logs
+# =====================
+/logs/
 *.log
 
-# Logs
-/logs/
-
-# Archives and backups
+# =====================
+# Archives and Backups
+# =====================
 /archives/
 *.tar.gz
 *.bak
+*.backup
 
-# Temporary files
+# =====================
+# Temporary Files
+# =====================
 tmp/
 temp/
 *.tmp
 
-# Model checkpoints
+# =====================
+# Model Checkpoints
+# =====================
 *.ckpt
 *.pth
 *.h5
+*.pkl
 
 # =====================
-# Runtime Data (IMPORTANT: Do not commit)
+# Runtime Data (Do not commit - generated at runtime)
 # =====================
-# Entire data directory is runtime-generated
 /data/
 
-# Keep config files
-!config/*.json
-!config/*.yaml
+# =====================
+# Experiment & Evaluation Data
+# =====================
+/experiments/
+/locomo_archives/
+/locomo_checkpoints/
+/metrics/
 
-# Large texture/model files (Live2D, etc.)
-src/ui/static/models/
-src/ui/web_ui_server/static/models/
+# Evaluation results (keep structure, ignore data)
+/evaluation/results/**/*.json
+/evaluation/results/**/*.log
+/evaluation/benchmarks/*/data/
+!evaluation/results/.gitkeep
+!evaluation/benchmarks/.gitkeep
+
+# =====================
+# Project Management (internal)
+# =====================
+/project_management/
+
+# =====================
+# Large Binary Files
+# =====================
 *.moc3
 *.png
 !README*.png
 !docs/**/*.png
+!docs/figures/*.png
+
+# Live2D models
+src/ui/static/models/
+src/ui/web_ui_server/static/models/
 
 # =====================
-# Experiment Data (Do not commit large data files)
-# =====================
-experiments/data/locomo_dataset/
-experiments/locomo_archives/
-/locomo_archives/
-experiments/locomo_checkpoints/
-experiments/backups_*/
-experiments/results/**/*.json
-experiments/benchmarks/metrics/
-!experiments/results/.gitkeep
-!experiments/benchmarks/.gitkeep
-
-# Broken code backups
-**/broken_code_backup*/
-
-# =====================
-# Legacy/Archived Files (Do not commit)
+# Legacy Files (do not commit)
 # =====================
 /archived/
-/locomo_checkpoints/
-
-# Root-level test files (legacy)
 /test_*.py
 /process_locomo_*.py
 /diagnose_*.py
 /verify_*.py
-
-# Legacy docs at root
 /KG_COVERAGE_*.md
 /MBTI_*.txt
 /*.sh
 !/scripts/*.sh
+**/broken_code_backup*/
 
-# Project management (internal)
-/project_management/
+# =====================
+# Database Files (runtime generated)
+# =====================
+*.db
+*.sqlite
+*.sqlite3
+
+# =====================
+# Archived Documentation (optional - remove if too large)
+# =====================
+# docs/archived/

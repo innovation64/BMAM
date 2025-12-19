@@ -351,8 +351,10 @@ class LearningCaseLogger:
     记录失败案例到经验库，用于后续学习
     """
 
-    def __init__(self, log_file_path: str = "data/learning_cases.jsonl"):
-        self.log_file_path = log_file_path
+    def __init__(self, log_file_path: str = None):
+        # 🔥 使用 BMAMPaths 统一路径管理
+        from ..utils.paths import BMAMPaths
+        self.log_file_path = log_file_path if log_file_path else str(BMAMPaths.LEARNING_CASES_LOG)
         self._ensure_directory()
 
     def _ensure_directory(self):

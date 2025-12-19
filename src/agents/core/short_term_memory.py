@@ -33,8 +33,9 @@ class ShortTermMemoryAgent(BrainAgent):
             client=client  # 支持外部注入客户端
         )
 
-        # ✅ P1-1: 持久化配置
-        self.persist_path = persist_path or os.path.join('data', 'working_memory.db')
+        # ✅ P1-1: 持久化配置 - 使用 BMAMPaths 统一路径管理
+        from ...utils.paths import BMAMPaths
+        self.persist_path = persist_path or str(BMAMPaths.WORKING_MEMORY_DB)
         self._init_persistence()
 
         # Working memory buffer (扩大容量以提高AI系统性能)

@@ -18,7 +18,7 @@ from datetime import datetime, timedelta
 # Add parent directory to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from src.coordination.brain_coordinator import BrainInspiredCoordinator
+from src.coordination.brain_coordinator_refactored import BrainInspiredCoordinator
 from src.agents.base import AgentMessage
 
 

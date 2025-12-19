@@ -419,9 +419,9 @@ class ForgettingCoordinator:
             
             try:
                 # Delete from global memory system (FAISS + DB)
-                # TODO: Implement delete_memory() method in MemorySystem
-                # await self.memory_system.delete_memory(memory_id)
-                
+                if self.memory_system:
+                    await self.memory_system.delete_memory(memory_id)
+
                 # Delete from hippocampus list
                 if self.hippocampus:
                     await self._delete_from_hippocampus(memory_id)

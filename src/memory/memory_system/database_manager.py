@@ -19,6 +19,7 @@ from sqlalchemy.orm import sessionmaker, Session
 from .database_models import Base, MemoryRecord
 from .database_queries import DatabaseQueryMixin
 from ..memory_item import MemoryItem
+from ...utils.paths import BMAMPaths
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +54,7 @@ class DatabaseManager(DatabaseQueryMixin):
         """
         self.db_url = db_url or os.getenv(
             "DATABASE_URL",
-            "sqlite:///data/brain_memory.db"
+            f"sqlite:///{BMAMPaths.BRAIN_MEMORY_DB}"
         )
 
         # Create data directory for SQLite

@@ -15,21 +15,19 @@ logger = get_logger(__name__)
 class LearningManager:
     """Manages continuous learning, plasticity, and system optimization"""
 
-    def __init__(self, plasticity_engine, continuous_learner, conflict_detector,
+    def __init__(self, continuous_learner, conflict_detector,
                  brain_network=None, hippocampus=None, routing_manager=None, coordinator=None):
         """
         Initialize Learning Manager
 
         Args:
-            plasticity_engine: Neural plasticity engine instance
             continuous_learner: Continuous learner instance
             conflict_detector: Conflict detector instance
             brain_network: Optional brain network for routing optimization
             hippocampus: Hippocampus agent instance for memory access
-            routing_manager: 🔥 NEW: RoutingManager for strategy weight updates
-            coordinator: 🔥 2025-12-15: BrainInspiredCoordinator for accessing memory systems
+            routing_manager: RoutingManager for strategy weight updates
+            coordinator: BrainInspiredCoordinator for accessing memory systems
         """
-        self.plasticity_engine = plasticity_engine
         self.continuous_learner = continuous_learner
         self.conflict_detector = conflict_detector
         self.brain_network = brain_network
@@ -226,10 +224,9 @@ class LearningManager:
         应用学习结果到权重系统
 
         将持续学习循环的优化结果应用到:
-        1. NeuralPlasticityEngine - 智能体间连接权重
-        2. BrainNetwork - 脑区激活路由权重
-        3. 🔥 NEW: RoutingManager - 检索策略权重
-        4. 🔥 2025-12-15: 实际触发巩固/冲突解决
+        1. BrainNetwork - 脑区激活路由权重
+        2. RoutingManager - 检索策略权重
+        3. 触发巩固/冲突解决
 
         Args:
             learning_result: run_continuous_learning_cycle 的返回结果
@@ -288,22 +285,27 @@ class LearningManager:
                             })
 
                 elif rec_type == 'conflict_resolution':
-                    # 检测到冲突 → 尝试解决
+                    # 检测到冲突 → 尝试自动解决
                     conflicts = rec.get('conflicts', [])
                     if conflicts and self.conflict_detector:
                         try:
-                            # 记录冲突供后续处理
+                            resolved_count = 0
                             for conflict in conflicts[:5]:  # 最多处理5个冲突
-                                logger.warning(
-                                    f"⚠️ Memory conflict: {conflict.get('description', 'Unknown conflict')}"
-                                )
-                            # TODO: 实现自动冲突解决 (需要LLM支持)
-                            # 目前只是记录，后续可以扩展为自动解决
+                                conflict_desc = conflict.get('description', 'Unknown conflict')
+                                logger.warning(f"⚠️ Memory conflict: {conflict_desc}")
+
+                                # 尝试自动解决冲突
+                                resolution = await self._resolve_conflict_automatically(conflict)
+                                if resolution.get('resolved'):
+                                    resolved_count += 1
+                                    logger.info(f"✅ Conflict resolved: {resolution.get('action')}")
+
                             optimizations_applied.append({
                                 'type': rec_type,
-                                'action': 'conflicts_logged',
+                                'action': 'conflicts_resolved',
                                 'conflict_count': len(conflicts),
-                                'status': 'partial'  # 只记录了，没有自动解决
+                                'resolved_count': resolved_count,
+                                'status': 'applied' if resolved_count > 0 else 'partial'
                             })
                         except Exception as e:
                             logger.warning(f"⚠️ conflict_resolution failed: {e}")
@@ -327,16 +329,10 @@ class LearningManager:
                             logger.warning(f"⚠️ personalization failed: {e}")
 
                 elif rec_type == 'routing_optimization':
-                    # 路由优化
+                    # 路由优化 - 记录到日志，实际优化由 RoutingManager 处理
                     agents = rec.get('agents') or rec.get('suggested_agents') or []
-                    if agents and self.plasticity_engine:
-                        self.plasticity_engine.record_agent_activation(agents)
-                        optimizations_applied.append({
-                            'type': rec_type,
-                            'action': 'agent_activation_recorded',
-                            'agents': agents,
-                            'status': 'applied'
-                        })
+                    if agents:
+                        logger.debug(f"Routing optimization suggested agents: {agents}")
 
             # Extract routing optimizations
             routing_optimizations = [
@@ -455,4 +451,92 @@ class LearningManager:
             'interval_seconds': self._learning_loop_interval,
             'last_cycle': self._last_learning_cycle.isoformat() if self._last_learning_cycle else None,
             'task_active': self._learning_loop_task is not None and not self._learning_loop_task.done()
+        }
+
+    async def _resolve_conflict_automatically(self, conflict: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Automatically resolve a memory conflict using heuristics or LLM
+
+        Args:
+            conflict: Conflict description dict with keys:
+                - memory_ids: List of conflicting memory IDs
+                - description: Human-readable conflict description
+                - type: Conflict type (temporal, factual, source_confusion)
+
+        Returns:
+            Resolution result dict with keys:
+                - resolved: Whether conflict was resolved
+                - action: Action taken
+                - details: Additional details
+        """
+        conflict_type = conflict.get('type', 'unknown')
+        memory_ids = conflict.get('memory_ids', [])
+        description = conflict.get('description', '')
+
+        # Strategy 1: Temporal conflicts - keep the most recent
+        if conflict_type == 'temporal' and len(memory_ids) >= 2:
+            try:
+                # Get memory timestamps and keep the most recent
+                if self.hippocampus and hasattr(self.hippocampus, 'get_memory'):
+                    memories = []
+                    for mid in memory_ids:
+                        mem = await self.hippocampus.get_memory(mid)
+                        if mem:
+                            memories.append(mem)
+
+                    if len(memories) >= 2:
+                        # Sort by timestamp, keep newest
+                        memories.sort(
+                            key=lambda m: m.get('timestamp', ''),
+                            reverse=True
+                        )
+                        # Mark older memories as superseded
+                        for old_mem in memories[1:]:
+                            old_id = old_mem.get('id')
+                            if old_id and hasattr(self.hippocampus, 'update_memory'):
+                                await self.hippocampus.update_memory(
+                                    old_id,
+                                    {'superseded_by': memories[0].get('id')}
+                                )
+                        return {
+                            'resolved': True,
+                            'action': 'kept_most_recent',
+                            'kept_id': memories[0].get('id'),
+                            'superseded_ids': [m.get('id') for m in memories[1:]]
+                        }
+            except Exception as e:
+                logger.warning(f"Temporal conflict resolution failed: {e}")
+
+        # Strategy 2: Factual conflicts - use importance/confidence scores
+        if conflict_type == 'factual' and len(memory_ids) >= 2:
+            try:
+                if self.hippocampus and hasattr(self.hippocampus, 'get_memory'):
+                    memories = []
+                    for mid in memory_ids:
+                        mem = await self.hippocampus.get_memory(mid)
+                        if mem:
+                            memories.append(mem)
+
+                    if len(memories) >= 2:
+                        # Keep the one with highest importance
+                        memories.sort(
+                            key=lambda m: m.get('importance', 0.5),
+                            reverse=True
+                        )
+                        return {
+                            'resolved': True,
+                            'action': 'kept_highest_importance',
+                            'kept_id': memories[0].get('id'),
+                            'importance': memories[0].get('importance', 0.5)
+                        }
+            except Exception as e:
+                logger.warning(f"Factual conflict resolution failed: {e}")
+
+        # Strategy 3: Log unresolved conflicts for manual review
+        logger.info(f"Conflict logged for review: {description}")
+        return {
+            'resolved': False,
+            'action': 'logged_for_review',
+            'conflict_type': conflict_type,
+            'description': description
         }

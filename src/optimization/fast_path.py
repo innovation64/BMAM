@@ -157,9 +157,8 @@ class FastPathDetector:
             #        3) Fallback to session_date metadata only if no content date AND query isn't event-specific
             answer = self._extract_temporal_info(content, metadata, query)
         elif path_type == 'identity_fact':
-            # 🔥 DISABLE identity fast path - too unreliable, causes truncation
-            # answer = self._extract_identity_info(content)
-            return None  # Force slow path for identity questions
+            # Identity questions require full context - use slow path
+            return None
         elif path_type == 'attribute_fact':
             answer = self._extract_attribute_info(content, query)
         elif path_type == 'location_fact':

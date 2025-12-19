@@ -3,9 +3,14 @@ Unified Path Configuration for BMAM Framework
 BMAM框架统一路径配置
 
 🔥 Phase 0 Fix: Centralized path management to fix persistence issues
+🔥 Refactored: 分类目录结构，数据按类型分开存放
 
-Provides absolute paths for all brain regions and data storage,
-preventing inconsistencies between save and load operations.
+目录结构:
+  BMAM/data/
+  ├── memory/    # 记忆数据 (数据库、向量索引)
+  ├── state/     # 状态文件 (各脑区JSON状态)
+  ├── cache/     # 缓存数据 (embedding, knowledge graph)
+  └── results/   # 测试结果
 """
 
 from pathlib import Path
@@ -21,8 +26,11 @@ class BMAMPaths:
     All paths are absolute paths derived from BMAM root.
     This ensures consistency across different execution contexts.
 
-    🔥 Refactored: All data now lives in BMAM/data/
-    - DB files, JSON states, vector indices all in one place
+    🔥 分类目录结构:
+    - memory/  : 数据库文件、向量索引
+    - state/   : 脑区状态JSON文件
+    - cache/   : 嵌入缓存、知识图谱缓存
+    - results/ : 测试结果
     """
 
     # BMAM root (this file is at BMAM/src/utils/paths.py)
@@ -31,11 +39,21 @@ class BMAMPaths:
     # Project root (parent of BMAM, for legacy compatibility)
     PROJECT_ROOT = BMAM_ROOT.parent
 
-    # 🔥 UNIFIED data directory - everything in BMAM/data/
-    # Support BMAM_DATA_DIR env var for parallel testing with isolated data dirs
+    # ============================================================
+    # 🔥 分类目录结构
+    # ============================================================
+    # 基础数据目录 (可通过环境变量配置)
     DATA_DIR = Path(os.environ.get('BMAM_DATA_DIR', '')) if os.environ.get('BMAM_DATA_DIR') else BMAM_ROOT / "data"
-    PROJECT_DATA_DIR = DATA_DIR  # Legacy alias
-    BMAM_DATA_DIR = DATA_DIR     # Legacy alias
+
+    # 分类子目录
+    MEMORY_DIR = DATA_DIR / "memory"    # 记忆数据 (数据库、向量)
+    STATE_DIR = DATA_DIR / "state"      # 状态文件 (JSON)
+    CACHE_DIR = DATA_DIR / "cache"      # 缓存数据
+    RESULTS_DIR = DATA_DIR / "results"  # 测试结果
+
+    # Legacy aliases (向后兼容)
+    PROJECT_DATA_DIR = DATA_DIR
+    BMAM_DATA_DIR = DATA_DIR
 
     @classmethod
     def reinitialize_paths(cls):
@@ -45,60 +63,127 @@ class BMAMPaths:
             cls.DATA_DIR = Path(env_data_dir)
         else:
             cls.DATA_DIR = cls.BMAM_ROOT / "data"
+
+        # 更新分类目录
+        cls.MEMORY_DIR = cls.DATA_DIR / "memory"
+        cls.STATE_DIR = cls.DATA_DIR / "state"
+        cls.CACHE_DIR = cls.DATA_DIR / "cache"
+        cls.RESULTS_DIR = cls.DATA_DIR / "results"
+
+        # Legacy aliases
         cls.PROJECT_DATA_DIR = cls.DATA_DIR
         cls.BMAM_DATA_DIR = cls.DATA_DIR
 
         # 更新所有依赖路径
-        cls.TEMPORAL_LOBE_DB = cls.PROJECT_DATA_DIR / "temporal_lobe.db"
-        cls.BRAIN_MEMORY_DB = cls.PROJECT_DATA_DIR / "brain_memory.db"
-        cls.WORKING_MEMORY_DB = cls.PROJECT_DATA_DIR / "working_memory.db"
-        cls.HIPPOCAMPUS_STATE = cls.PROJECT_DATA_DIR / "hippocampus_state.json"
-        cls.PREFRONTAL_STATE = cls.PROJECT_DATA_DIR / "prefrontal_state.json"
-        cls.AMYGDALA_STATE = cls.PROJECT_DATA_DIR / "amygdala_state.json"
-        cls.BASAL_GANGLIA_STATE = cls.PROJECT_DATA_DIR / "basal_ganglia_state.json"
-        cls.MEMORY_SHAPING_STATE = cls.PROJECT_DATA_DIR / "memory_shaping_state.json"
-        cls.MEMORY_VECTORS_INDEX = cls.BMAM_DATA_DIR / "memory_vectors.index"
-        cls.MEMORY_VECTORS_MAPPING = cls.BMAM_DATA_DIR / "memory_vectors_mappings.json"
-        cls.EMBEDDING_CACHE_DIR = cls.BMAM_DATA_DIR / "embedding_cache"
-        cls.KG_CACHE_DIR = cls.PROJECT_DATA_DIR / "knowledge_graph"
+        cls._update_file_paths()
+
+    @classmethod
+    def _update_file_paths(cls):
+        """更新所有文件路径 (内部方法)"""
+        # Memory files (databases, vectors)
+        cls.TEMPORAL_LOBE_DB = cls.MEMORY_DIR / "temporal_lobe.db"
+        cls.BRAIN_MEMORY_DB = cls.MEMORY_DIR / "brain_memory.db"
+        cls.WORKING_MEMORY_DB = cls.MEMORY_DIR / "working_memory.db"
+        cls.KV_VALUE_STORE_DB = cls.MEMORY_DIR / "kv_value_store.db"
+        cls.MEMORY_VECTORS_INDEX = cls.MEMORY_DIR / "memory_vectors.index"
+        cls.MEMORY_VECTORS_MAPPING = cls.MEMORY_DIR / "memory_vectors_mappings.json"
+
+        # State files (JSON)
+        cls.HIPPOCAMPUS_STATE = cls.STATE_DIR / "hippocampus_state.json"
+        cls.PREFRONTAL_STATE = cls.STATE_DIR / "prefrontal_state.json"
+        cls.AMYGDALA_STATE = cls.STATE_DIR / "amygdala_state.json"
+        cls.BASAL_GANGLIA_STATE = cls.STATE_DIR / "basal_ganglia_state.json"
+        cls.MEMORY_SHAPING_STATE = cls.STATE_DIR / "memory_shaping_state.json"
+        cls.STORY_ARC_STATE = cls.STATE_DIR / "story_arc_state.json"
+        cls.TOM_STATE = cls.STATE_DIR / "tom_state.json"
+        cls.HABITS_STATE = cls.STATE_DIR / "habits.json"
+        cls.METAMEMORY_STATE = cls.STATE_DIR / "metamemory_state.json"
+        cls.CALIBRATION_STATE = cls.STATE_DIR / "calibration_state.json"
+        cls.LEARNING_CASES_LOG = cls.STATE_DIR / "learning_cases.jsonl"
+
+        # Cache files
+        cls.EMBEDDING_CACHE_DIR = cls.CACHE_DIR / "embedding"
+        cls.EMBEDDING_CACHE_FILE = cls.EMBEDDING_CACHE_DIR / "embeddings.json"
+        cls.KG_CACHE_DIR = cls.CACHE_DIR / "knowledge_graph"
+        cls.KG_GRAPH_PKL = cls.KG_CACHE_DIR / "graph.pkl"
+        cls.KG_NODES_JSON = cls.KG_CACHE_DIR / "nodes.json"
+        cls.KG_EDGES_JSON = cls.KG_CACHE_DIR / "edges.json"
+        cls.FAISS_INDEX_DIR = cls.CACHE_DIR / "faiss_index"
+
+        # Datasets (支持环境变量覆盖)
+        cls.DATASETS_DIR = cls.DATA_DIR / "datasets"
+        env_locomo = os.environ.get('LOCOMO_DATASET_PATH', '')
+        cls.LOCOMO_DATASET = Path(env_locomo) if env_locomo else cls.DATASETS_DIR / "locomo" / "locomo10.json"
 
     # ============================================================
-    # Runtime DB files (in BMAM/data/)
+    # 🔥 Memory files (数据库、向量) - in data/memory/
     # ============================================================
-    TEMPORAL_LOBE_DB = PROJECT_DATA_DIR / "temporal_lobe.db"
-    BRAIN_MEMORY_DB = PROJECT_DATA_DIR / "brain_memory.db"
-    WORKING_MEMORY_DB = PROJECT_DATA_DIR / "working_memory.db"
-
-    # Brain region JSON state files (also in PROJECT_DATA_DIR)
-    HIPPOCAMPUS_STATE = PROJECT_DATA_DIR / "hippocampus_state.json"
-    PREFRONTAL_STATE = PROJECT_DATA_DIR / "prefrontal_state.json"
-    AMYGDALA_STATE = PROJECT_DATA_DIR / "amygdala_state.json"
-    BASAL_GANGLIA_STATE = PROJECT_DATA_DIR / "basal_ganglia_state.json"
-    MEMORY_SHAPING_STATE = PROJECT_DATA_DIR / "memory_shaping_state.json"
+    TEMPORAL_LOBE_DB = MEMORY_DIR / "temporal_lobe.db"
+    BRAIN_MEMORY_DB = MEMORY_DIR / "brain_memory.db"
+    WORKING_MEMORY_DB = MEMORY_DIR / "working_memory.db"
+    KV_VALUE_STORE_DB = MEMORY_DIR / "kv_value_store.db"
+    MEMORY_VECTORS_INDEX = MEMORY_DIR / "memory_vectors.index"
+    MEMORY_VECTORS_MAPPING = MEMORY_DIR / "memory_vectors_mappings.json"
 
     # ============================================================
-    # Vector/Embedding files (in BMAM/data/)
+    # 🔥 State files (状态JSON) - in data/state/
     # ============================================================
-    MEMORY_VECTORS_INDEX = BMAM_DATA_DIR / "memory_vectors.index"
-    # 🔥 Fixed: was .pkl, actual file is .json with plural 's'
-    MEMORY_VECTORS_MAPPING = BMAM_DATA_DIR / "memory_vectors_mappings.json"
-    EMBEDDING_CACHE_DIR = BMAM_DATA_DIR / "embedding_cache"
+    HIPPOCAMPUS_STATE = STATE_DIR / "hippocampus_state.json"
+    PREFRONTAL_STATE = STATE_DIR / "prefrontal_state.json"
+    AMYGDALA_STATE = STATE_DIR / "amygdala_state.json"
+    BASAL_GANGLIA_STATE = STATE_DIR / "basal_ganglia_state.json"
+    MEMORY_SHAPING_STATE = STATE_DIR / "memory_shaping_state.json"
+    STORY_ARC_STATE = STATE_DIR / "story_arc_state.json"
+    TOM_STATE = STATE_DIR / "tom_state.json"
+    HABITS_STATE = STATE_DIR / "habits.json"
+    METAMEMORY_STATE = STATE_DIR / "metamemory_state.json"
+    CALIBRATION_STATE = STATE_DIR / "calibration_state.json"
+
+    # ============================================================
+    # 🔥 Log files (日志/学习记录) - in data/state/
+    # ============================================================
+    LEARNING_CASES_LOG = STATE_DIR / "learning_cases.jsonl"
+    KNOWLEDGE_GRAPH_JSON = CACHE_DIR / "knowledge_graph" / "knowledge_graph.json"
+
+    # ============================================================
+    # 🔥 Cache files (缓存) - in data/cache/
+    # ============================================================
+    EMBEDDING_CACHE_DIR = CACHE_DIR / "embedding"
     EMBEDDING_CACHE_FILE = EMBEDDING_CACHE_DIR / "embeddings.json"
-
-    # ============================================================
-    # Knowledge Graph cache (in BMAM/data/knowledge_graph/)
-    # ============================================================
-    KG_CACHE_DIR = PROJECT_DATA_DIR / "knowledge_graph"
+    KG_CACHE_DIR = CACHE_DIR / "knowledge_graph"
     KG_GRAPH_PKL = KG_CACHE_DIR / "graph.pkl"
     KG_NODES_JSON = KG_CACHE_DIR / "nodes.json"
     KG_EDGES_JSON = KG_CACHE_DIR / "edges.json"
+    FAISS_INDEX_DIR = CACHE_DIR / "faiss_index"
 
-    # Archive directory (for BMA archives) - now in BMAM/
-    # Configurable via BMAM_ARCHIVE_DIR environment variable
+    # Archive directory (for BMA archives)
     ARCHIVE_DIR = Path(os.getenv('BMAM_ARCHIVE_DIR', '')) if os.getenv('BMAM_ARCHIVE_DIR') else BMAM_ROOT / "archives"
 
     # Logs directory
     LOGS_DIR = BMAM_ROOT / "logs"
+
+    # ============================================================
+    # 🔥 Export/Import/Backup directories - in data/
+    # ============================================================
+    EXPORTS_DIR = DATA_DIR / "exports"
+    IMPORTS_DIR = DATA_DIR / "imports"
+    BACKUPS_DIR = DATA_DIR / "backups"
+    TEMP_DIR = DATA_DIR / "temp"
+    MIGRATION_BACKUPS_DIR = DATA_DIR / "migration_backups"
+
+    # ============================================================
+    # ============================================================
+    # 🔥 Datasets (测试数据集) - in data/datasets/
+    # ============================================================
+    DATASETS_DIR = DATA_DIR / "datasets"
+
+    # LoCoMo 数据集 (支持环境变量覆盖)
+    LOCOMO_DATASET = Path(os.getenv('LOCOMO_DATASET_PATH', '')) if os.getenv('LOCOMO_DATASET_PATH') else DATASETS_DIR / "locomo" / "locomo10.json"
+
+    # 其他数据集
+    LONGMEMEVAL_DATASET = DATASETS_DIR / "longmemeval"
+    PREFEVAL_DATASET = DATASETS_DIR / "prefeval"
+    PERSONAMEM_DATASET = DATASETS_DIR / "personamem"
 
     @classmethod
     def ensure_directories(cls):
@@ -106,10 +191,20 @@ class BMAMPaths:
         Ensure all required directories exist
         确保所有必需的目录存在
         """
-        cls.PROJECT_DATA_DIR.mkdir(parents=True, exist_ok=True)
-        cls.BMAM_DATA_DIR.mkdir(parents=True, exist_ok=True)
+        # 主要分类目录
+        cls.DATA_DIR.mkdir(parents=True, exist_ok=True)
+        cls.MEMORY_DIR.mkdir(parents=True, exist_ok=True)
+        cls.STATE_DIR.mkdir(parents=True, exist_ok=True)
+        cls.CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        cls.RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+        cls.DATASETS_DIR.mkdir(parents=True, exist_ok=True)
+
+        # 缓存子目录
         cls.EMBEDDING_CACHE_DIR.mkdir(parents=True, exist_ok=True)
         cls.KG_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        cls.FAISS_INDEX_DIR.mkdir(parents=True, exist_ok=True)
+
+        # 其他目录
         cls.ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
         cls.LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -117,7 +212,7 @@ class BMAMPaths:
     def get_all_state_files(cls):
         """
         Get list of all brain region state files (JSON states only)
-        获取所有脑区状态文件列表
+        获取所有脑区状态文件列表 (位于 data/state/)
 
         Returns:
             Dict mapping region name to file path
@@ -128,13 +223,15 @@ class BMAMPaths:
             'amygdala': cls.AMYGDALA_STATE,
             'basal_ganglia': cls.BASAL_GANGLIA_STATE,
             'memory_shaping': cls.MEMORY_SHAPING_STATE,
+            'story_arc': cls.STORY_ARC_STATE,
+            'tom': cls.TOM_STATE,
         }
 
     @classmethod
     def get_all_database_files(cls):
         """
         Get list of all SQLite database files
-        获取所有SQLite数据库文件列表
+        获取所有SQLite数据库文件列表 (位于 data/memory/)
 
         Returns:
             Dict mapping db name to file path
@@ -143,13 +240,14 @@ class BMAMPaths:
             'temporal_lobe': cls.TEMPORAL_LOBE_DB,
             'brain_memory': cls.BRAIN_MEMORY_DB,
             'working_memory': cls.WORKING_MEMORY_DB,
+            'kv_value_store': cls.KV_VALUE_STORE_DB,
         }
 
     @classmethod
     def get_all_vector_files(cls):
         """
         Get list of all vector/embedding files
-        获取所有向量/嵌入文件列表
+        获取所有向量/嵌入文件列表 (位于 data/memory/)
 
         Returns:
             Dict mapping file name to file path
@@ -157,14 +255,29 @@ class BMAMPaths:
         return {
             'vectors_index': cls.MEMORY_VECTORS_INDEX,
             'vectors_mapping': cls.MEMORY_VECTORS_MAPPING,
+        }
+
+    @classmethod
+    def get_all_cache_files(cls):
+        """
+        Get list of all cache files
+        获取所有缓存文件列表 (位于 data/cache/)
+
+        Returns:
+            Dict mapping file name to file path
+        """
+        return {
             'embedding_cache': cls.EMBEDDING_CACHE_FILE,
+            'kg_graph_pkl': cls.KG_GRAPH_PKL,
+            'kg_nodes': cls.KG_NODES_JSON,
+            'kg_edges': cls.KG_EDGES_JSON,
         }
 
     @classmethod
     def get_all_kg_cache_files(cls):
         """
         Get list of all knowledge graph cache files
-        获取所有知识图谱缓存文件列表
+        获取所有知识图谱缓存文件列表 (位于 data/cache/knowledge_graph/)
 
         Returns:
             Dict mapping file name to file path
@@ -198,29 +311,29 @@ class BMAMPaths:
         净室清理函数：删除所有运行时数据以获得干净环境
 
         This cleans:
-        1. All brain region JSON state files (BMAM/data/*.json)
-        2. All SQLite databases (BMAM/data/*.db)
-        3. All vector indices (BMAM/data/memory_vectors.*)
-        4. Embedding cache (BMAM/data/embedding_cache/)
-        5. Knowledge Graph cache (BMAM/data/knowledge_graph/)
+        1. All brain region JSON state files (data/state/*.json)
+        2. All SQLite databases (data/memory/*.db)
+        3. All vector indices (data/memory/memory_vectors.*)
+        4. All cache files (data/cache/)
 
         Returns:
             Dict with 'cleaned' list and 'errors' list
         """
+        import shutil
         result = {'cleaned': [], 'errors': [], 'skipped': []}
 
-        # 1. Clean JSON state files
+        # 1. Clean JSON state files (data/state/)
         for name, path in cls.get_all_state_files().items():
             try:
                 if path.exists():
                     path.unlink()
-                    result['cleaned'].append(f"[JSON] {path}")
+                    result['cleaned'].append(f"[STATE] {path}")
                 else:
-                    result['skipped'].append(f"[JSON] {path} (not found)")
+                    result['skipped'].append(f"[STATE] {path} (not found)")
             except Exception as e:
-                result['errors'].append(f"[JSON] {path}: {e}")
+                result['errors'].append(f"[STATE] {path}: {e}")
 
-        # 2. Clean SQLite databases
+        # 2. Clean SQLite databases (data/memory/)
         for name, path in cls.get_all_database_files().items():
             try:
                 if path.exists():
@@ -231,7 +344,7 @@ class BMAMPaths:
             except Exception as e:
                 result['errors'].append(f"[DB] {path}: {e}")
 
-        # 3. Clean vector/embedding files
+        # 3. Clean vector files (data/memory/)
         for name, path in cls.get_all_vector_files().items():
             try:
                 if path.exists():
@@ -242,27 +355,47 @@ class BMAMPaths:
             except Exception as e:
                 result['errors'].append(f"[VEC] {path}: {e}")
 
-        # 4. Clean knowledge graph cache
-        for name, path in cls.get_all_kg_cache_files().items():
+        # 4. Clean cache files (data/cache/)
+        for name, path in cls.get_all_cache_files().items():
             try:
                 if path.exists():
                     path.unlink()
-                    result['cleaned'].append(f"[KG] {path}")
+                    result['cleaned'].append(f"[CACHE] {path}")
                 else:
-                    result['skipped'].append(f"[KG] {path} (not found)")
+                    result['skipped'].append(f"[CACHE] {path} (not found)")
             except Exception as e:
-                result['errors'].append(f"[KG] {path}: {e}")
+                result['errors'].append(f"[CACHE] {path}: {e}")
 
-        # 5. Also clean any legacy .pkl files
-        legacy_pkl = cls.BMAM_DATA_DIR / "memory_vectors_mapping.pkl"
-        try:
-            if legacy_pkl.exists():
-                legacy_pkl.unlink()
-                result['cleaned'].append(f"[LEGACY] {legacy_pkl}")
-        except Exception as e:
-            result['errors'].append(f"[LEGACY] {legacy_pkl}: {e}")
+        # 5. Clean cache directories
+        for cache_dir in [cls.EMBEDDING_CACHE_DIR, cls.KG_CACHE_DIR, cls.FAISS_INDEX_DIR]:
+            try:
+                if cache_dir.exists():
+                    shutil.rmtree(cache_dir)
+                    cache_dir.mkdir(parents=True, exist_ok=True)
+                    result['cleaned'].append(f"[DIR] {cache_dir}")
+            except Exception as e:
+                result['errors'].append(f"[DIR] {cache_dir}: {e}")
 
-        # 6. 🔥 Clean SQLite WAL/SHM journal files (critical for clean room)
+        # 6. Clean legacy files in old data/ root (向后兼容)
+        legacy_files = [
+            cls.DATA_DIR / "memory_vectors_mapping.pkl",
+            cls.DATA_DIR / "hippocampus_state.json",
+            cls.DATA_DIR / "prefrontal_state.json",
+            cls.DATA_DIR / "amygdala_state.json",
+            cls.DATA_DIR / "basal_ganglia_state.json",
+            cls.DATA_DIR / "brain_memory.db",
+            cls.DATA_DIR / "temporal_lobe.db",
+            cls.DATA_DIR / "working_memory.db",
+        ]
+        for legacy_path in legacy_files:
+            try:
+                if legacy_path.exists():
+                    legacy_path.unlink()
+                    result['cleaned'].append(f"[LEGACY] {legacy_path}")
+            except Exception as e:
+                result['errors'].append(f"[LEGACY] {legacy_path}: {e}")
+
+        # 7. 🔥 Clean SQLite WAL/SHM journal files (critical for clean room)
         for db_name, db_path in cls.get_all_database_files().items():
             for suffix in ['-wal', '-shm', '-journal']:
                 journal_path = Path(str(db_path) + suffix)
@@ -273,8 +406,8 @@ class BMAMPaths:
                 except Exception as e:
                     result['errors'].append(f"[WAL/SHM] {journal_path}: {e}")
 
-        # 7. Clean any stale lock files or temp files in data directories
-        for data_dir in [cls.PROJECT_DATA_DIR, cls.BMAM_DATA_DIR]:
+        # 8. Clean any stale lock files or temp files in all data directories
+        for data_dir in [cls.DATA_DIR, cls.MEMORY_DIR, cls.STATE_DIR, cls.CACHE_DIR]:
             try:
                 for pattern in ['*.lock', '*.tmp', '*.bak']:
                     for f in data_dir.glob(pattern):
@@ -295,15 +428,18 @@ class BMAMPaths:
         print("  BMAM Data Files Status (Clean Room Check)")
         print("="*60)
 
-        print(f"\n📂 Project Data Dir: {cls.PROJECT_DATA_DIR}")
-        print(f"📂 BMAM Data Dir: {cls.BMAM_DATA_DIR}")
+        print(f"\n📂 Data Root:    {cls.DATA_DIR}")
+        print(f"   ├── memory/   {cls.MEMORY_DIR}")
+        print(f"   ├── state/    {cls.STATE_DIR}")
+        print(f"   ├── cache/    {cls.CACHE_DIR}")
+        print(f"   └── results/  {cls.RESULTS_DIR}")
 
-        print("\n--- JSON State Files ---")
+        print("\n--- State Files (data/state/) ---")
         for name, path in cls.get_all_state_files().items():
             status = "✅ EXISTS" if path.exists() else "❌ Not found"
             print(f"  {name}: {status}")
 
-        print("\n--- SQLite Databases ---")
+        print("\n--- Memory Files (data/memory/) ---")
         for name, path in cls.get_all_database_files().items():
             if path.exists():
                 size = path.stat().st_size / 1024
@@ -311,7 +447,7 @@ class BMAMPaths:
             else:
                 print(f"  {name}: ❌ Not found")
 
-        print("\n--- Vector/Embedding Files ---")
+        print("\n--- Vector Files (data/memory/) ---")
         for name, path in cls.get_all_vector_files().items():
             if path.exists():
                 size = path.stat().st_size / 1024
@@ -319,8 +455,8 @@ class BMAMPaths:
             else:
                 print(f"  {name}: ❌ Not found")
 
-        print("\n--- Knowledge Graph Cache ---")
-        for name, path in cls.get_all_kg_cache_files().items():
+        print("\n--- Cache Files (data/cache/) ---")
+        for name, path in cls.get_all_cache_files().items():
             if path.exists():
                 size = path.stat().st_size / 1024
                 print(f"  {name}: ✅ EXISTS ({size:.1f} KB)")

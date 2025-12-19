@@ -28,6 +28,7 @@ for logger_name in ['src', 'openai', 'httpx', 'httpcore', 'urllib3', 'faiss', 's
 os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 
 from src.coordination.brain_coordinator_refactored import BrainInspiredCoordinator
+from src.utils.paths import BMAMPaths
 
 # OpenAI client for LLM Judge
 try:
@@ -38,10 +39,13 @@ try:
 except ImportError:
     LLM_JUDGE_AVAILABLE = False
 
-LOCOMO_DATA_PATH = '/Users/liyang/Desktop/testversion/archived/MemOS/evaluation/data/locomo/locomo10.json'
-DATA_DIR = Path(__file__).parent.parent / 'data'
-BACKUP_DIR = Path(__file__).parent.parent / 'locomo_archives'
-CHECKPOINT_DIR = Path(__file__).parent.parent / 'locomo_checkpoints'
+# 🔥 统一使用 BMAMPaths 管理路径，消除硬编码
+LOCOMO_DATA_PATH = BMAMPaths.LOCOMO_DATASET
+DATA_DIR = BMAMPaths.DATA_DIR
+# 🔥 关键修复: 不再使用 data/memory/ 子目录，直接用 DATA_DIR
+MEMORY_DIR = BMAMPaths.DATA_DIR  # 与 test_sequential.py 保持一致
+BACKUP_DIR = BMAMPaths.BMAM_ROOT / 'locomo_archives'
+CHECKPOINT_DIR = BMAMPaths.BMAM_ROOT / 'locomo_checkpoints'
 
 
 def load_locomo_data():
@@ -60,33 +64,17 @@ def parse_locomo_date(date_str: str) -> datetime:
 
 
 def clear_all_memory_files():
-    """清空所有记忆相关文件"""
-    files_to_delete = [
-        'brain_memory.db',
-        'hippocampus_state.json',
-        'temporal_lobe.db',
-        'amygdala_state.json',
-        'prefrontal_state.json',
-        'basal_ganglia_state.json',
-        'working_memory.db',
-    ]
-    dirs_to_delete = ['faiss_index']
-
-    for f in files_to_delete:
-        fp = DATA_DIR / f
-        if fp.exists():
-            fp.unlink()
-
-    for d in dirs_to_delete:
-        dp = DATA_DIR / d
-        if dp.exists():
-            shutil.rmtree(dp)
-
+    """清空所有记忆相关文件 - 🔥 使用 BMAMPaths 统一管理"""
+    result = BMAMPaths.clean_all_runtime_data()
+    # 额外清理 faiss_index 目录（如果存在）
+    faiss_dir = BMAMPaths.DATA_DIR / 'faiss_index'
+    if faiss_dir.exists():
+        shutil.rmtree(faiss_dir)
     print("  [清空] 所有记忆文件已删除")
 
 
 def backup_memory_files(sample_id: str, timestamp: str):
-    """备份当前记忆文件"""
+    """备份当前记忆文件 - 🔥 从 MEMORY_DIR 备份"""
     backup_path = BACKUP_DIR / f"{sample_id}_{timestamp}"
     backup_path.mkdir(parents=True, exist_ok=True)
 
@@ -98,19 +86,36 @@ def backup_memory_files(sample_id: str, timestamp: str):
         'prefrontal_state.json',
         'basal_ganglia_state.json',
         'working_memory.db',
+        # 🔥 添加关键文件
+        'kv_value_store.db',
+        'memory_vectors.index',
+        'memory_vectors_mappings.json',
+        'story_arc_state.json',
     ]
 
     backed_up = 0
     for f in files_to_backup:
-        src = DATA_DIR / f
+        src = MEMORY_DIR / f
         if src.exists():
             shutil.copy2(src, backup_path / f)
             backed_up += 1
 
     # 备份faiss_index目录
-    faiss_src = DATA_DIR / 'faiss_index'
+    faiss_src = MEMORY_DIR / 'faiss_index'
     if faiss_src.exists():
         shutil.copytree(faiss_src, backup_path / 'faiss_index')
+        backed_up += 1
+
+    # 备份 embedding_cache 目录
+    embedding_cache_src = MEMORY_DIR / 'embedding_cache'
+    if embedding_cache_src.exists():
+        shutil.copytree(embedding_cache_src, backup_path / 'embedding_cache')
+        backed_up += 1
+
+    # 备份 checkpoints 目录
+    checkpoints_src = MEMORY_DIR / 'checkpoints'
+    if checkpoints_src.exists():
+        shutil.copytree(checkpoints_src, backup_path / 'checkpoints')
         backed_up += 1
 
     print(f"  [备份] {backed_up} 个文件 -> {backup_path.name}")
@@ -130,7 +135,7 @@ def find_backup_for_sample(sample_id: str) -> Path:
 
 
 def restore_memory_from_backup(backup_path: Path) -> bool:
-    """从备份恢复记忆文件"""
+    """从备份恢复记忆文件 - 🔥 恢复到 MEMORY_DIR"""
     if not backup_path or not backup_path.exists():
         return False
 
@@ -145,29 +150,52 @@ def restore_memory_from_backup(backup_path: Path) -> bool:
         'prefrontal_state.json',
         'basal_ganglia_state.json',
         'working_memory.db',
+        # 🔥 添加关键文件
+        'kv_value_store.db',
+        'memory_vectors.index',
+        'memory_vectors_mappings.json',
+        'story_arc_state.json',
     ]
 
     restored = 0
     for f in files_to_restore:
         src = backup_path / f
         if src.exists():
-            shutil.copy2(src, DATA_DIR / f)
+            shutil.copy2(src, MEMORY_DIR / f)
             restored += 1
 
     # 恢复faiss_index目录
     faiss_src = backup_path / 'faiss_index'
     if faiss_src.exists():
-        shutil.copytree(faiss_src, DATA_DIR / 'faiss_index')
+        shutil.copytree(faiss_src, MEMORY_DIR / 'faiss_index')
         restored += 1
 
-    print(f"  [恢复] {restored} 个文件 <- {backup_path.name}")
+    # 恢复 embedding_cache 目录
+    embedding_cache_src = backup_path / 'embedding_cache'
+    if embedding_cache_src.exists():
+        dst = MEMORY_DIR / 'embedding_cache'
+        if dst.exists():
+            shutil.rmtree(dst)
+        shutil.copytree(embedding_cache_src, dst)
+        restored += 1
+
+    # 恢复 checkpoints 目录
+    checkpoints_src = backup_path / 'checkpoints'
+    if checkpoints_src.exists():
+        dst = MEMORY_DIR / 'checkpoints'
+        if dst.exists():
+            shutil.rmtree(dst)
+        shutil.copytree(checkpoints_src, dst)
+        restored += 1
+
+    print(f"  [恢复] {restored} 个文件/目录 <- {backup_path.name}")
     return restored > 0
 
 
 # ============ 断点续传功能 ============
 
 def save_checkpoint(sample_id: str, session_idx: int):
-    """保存塑造断点 - 每完成一个session后调用"""
+    """保存塑造断点 - 🔥 从 MEMORY_DIR 保存"""
     checkpoint_path = CHECKPOINT_DIR / sample_id
     checkpoint_path.mkdir(parents=True, exist_ok=True)
 
@@ -183,13 +211,13 @@ def save_checkpoint(sample_id: str, session_idx: int):
 
     saved = 0
     for f in files_to_save:
-        src = DATA_DIR / f
+        src = MEMORY_DIR / f
         if src.exists():
             shutil.copy2(src, checkpoint_path / f)
             saved += 1
 
     # 保存faiss_index
-    faiss_src = DATA_DIR / 'faiss_index'
+    faiss_src = MEMORY_DIR / 'faiss_index'
     if faiss_src.exists():
         faiss_dst = checkpoint_path / 'faiss_index'
         if faiss_dst.exists():
@@ -272,13 +300,13 @@ def restore_from_checkpoint(sample_id: str) -> bool:
     for f in files_to_restore:
         src = checkpoint_path / f
         if src.exists():
-            shutil.copy2(src, DATA_DIR / f)
+            shutil.copy2(src, MEMORY_DIR / f)
             restored += 1
 
     # 恢复faiss_index
     faiss_src = checkpoint_path / 'faiss_index'
     if faiss_src.exists():
-        faiss_dst = DATA_DIR / 'faiss_index'
+        faiss_dst = MEMORY_DIR / 'faiss_index'
         if faiss_dst.exists():
             shutil.rmtree(faiss_dst)
         shutil.copytree(faiss_src, faiss_dst)

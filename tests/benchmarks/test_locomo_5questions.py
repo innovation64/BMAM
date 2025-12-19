@@ -6,11 +6,14 @@ import asyncio
 import sys
 import os
 from datetime import datetime
+from pathlib import Path
 
-sys.path.insert(0, '/Users/liyang/Desktop/testversion/BMAM')
+# Use relative path instead of hardcoded absolute path
+_BMAM_ROOT = Path(__file__).parent.parent.parent.resolve()
+sys.path.insert(0, str(_BMAM_ROOT))
 os.environ['USE_BRAIN_NETWORK'] = 'true'
 
-from src.coordination.brain_coordinator import BrainInspiredCoordinator
+from src.coordination.brain_coordinator_refactored import BrainInspiredCoordinator
 
 
 # LoCoMo数据集样本 (完整5个问题)

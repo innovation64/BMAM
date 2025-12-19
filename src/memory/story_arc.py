@@ -110,12 +110,11 @@ class StoryArcManager:
 
     def __init__(self, data_dir: Optional[Path] = None):
         """初始化故事线管理器"""
-        if data_dir is None:
-            # 使用项目根目录的 data 文件夹（不依赖当前工作目录）
-            project_root = Path(__file__).parent.parent.parent
-            data_dir = project_root / 'data'
-        self.data_dir = data_dir
-        self.state_file = self.data_dir / 'story_arc_state.json'
+        # 🔥 使用 BMAMPaths 统一路径管理，不再硬编码
+        from ..utils.paths import BMAMPaths
+
+        self.data_dir = data_dir if data_dir else BMAMPaths.STATE_DIR
+        self.state_file = BMAMPaths.STORY_ARC_STATE
 
         # 核心索引结构
         self.timeline: Dict[date, List[TimelineEvent]] = defaultdict(list)

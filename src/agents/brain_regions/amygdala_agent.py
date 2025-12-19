@@ -331,9 +331,6 @@ class AmygdalaAgent(BrainAgent):
 
         try:
             # 计算情绪增强系数 (使用EmotionModulator)
-            # importance_boost = emotion_intensity * 0.3  # OLD
-            
-            # 假设基础重要性为0.5 (或者从外部获取)
             base_importance = 0.5
             modulated_importance = self.modulator.modulate_importance(base_importance, emotion_intensity)
             importance_boost = modulated_importance - base_importance

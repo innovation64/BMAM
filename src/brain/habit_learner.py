@@ -23,8 +23,10 @@ class HabitLearner:
     基于简单的强化学习维护策略分数
     """
     
-    def __init__(self, persistence_path: Optional[str] = "data/habits.json"):
-        self.persistence_path = Path(persistence_path) if persistence_path else None
+    def __init__(self, persistence_path: Optional[str] = None):
+        # 🔥 使用 BMAMPaths 统一路径管理
+        from ..utils.paths import BMAMPaths
+        self.persistence_path = Path(persistence_path) if persistence_path else BMAMPaths.HABITS_STATE
         
         # 策略分数: {context_key: {strategy_id: score}}
         self.policy_scores: Dict[str, Dict[str, float]] = defaultdict(lambda: defaultdict(float))

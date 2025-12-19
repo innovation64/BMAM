@@ -64,6 +64,42 @@ class MentalState:
     timestamp: datetime = field(default_factory=datetime.now)
 
 
+# 🔥 2025-12-19: P1 心智理论深化 - Mental Model Table
+@dataclass
+class MentalModelEntry:
+    """心智模型条目 - 记录他人的信念/目标/恐惧"""
+    who: str                  # 谁 (实体名称)
+    entry_type: str           # 类型: 'want', 'fear', 'believe', 'prefer', 'dislike'
+    content: str              # 内容
+    source_memory_id: str     # 来源记忆ID
+    confidence: float         # 置信度
+    created_at: str           # 创建时间
+    last_confirmed: str       # 最后确认时间
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            'who': self.who,
+            'entry_type': self.entry_type,
+            'content': self.content,
+            'source_memory_id': self.source_memory_id,
+            'confidence': self.confidence,
+            'created_at': self.created_at,
+            'last_confirmed': self.last_confirmed
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'MentalModelEntry':
+        return cls(
+            who=data['who'],
+            entry_type=data['entry_type'],
+            content=data['content'],
+            source_memory_id=data.get('source_memory_id', ''),
+            confidence=data.get('confidence', 0.5),
+            created_at=data.get('created_at', datetime.now().isoformat()),
+            last_confirmed=data.get('last_confirmed', datetime.now().isoformat())
+        )
+
+
 class TheoryOfMindAgent(BrainAgent):
     """
     心智理论智能体 - 意图推断 + 欺骗检测 + 心理状态建模
@@ -123,6 +159,9 @@ class TheoryOfMindAgent(BrainAgent):
 
         # 已知实体关系 (从记忆中构建)
         self.known_relationships: Dict[str, Dict[str, List[str]]] = {}
+
+        # 🔥 2025-12-19: P1 心智理论深化 - Mental Model Table
+        self.mental_model_table: Dict[str, List[MentalModelEntry]] = {}  # who -> entries
 
         # 统计
         self.total_analyses = 0
@@ -504,6 +543,273 @@ Output JSON:
                 if 'activity' in memory.get('tags', []):
                     self.known_relationships[entity]['activities'].append(content[:100])
 
+    # ============================================================================
+    # 🔥 2025-12-19: P1 心智理论深化 - Mental Model & Perspective Taking
+    # ============================================================================
+
+    def record_mental_model_entry(
+        self,
+        who: str,
+        entry_type: str,
+        content: str,
+        source_memory_id: str = "",
+        confidence: float = 0.5
+    ):
+        """
+        记录他人的信念/目标/恐惧到心智模型表
+
+        Args:
+            who: 实体名称 (e.g., "用户", "Alice", "Bob")
+            entry_type: 类型 ('want', 'fear', 'believe', 'prefer', 'dislike')
+            content: 内容 (e.g., "换一份更有挑战的工作")
+            source_memory_id: 来源记忆ID
+            confidence: 置信度
+
+        Example:
+            tom.record_mental_model_entry("用户", "want", "换一份更有挑战的工作", "mem_123")
+            tom.record_mental_model_entry("Alice", "fear", "失去现在的朋友", "mem_456")
+        """
+        now = datetime.now().isoformat()
+
+        entry = MentalModelEntry(
+            who=who,
+            entry_type=entry_type,
+            content=content,
+            source_memory_id=source_memory_id,
+            confidence=confidence,
+            created_at=now,
+            last_confirmed=now
+        )
+
+        if who not in self.mental_model_table:
+            self.mental_model_table[who] = []
+
+        # 检查是否已存在相似条目
+        for existing in self.mental_model_table[who]:
+            if existing.entry_type == entry_type and existing.content.lower() == content.lower():
+                # 更新置信度和确认时间
+                existing.confidence = min(1.0, existing.confidence + 0.1)
+                existing.last_confirmed = now
+                logger.debug(f"🧠 Updated mental model: {who} {entry_type} '{content[:30]}...' (conf={existing.confidence:.2f})")
+                self._save_state()
+                return
+
+        # 新增条目
+        self.mental_model_table[who].append(entry)
+        logger.info(f"🧠 Recorded mental model: {who} {entry_type} '{content[:30]}...'")
+        self._save_state()
+
+    async def extract_mental_model_from_text(
+        self,
+        text: str,
+        entities: List[str] = None,
+        memory_id: str = ""
+    ) -> List[MentalModelEntry]:
+        """
+        从文本中提取心智模型条目
+
+        Args:
+            text: 文本内容
+            entities: 相关实体列表
+            memory_id: 来源记忆ID
+
+        Returns:
+            提取的心智模型条目列表
+        """
+        # 简单的关键词匹配
+        patterns = {
+            'want': ['想要', '希望', '想', 'want', 'hope', 'wish', '期待', '渴望'],
+            'fear': ['害怕', '担心', '恐惧', 'fear', 'afraid', 'worry', '不安'],
+            'believe': ['相信', '认为', '觉得', 'believe', 'think', '以为'],
+            'prefer': ['喜欢', '偏好', 'prefer', 'like', 'love', '爱'],
+            'dislike': ['不喜欢', '讨厌', 'dislike', 'hate', '厌恶']
+        }
+
+        extracted = []
+        text_lower = text.lower()
+
+        # 如果没有提供实体，尝试提取
+        if not entities:
+            entities = ['用户']  # 默认假设是用户
+
+        for entity in entities:
+            for entry_type, keywords in patterns.items():
+                for kw in keywords:
+                    if kw in text_lower:
+                        # 提取关键词后面的内容作为 content
+                        idx = text_lower.find(kw)
+                        content_start = idx + len(kw)
+                        # 取后面50个字符作为内容
+                        content = text[content_start:content_start + 50].strip()
+                        if content and len(content) > 3:
+                            entry = MentalModelEntry(
+                                who=entity,
+                                entry_type=entry_type,
+                                content=content,
+                                source_memory_id=memory_id,
+                                confidence=0.5,
+                                created_at=datetime.now().isoformat(),
+                                last_confirmed=datetime.now().isoformat()
+                            )
+                            extracted.append(entry)
+                            self.record_mental_model_entry(
+                                entity, entry_type, content, memory_id, 0.5
+                            )
+                            break  # 每种类型只取一个
+
+        return extracted
+
+    def get_mental_model(self, who: str) -> List[MentalModelEntry]:
+        """获取某人的心智模型"""
+        return self.mental_model_table.get(who, [])
+
+    def get_mental_model_summary(self, who: str) -> Dict[str, List[str]]:
+        """
+        获取某人心智模型的摘要
+
+        Returns:
+            {
+                'wants': ['...', '...'],
+                'fears': ['...'],
+                'beliefs': ['...'],
+                'preferences': ['...']
+            }
+        """
+        entries = self.get_mental_model(who)
+        summary = {
+            'wants': [],
+            'fears': [],
+            'beliefs': [],
+            'preferences': [],
+            'dislikes': []
+        }
+
+        for entry in entries:
+            if entry.entry_type == 'want':
+                summary['wants'].append(entry.content)
+            elif entry.entry_type == 'fear':
+                summary['fears'].append(entry.content)
+            elif entry.entry_type == 'believe':
+                summary['beliefs'].append(entry.content)
+            elif entry.entry_type == 'prefer':
+                summary['preferences'].append(entry.content)
+            elif entry.entry_type == 'dislike':
+                summary['dislikes'].append(entry.content)
+
+        return summary
+
+    async def generate_perspective_suggestion(
+        self,
+        who: str,
+        topic: str,
+        context: str = ""
+    ) -> Dict[str, Any]:
+        """
+        生成"从对方角度..."的建议
+
+        Args:
+            who: 要模拟的人
+            topic: 讨论的话题
+            context: 上下文
+
+        Returns:
+            {
+                'perspective': "从X的角度来看...",
+                'might_feel': "X可能会觉得...",
+                'suggestion': "建议...",
+                'confidence': 0.5
+            }
+        """
+        mental_model = self.get_mental_model_summary(who)
+
+        # 构建已知信息
+        known_info = []
+        if mental_model['wants']:
+            known_info.append(f"{who}想要: {', '.join(mental_model['wants'][:3])}")
+        if mental_model['fears']:
+            known_info.append(f"{who}担心: {', '.join(mental_model['fears'][:3])}")
+        if mental_model['beliefs']:
+            known_info.append(f"{who}相信: {', '.join(mental_model['beliefs'][:3])}")
+        if mental_model['preferences']:
+            known_info.append(f"{who}偏好: {', '.join(mental_model['preferences'][:3])}")
+
+        known_str = '\n'.join(known_info) if known_info else f"没有关于{who}的已知信息"
+
+        prompt = f"""基于以下关于 {who} 的心智模型，分析 {who} 对话题 "{topic}" 可能的看法。
+
+已知的{who}的心智模型:
+{known_str}
+
+上下文: {context if context else '无额外上下文'}
+
+请输出JSON:
+{{
+    "perspective": "从{who}的角度来看...(简短分析)",
+    "might_feel": "{who}可能会觉得...(情感反应)",
+    "suggestion": "建议...(如何与{who}沟通这个话题)",
+    "confidence": 0.0-1.0 (基于已知信息的置信度)
+}}"""
+
+        try:
+            response = await self.call_llm(prompt, temperature=0.3, max_tokens=300)
+
+            if '```json' in response:
+                response = response.split('```json')[1].split('```')[0].strip()
+            elif '```' in response:
+                response = response.split('```')[1].split('```')[0].strip()
+
+            result = json.loads(response)
+
+            # 如果没有已知信息，降低置信度
+            if not known_info:
+                result['confidence'] = min(result.get('confidence', 0.5), 0.3)
+                result['perspective'] = f"[推测] {result.get('perspective', '')}"
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Perspective generation failed: {e}")
+            return {
+                'perspective': f"无法生成{who}的视角分析",
+                'might_feel': "未知",
+                'suggestion': "建议直接沟通以了解对方想法",
+                'confidence': 0.2
+            }
+
+    def format_perspective_block(
+        self,
+        who: str,
+        perspective_result: Dict[str, Any]
+    ) -> str:
+        """
+        格式化"对方可能会觉得..."响应块
+
+        Args:
+            who: 被模拟的人
+            perspective_result: generate_perspective_suggestion的结果
+
+        Returns:
+            格式化的文本块
+        """
+        parts = []
+
+        perspective = perspective_result.get('perspective', '')
+        might_feel = perspective_result.get('might_feel', '')
+        confidence = perspective_result.get('confidence', 0.5)
+
+        if confidence < 0.4:
+            parts.append(f"**{who}的可能视角** (仅供参考，信息有限):")
+        else:
+            parts.append(f"**{who}的可能视角**:")
+
+        if perspective:
+            parts.append(f"  {perspective}")
+
+        if might_feel:
+            parts.append(f"  💭 {might_feel}")
+
+        return '\n'.join(parts)
+
     def _load_state(self):
         """加载状态"""
         try:
@@ -514,18 +820,34 @@ Output JSON:
                 self.deceptions_detected = state.get('deceptions_detected', 0)
                 self.adversarial_detected = state.get('adversarial_detected', 0)
                 self.known_relationships = state.get('known_relationships', {})
-                logger.debug(f"Loaded ToM state: {self.total_analyses} analyses, {self.deceptions_detected} deceptions")
+
+                # 🔥 2025-12-19: 加载心智模型表
+                mental_model_data = state.get('mental_model_table', {})
+                self.mental_model_table = {}
+                for who, entries_data in mental_model_data.items():
+                    self.mental_model_table[who] = [
+                        MentalModelEntry.from_dict(e) for e in entries_data
+                    ]
+
+                logger.debug(f"Loaded ToM state: {self.total_analyses} analyses, "
+                           f"{len(self.mental_model_table)} entities in mental model")
         except Exception as e:
             logger.warning(f"Failed to load ToM state: {e}")
 
     def _save_state(self):
         """保存状态"""
         try:
+            # 🔥 2025-12-19: 序列化心智模型表
+            mental_model_data = {}
+            for who, entries in self.mental_model_table.items():
+                mental_model_data[who] = [e.to_dict() for e in entries]
+
             state = {
                 'total_analyses': self.total_analyses,
                 'deceptions_detected': self.deceptions_detected,
                 'adversarial_detected': self.adversarial_detected,
-                'known_relationships': self.known_relationships
+                'known_relationships': self.known_relationships,
+                'mental_model_table': mental_model_data  # 🔥 2025-12-19
             }
             self.state_file.parent.mkdir(parents=True, exist_ok=True)
             with open(self.state_file, 'w', encoding='utf-8') as f:
@@ -534,13 +856,16 @@ Output JSON:
             logger.warning(f"Failed to save ToM state: {e}")
 
     def get_stats(self) -> Dict[str, Any]:
-        """获取统计信息"""
+        """Get statistics"""
+        total_mental_entries = sum(len(entries) for entries in self.mental_model_table.values())
         return {
             'total_analyses': self.total_analyses,
             'deceptions_detected': self.deceptions_detected,
             'adversarial_detected': self.adversarial_detected,
             'cache_size': len(self.intent_cache),
-            'known_entities': len(self.known_relationships)
+            'known_entities': len(self.known_relationships),
+            'mental_model_entities': len(self.mental_model_table),
+            'mental_model_entries': total_mental_entries
         }
 
 

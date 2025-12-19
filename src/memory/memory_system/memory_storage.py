@@ -192,3 +192,42 @@ class MemoryStorageMixin:
         self.db_manager.save_memory(existing)
         logger.debug(f"Updated memory {memory_id}")
         return True
+
+    async def delete_memory(self, memory_id: str) -> bool:
+        """
+        Delete Memory from System
+        从系统中删除记忆
+
+        Removes the memory from both vector database (FAISS) and
+        persistent storage (SQLite).
+
+        Args:
+            memory_id: Memory ID to delete
+
+        Returns:
+            True if deleted successfully, False if not found
+        """
+        # Check if memory exists
+        existing = self.db_manager.load_memory(memory_id)
+        if not existing:
+            logger.warning(f"Memory {memory_id} not found for deletion")
+            return False
+
+        try:
+            # Remove from vector database (FAISS)
+            idx = self.vector_db.get_index_for_id(memory_id)
+            if idx is not None:
+                self.vector_db.remove_vector(idx)
+                logger.debug(f"Removed vector for memory {memory_id}")
+
+            # Remove from persistent storage (SQLite)
+            # Mark as inactive instead of hard delete for safety
+            existing.is_active = False
+            self.db_manager.save_memory(existing)
+
+            logger.info(f"Deleted memory {memory_id}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to delete memory {memory_id}: {e}")
+            return False

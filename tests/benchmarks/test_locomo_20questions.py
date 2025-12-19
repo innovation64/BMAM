@@ -7,7 +7,7 @@ import asyncio
 import json
 import time
 from datetime import datetime
-from src.coordination.brain_coordinator import BrainInspiredCoordinator
+from src.coordination.brain_coordinator_refactored import BrainInspiredCoordinator
 
 
 # LoCoMo Caroline数据 (完整的Session 1-4)

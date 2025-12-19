@@ -390,8 +390,9 @@ class HandlersMixin:
 
             transfer = MemoryTransferSystem(coordinator)
 
-            # 导出到临时目录
-            output_dir = Path('data/exports')
+            # 🔥 使用 BMAMPaths 统一路径管理
+            from src.utils.paths import BMAMPaths
+            output_dir = BMAMPaths.EXPORTS_DIR
             output_dir.mkdir(parents=True, exist_ok=True)
 
             name = f"soul_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
@@ -449,8 +450,9 @@ class HandlersMixin:
                     'error': 'No file uploaded. Use multipart/form-data with field name "file"'
                 })
 
-            # 保存上传的tar.gz文件
-            import_dir = Path('data/imports')
+            # 🔥 使用 BMAMPaths 统一路径管理
+            from src.utils.paths import BMAMPaths
+            import_dir = BMAMPaths.IMPORTS_DIR
             import_dir.mkdir(parents=True, exist_ok=True)
 
             filename = field.filename or f"import_{datetime.now().strftime('%Y%m%d_%H%M%S')}.bma.tar.gz"

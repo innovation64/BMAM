@@ -4,7 +4,11 @@ Re-evaluate the 20-question test results using LLM-as-Judge
 
 import asyncio
 import sys
-sys.path.insert(0, '/Users/liyang/Desktop/testversion/BMAM')
+from pathlib import Path
+
+# Use relative path instead of hardcoded absolute path
+_BMAM_ROOT = Path(__file__).parent.parent.parent.resolve()
+sys.path.insert(0, str(_BMAM_ROOT))
 
 from evaluation.llm_judge_locomo import evaluate_with_llm_judge
 

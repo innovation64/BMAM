@@ -249,6 +249,14 @@ class StorageMixin:
         # 更新 metadata 记录事件时间
         # 🔥 2025-12-14 FIX v2: 分层处理不同提取方法 (与 store_memory_with_event_segmentation 保持一致)
         final_metadata = metadata.copy() if metadata else {}
+
+        # 🔥 2025-12-19 FIX: 初始化巩固所需的 metadata 字段
+        # 这些字段在巩固时被检查，缺失会导致记忆被跳过
+        final_metadata.setdefault('hit_count', 0)
+        final_metadata.setdefault('confidence', importance)  # 初始置信度=重要度
+        final_metadata.setdefault('keyword_coverage', 0.0)
+        final_metadata.setdefault('shaping_method', 'initial_store')
+
         HIGH_CONFIDENCE_METHODS = ('relative', 'absolute', 'explicit', 'metadata')
         LOW_CONFIDENCE_METHODS = ('context',)
 
@@ -706,6 +714,12 @@ class StorageMixin:
         #    "yesterday" + conversation_date(08 May) = event_date(07 May)
         storage_time = datetime.now()
         final_metadata = metadata.copy() if metadata else {}
+
+        # 🔥 2025-12-19 FIX: 初始化巩固所需的 metadata 字段
+        final_metadata.setdefault('hit_count', 0)
+        final_metadata.setdefault('confidence', importance)
+        final_metadata.setdefault('keyword_coverage', 0.0)
+        final_metadata.setdefault('shaping_method', 'event_segmentation')
 
         # 🔥 2025-12-16 FIX: 优先使用继承的事件时间 (用于 [Event] 摘要)
         # 当从原始对话创建 [Event] 摘要时，应该继承原始对话的精确 event_time

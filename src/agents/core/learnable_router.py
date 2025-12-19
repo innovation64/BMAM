@@ -60,7 +60,7 @@ class LearnableAgentRouter(BrainAgent):
     def __init__(
         self,
         agent_names: List[str],
-        embedding_model: str = "text-embedding-3-small",  # 🔥 2025-12-16: 统一使用 OpenAI
+        embedding_model: str = None,  # Uses DEFAULT_EMBEDDING_MODEL from constants
         learning_rate: float = 0.05,
         checkpoint_dir: str = "./checkpoints"
     ):

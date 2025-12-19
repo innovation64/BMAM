@@ -22,9 +22,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.coordination.brain_coordinator_refactored import BrainInspiredCoordinator
+from src.utils.paths import BMAMPaths
 
 
-LOCOMO_DATA_PATH = '/Users/liyang/Desktop/testversion/archived/MemOS/evaluation/data/locomo/locomo10.json'
+# Use centralized path management instead of hardcoded path
+LOCOMO_DATA_PATH = BMAMPaths.LOCOMO_DATASET
 
 
 def load_locomo_data():

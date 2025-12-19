@@ -101,8 +101,12 @@ class LightweightKnowledgeGraph:
     5. 持久化存储
     """
 
-    def __init__(self, save_dir: str = "data/knowledge_graph"):
+    def __init__(self, save_dir: str = None):
         """初始化知识图谱"""
+        # 🔥 使用 BMAMPaths 统一路径管理
+        from ..utils.paths import BMAMPaths
+        if save_dir is None:
+            save_dir = BMAMPaths.KG_CACHE_DIR
         self.save_dir = Path(save_dir)
         self.save_dir.mkdir(parents=True, exist_ok=True)
 

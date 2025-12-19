@@ -70,7 +70,7 @@ class MemoryVersionManager:
     def __init__(
         self,
         coordinator=None,
-        data_dir: Path = Path("data/"),
+        data_dir: Path = None,
         auto_save_enabled: bool = True
     ):
         """
@@ -78,9 +78,13 @@ class MemoryVersionManager:
 
         Args:
             coordinator: BrainInspiredCoordinator instance
-            data_dir: Data directory
+            data_dir: Data directory (default: BMAMPaths.DATA_DIR)
             auto_save_enabled: Enable auto-save after each processing
         """
+        # 🔥 使用 BMAMPaths 统一路径管理
+        from ..utils.paths import BMAMPaths
+        if data_dir is None:
+            data_dir = BMAMPaths.DATA_DIR
         self.coordinator = coordinator
         self.data_dir = Path(data_dir)
         self.auto_save_enabled = auto_save_enabled

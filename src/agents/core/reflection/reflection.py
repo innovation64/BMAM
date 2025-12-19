@@ -19,6 +19,7 @@ from .insight_generation import InsightGenerationMixin
 from .meta_learning import MetaLearningMixin
 from .performance_evaluation import PerformanceEvaluationMixin
 from .bias_detection import BiasDetectionMixin
+from .scenario_simulation import ScenarioSimulationMixin, ScenarioResult  # 🔥 2025-12-19: P1 场景模拟
 
 # 导入数据模型
 from .data_models import (
@@ -37,7 +38,8 @@ class ReflectionAgent(
     InsightGenerationMixin,
     MetaLearningMixin,
     PerformanceEvaluationMixin,
-    BiasDetectionMixin
+    BiasDetectionMixin,
+    ScenarioSimulationMixin  # 🔥 2025-12-19: P1 场景模拟
 ):
     """
     Reflection Agent (Default Mode Network)
@@ -133,6 +135,28 @@ class ReflectionAgent(
                 message.content.get('memories', []),
                 message.content.get('question_type', 'general')
             )
+        # 🔥 2025-12-19: P1 场景模拟
+        elif action == 'simulate_scenario':
+            result = await self.simulate_scenario(
+                condition=message.content.get('condition', ''),
+                memories=message.content.get('memories'),
+                context=message.content.get('context')
+            )
+            return {
+                'scenario_simulation_complete': True,
+                'result': result.to_dict(),
+                'formatted_response': self.format_scenario_for_response(result)
+            }
+        elif action == 'batch_simulate':
+            results = await self.batch_simulate_scenarios(
+                conditions=message.content.get('conditions', []),
+                shared_memories=message.content.get('memories')
+            )
+            return {
+                'batch_simulation_complete': True,
+                'results': [r.to_dict() for r in results],
+                'count': len(results)
+            }
 
         return {'error': f'Unknown reflection action: {action}'}
 

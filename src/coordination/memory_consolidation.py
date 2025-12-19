@@ -32,12 +32,14 @@ class MemoryConsolidationEngine:
         memory_system,
         hippocampus_agent,
         temporal_lobe_agent,
-        learning_log_path: str = "data/learning_cases.jsonl"
+        learning_log_path: str = None
     ):
+        # 🔥 使用 BMAMPaths 统一路径管理
+        from ..utils.paths import BMAMPaths
         self.memory_system = memory_system
         self.hippocampus = hippocampus_agent
         self.temporal_lobe = temporal_lobe_agent
-        self.learning_log_path = learning_log_path
+        self.learning_log_path = learning_log_path if learning_log_path else str(BMAMPaths.LEARNING_CASES_LOG)
 
         # 巩固阈值
         self.consolidation_threshold = 3  # hit_count ≥ 3 触发巩固

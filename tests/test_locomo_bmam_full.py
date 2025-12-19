@@ -33,6 +33,7 @@ for logger_name in ['src', 'openai', 'httpx', 'httpcore', 'urllib3', 'faiss', 's
 os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 
 from src.coordination.brain_coordinator_refactored import BrainInspiredCoordinator
+from src.utils.paths import BMAMPaths
 
 # OpenAI client for LLM Judge
 try:
@@ -43,7 +44,8 @@ try:
 except ImportError:
     LLM_JUDGE_AVAILABLE = False
 
-LOCOMO_DATA_PATH = '/Users/liyang/Desktop/testversion/archived/MemOS/evaluation/data/locomo/locomo10.json'
+# Use centralized path management
+LOCOMO_DATA_PATH = BMAMPaths.LOCOMO_DATASET
 
 
 def load_locomo_data():

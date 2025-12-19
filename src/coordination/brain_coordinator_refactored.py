@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from ..utils.config import get_logger, get_settings
+from ..utils.paths import BMAMPaths
 from ..utils.memory_signal_config import load_memory_signal_config, DEFAULT_MEMORY_SIGNAL_CONFIG
 from ..utils.knowledge_graph_builder import KnowledgeGraphBuilder
 from ..utils.pattern_config import pattern_config
@@ -36,8 +37,6 @@ from ..agents.core.reasoning_validator import ReasoningValidatorAgent
 from ..memory.memory_system import memory_system
 from ..memory.key_value_stores import KeyValueMemoryStore
 from ..memory.storage_coordinator import get_storage_coordinator
-# Removed: agent_buffer_system (early design flaw - removed 2025-11-12)
-# Removed: NeuralPlasticityEngine (Hebbian learning - no longer used)
 
 from ..agents.brain_regions import (
     HippocampusAgent,
@@ -69,6 +68,8 @@ from ..agents.brain_regions.thalamus_agent import ThalamusAgent, Timescale  # �
 from ..agents.brain_regions.anterior_cingulate_agent import AnteriorCingulateAgent  # 🔥 2025-12-15: ACT集成
 from .result_arbiter import ResultArbiter, LearningCaseLogger  # 🔥 2025-12-15: 结果审查集成
 from .proactive_inquiry import ProactiveInquiryManager  # 🔥 2025-12-16: 主动询问机制
+from .memory_archive_manager import MemoryArchiveManager  # 🔥 2025-12-19: 归档操作提取
+from .soul_state import get_soul_state, Insight, ValueGap  # 🔥 2025-12-19: 自省与洞察库 + 价值观
 from .confidence_calibrator import get_confidence_calibrator  # 🔥 2025-12-16: 置信度校准
 from ..agents.core.learnable_router import LearnableAgentRouter  # 🔥 2025-12-15: 可学习路由集成
 from ..agents.brain_regions.amygdala_hrm_extension import AmygdalaHRMExtension  # 🔥 2025-12-15: HRM扩展
@@ -159,6 +160,17 @@ class BrainInspiredCoordinator:
         self.date_parser = FlexibleDateParser()
         self.kg_merge_config = get_kg_merge_config()
 
+        # 🔥 2025-12-19: Feature availability tracker for health checks
+        self._feature_status: Dict[str, bool] = {
+            'background_memory': False,
+            'adaptive_shaping': False,
+            'metacognition': False,
+            'continuous_learning': False,
+            'preference_extraction': False,
+            'environment_processor': False,
+            'brain_inspired_retrieval': False,
+        }
+
         # Core memory system reference
         self.memory_system = memory_system
         self.memory_manager = _LegacyMemoryManagerAdapter(self, memory_system)
@@ -174,16 +186,12 @@ class BrainInspiredCoordinator:
         self.is_running = False
 
         # Persistent learning log
-        self.learning_logger = LearningLogger(Path('data/learning_log.jsonl'))
+        self.learning_logger = LearningLogger(BMAMPaths.DATA_DIR / 'learning_log.jsonl')
 
         # Initialize all agents
         logger.info("🔧 [1/10] Initializing agents...")
         self._initialize_agents()
         logger.info("✅ [1/10] Agents initialized")
-
-        # Removed: Neural Plasticity Engine (Hebbian learning - no longer used)
-        # Previously: self.plasticity_engine = NeuralPlasticityEngine(agent_names)
-        self.plasticity_engine = None  # Placeholder for compatibility
 
         # Initialize agent lifecycle manager
         logger.info("🔧 [2/10] Initializing AgentLifecycleManager...")
@@ -275,7 +283,8 @@ class BrainInspiredCoordinator:
                     enabled=True,  # ✅ 启用后台定时触发（兜底机制）
                     run_on_startup=True,  # ✅ 启动时立即开始
                     # 降低巩固过滤阈值，让新记忆也能被巩固
-                    min_hit_count_for_consolidation=1,    # 从3降到1（访问1次就可以）
+                    # 🔥 2025-12-19 FIX: 改为0，允许新存储的记忆立即巩固
+                    min_hit_count_for_consolidation=0,    # 从1降到0（新记忆也可巩固）
                     min_confidence_for_consolidation=0.3,  # 从0.6降到0.3
                     min_coverage_for_consolidation=0.0     # 从0.5降到0.0（不过滤coverage）
                 )
@@ -287,11 +296,13 @@ class BrainInspiredCoordinator:
             self.adaptive_shaping = AdaptiveMemoryShapingManager(self)
 
             logger.info("✅ [6/10] BackgroundMemoryProcesses + AdaptiveShaping initialized")
+            self._feature_status['background_memory'] = True
+            self._feature_status['adaptive_shaping'] = True
         except ImportError as e:
             logger.warning(f"⚠️ Background memory processes module not found: {e}")
             self.background_processes = None
             self.adaptive_shaping = None
-            logger.info("✅ [6/10] BackgroundMemoryProcesses skipped (not found)")
+            logger.info("✅ [6/10] BackgroundMemoryProcesses skipped (degraded mode)")
 
         # Initialize learning manager
         logger.info("🔧 [7/10] Initializing Metacognition & LearningManager...")
@@ -306,14 +317,15 @@ class BrainInspiredCoordinator:
             logger.debug("  [7.3] Calling get_conflict_detector()...")
             self.conflict_detector = get_conflict_detector()
             logger.debug("  [7.4] Metacognition modules obtained")
+            self._feature_status['metacognition'] = True
+            self._feature_status['continuous_learning'] = True
         except ImportError:
-            logger.warning("⚠️ Metacognition modules not found")
+            logger.warning("⚠️ Metacognition modules not found (degraded mode)")
             self.continuous_learner = None
             self.conflict_detector = None
 
         logger.debug("  [7.5] Creating LearningManager...")
         self.learning_manager = LearningManager(
-            plasticity_engine=self.plasticity_engine,
             continuous_learner=self.continuous_learner,
             conflict_detector=self.conflict_detector,
             brain_network=getattr(self, 'brain_network', None),
@@ -339,8 +351,9 @@ class BrainInspiredCoordinator:
             )
             self.preference_extractor = get_preference_extractor()
             self.confidence_evaluator = get_confidence_evaluator()
+            self._feature_status['preference_extraction'] = True
         except ImportError:
-            logger.warning("⚠️ Additional metacognition modules not available")
+            logger.warning("⚠️ Additional metacognition modules not available (degraded mode)")
             self.preference_extractor = None
             self.confidence_evaluator = None
         logger.info("✅ [9/10] Metacognition modules ready")
@@ -354,8 +367,9 @@ class BrainInspiredCoordinator:
             )
             self.stimulus_processor = get_stimulus_processor()
             self.contextual_integrator = get_contextual_integrator()
+            self._feature_status['environment_processor'] = True
         except ImportError:
-            logger.warning("⚠️ Environment stimulus processor not available")
+            logger.warning("⚠️ Environment stimulus processor not available (degraded mode)")
             self.stimulus_processor = None
             self.contextual_integrator = None
         logger.info("✅ [10/10] Environment stimulus processor ready")
@@ -451,7 +465,7 @@ class BrainInspiredCoordinator:
             self.learnable_router = LearnableAgentRouter(
                 agent_names=brain_region_names,
                 learning_rate=0.05,
-                checkpoint_dir="data/checkpoints"
+                checkpoint_dir=str(BMAMPaths.MEMORY_DIR / "checkpoints")
             )
             logger.info(f"✅ [14/15] LearnableAgentRouter initialized ({len(brain_region_names)} agents)")
         except Exception as e:
@@ -475,18 +489,33 @@ class BrainInspiredCoordinator:
             logger.info("✅ [15/15] BrainInspiredRetrieval initialized")
             logger.info("   🧠 Features: Prefrontal Feedback + Brain Region Collaboration")
             logger.info("   🔁 Iterative retrieval enabled (max 5 iterations)")
+            self._feature_status['brain_inspired_retrieval'] = True
         except Exception as e:
-            logger.warning(f"⚠️ BrainInspiredRetrieval initialization failed: {e}")
+            logger.warning(f"⚠️ BrainInspiredRetrieval initialization failed (degraded mode): {e}")
             import traceback
             logger.warning(f"   Traceback: {traceback.format_exc()}")
             self.brain_inspired_retrieval = None
             self.prefrontal_feedback = None
 
-        # 🔥 2025-12-15: 设置 LearningManager 的 coordinator 引用
-        # 此时所有组件已初始化完成，可以安全地传递 self
+        # 设置 LearningManager 的后期依赖（初始化时尚未可用）
         if self.learning_manager:
             self.learning_manager._coordinator = self
-            logger.debug("  ✅ LearningManager coordinator reference set")
+            self.learning_manager.hippocampus = self.hippocampus  # 🔥 FIX: 持续学习需要 hippocampus
+            logger.debug("  ✅ LearningManager dependencies set (coordinator + hippocampus)")
+
+        # 🔥 2025-12-19: Initialize MemoryArchiveManager (extracted from coordinator)
+        self.archive_manager = MemoryArchiveManager(self)
+        logger.debug("  ✅ MemoryArchiveManager initialized")
+
+        # 🔥 2025-12-19: Initialize SoulState with insights log (P0)
+        self.soul_state = get_soul_state()
+        self.soul_state.set_insights_log_path(BMAMPaths.DATA_DIR / 'insights.log')
+        logger.debug("  ✅ SoulState with insights logging initialized")
+
+        # 🔥 2025-12-19: Initialize ValueProfile persistence (P0)
+        self.soul_state.set_value_profiles_path(BMAMPaths.DATA_DIR / 'value_profiles.json')
+        self.soul_state.load_value_profiles()  # Load existing profiles if available
+        logger.debug("  ✅ ValueProfile persistence initialized")
 
         logger.info("🎉 BrainInspiredCoordinator initialization COMPLETE!")
 
@@ -589,7 +618,7 @@ class BrainInspiredCoordinator:
         # 🔥 2025-12-13: 创建统一的KV分离存储系统
         # 基于论文 "Key-value memory in the brain" - 键值分离提高检索效率
         self.kv_memory_store = KeyValueMemoryStore(
-            value_store_path="data/kv_value_store.db",
+            value_store_path=str(BMAMPaths.KV_VALUE_STORE_DB),
             enable_vector_index=True
         )
         logger.info("✅ KV分离存储系统已初始化")
@@ -929,7 +958,7 @@ class BrainInspiredCoordinator:
         return result
 
     # ============================================================================
-    # Memory Archive Management (BMA Format)
+    # Memory Archive Management (BMA Format) - Delegated to MemoryArchiveManager
     # ============================================================================
 
     def export_memory_archive(
@@ -941,334 +970,297 @@ class BrainInspiredCoordinator:
         include_faiss: bool = True,
         metadata: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
-        """
-        Export current memory state to BMA (BMAM Memory Archive) format.
-
-        Creates a standardized, portable memory archive that can be:
-        - Loaded into any BMAM instance
-        - Shared across different environments
-        - Used for testing and benchmarking
-        - Version controlled and backed up
-
-        Args:
-            archive_name: Name for the archive (will create {name}.bma directory)
-            output_dir: Directory where archive will be created (default: archives/)
-            description: Human-readable description of memory contents
-            tags: List of tags for categorization (e.g., ["baseline", "test", "locomo"])
-            include_faiss: Whether to include FAISS vector index (default: True)
-            metadata: Additional custom metadata to include in manifest
-
-        Returns:
-            Dict with export results:
-            {
-                'success': bool,
-                'archive_path': Path,
-                'statistics': Dict,
-                'size_bytes': int,
-                'files_created': List[str]
-            }
-
-        Example:
-            result = coordinator.export_memory_archive(
-                archive_name="memory_baseline",
-                description="Memory snapshot after training",
-                tags=["baseline", "test"],
-                include_faiss=True
-            )
-        """
-        try:
-            from ..memory.memory_archive import MemoryArchive
-
-            # Get current memory database path from environment or use default
-            import os
-            database_url = os.getenv('DATABASE_URL', 'data/brain_memory.db')
-            # Remove sqlite:/// prefix if present
-            if database_url.startswith('sqlite:///'):
-                database_url = database_url.replace('sqlite:///', '')
-
-            db_path = Path(database_url)
-            if not db_path.exists():
-                return {
-                    'success': False,
-                    'error': f'Memory database not found: {db_path}',
-                    'archive_path': None
-                }
-
-            # Get FAISS index path if requested
-            faiss_path = None
-            if include_faiss:
-                faiss_path = Path("data/faiss_index")
-                if not faiss_path.exists():
-                    logger.warning(f"⚠️  FAISS index not found at {faiss_path}, skipping vector index")
-                    faiss_path = None
-
-            # Create archive v2.0.0 with multi-region support
-            logger.info(f"📦 Exporting multi-region memory archive: {archive_name}")
-            archive = MemoryArchive.create_from_coordinator(
-                name=archive_name,
-                coordinator=self,
-                output_dir=output_dir,
-                description=description,
-                tags=tags,
-                metadata=metadata
-            )
-
-            # Get archive info
-            info = archive.get_info()
-
-            result = {
-                'success': True,
-                'archive_path': archive.archive_path,
-                'statistics': info['statistics'],
-                'info': info
-            }
-
-            # Add format-specific fields
-            if 'total_size_bytes' in info:
-                result['size_bytes'] = info['total_size_bytes']
-            if 'files' in info:
-                result['files_created'] = info['files']
-            if 'brain_regions' in info:
-                result['brain_regions'] = info['brain_regions']
-                result['total_regions'] = info.get('total_regions', len(info['brain_regions']))
-
-            return result
-
-        except Exception as e:
-            logger.error(f"❌ Failed to export memory archive: {e}", exc_info=True)
-            return {
-                'success': False,
-                'error': str(e),
-                'archive_path': None
-            }
+        """Delegate to MemoryArchiveManager. See archive_manager.export_archive() for docs."""
+        return self.archive_manager.export_archive(
+            archive_name=archive_name,
+            output_dir=output_dir,
+            description=description,
+            tags=tags,
+            include_faiss=include_faiss,
+            metadata=metadata
+        )
 
     def load_memory_archive(
         self,
         archive_path: Path,
-        target_dir: Path = Path("data/"),
+        target_dir: Path = None,
         validate: bool = True,
         force: bool = False
     ) -> Dict[str, Any]:
-        """
-        Load memory archive in BMA format to current instance.
-
-        Replaces current memory state with archived memories. This is useful for:
-        - Restoring from snapshots
-        - Loading test memories
-        - Switching between different memory contexts
-        - Testing with baseline memories
-
-        WARNING: This will replace current memory database and FAISS index.
-                 Make sure to backup current state before loading if needed.
-
-        Args:
-            archive_path: Path to .bma archive directory
-            target_dir: Target directory for loading (default: data/)
-            validate: Whether to validate archive before loading (default: True)
-            force: Force loading even if validation fails (default: False)
-
-        Returns:
-            Dict with load results:
-            {
-                'success': bool,
-                'loaded_files': List[str],
-                'validation': Dict,
-                'statistics': Dict
-            }
-
-        Example:
-            # Load baseline memory
-            result = coordinator.load_memory_archive(
-                archive_path=Path("archives/memory_baseline.bma"),
-                validate=True
-            )
-
-            # Force load without validation (not recommended)
-            result = coordinator.load_memory_archive(
-                archive_path=Path("archives/test.bma"),
-                validate=False,
-                force=True
-            )
-        """
-        try:
-            from ..memory.memory_archive import MemoryArchive
-
-            archive_path = Path(archive_path)
-
-            if not archive_path.exists():
-                return {
-                    'success': False,
-                    'error': f'Archive not found: {archive_path}',
-                    'loaded_files': []
-                }
-
-            logger.info(f"📥 Loading memory archive: {archive_path}")
-
-            # Create archive instance
-            archive = MemoryArchive(archive_path)
-
-            # Load archive
-            result = archive.load(
-                target_dir=target_dir,
-                validate=validate,
-                force=force
-            )
-
-            # Get archive statistics
-            info = archive.get_info()
-
-            result['statistics'] = info.get('statistics', {})
-            result['archive_name'] = info.get('name', archive_path.name)
-
-            if result['success']:
-                logger.info(f"✅ Successfully loaded memory archive: {info.get('name')}")
-                logger.info(f"   Total memories: {info['statistics'].get('total_memories', 0):,}")
-
-                # Load brain region states if v2.0.0
-                brain_regions_data = result.get('brain_regions_data', {})
-                if brain_regions_data:
-                    logger.info(f"🧠 Loading brain region states...")
-
-                    # Load Hippocampus state
-                    if 'hippocampus' in brain_regions_data and hasattr(self, 'hippocampus'):
-                        try:
-                            success = self.hippocampus.load_state(brain_regions_data['hippocampus'])
-                            if success:
-                                logger.info(f"   ✓ Hippocampus state restored")
-                            else:
-                                logger.warning(f"   ⚠️ Hippocampus state load failed")
-                        except Exception as e:
-                            logger.error(f"   ❌ Hippocampus load error: {e}")
-
-                    # Load Prefrontal state
-                    prefrontal_agent = getattr(self, 'prefrontal_storage', None) or getattr(self, 'prefrontal_agent', None)
-                    if 'prefrontal' in brain_regions_data and prefrontal_agent:
-                        try:
-                            success = prefrontal_agent.load_state(brain_regions_data['prefrontal'])
-                            if success:
-                                logger.info(f"   ✓ PrefrontalCortex state restored")
-                            else:
-                                logger.warning(f"   ⚠️ PrefrontalCortex state load failed")
-                        except Exception as e:
-                            logger.error(f"   ❌ PrefrontalCortex load error: {e}")
-
-                    # Load Amygdala state
-                    if 'amygdala' in brain_regions_data and hasattr(self, 'amygdala'):
-                        try:
-                            success = self.amygdala.load_state(brain_regions_data['amygdala'])
-                            if success:
-                                logger.info(f"   ✓ Amygdala state restored")
-                            else:
-                                logger.warning(f"   ⚠️ Amygdala state load failed")
-                        except Exception as e:
-                            logger.error(f"   ❌ Amygdala load error: {e}")
-
-                    # Load BasalGanglia state
-                    if 'basal_ganglia' in brain_regions_data and hasattr(self, 'basal_ganglia'):
-                        try:
-                            success = self.basal_ganglia.load_state(brain_regions_data['basal_ganglia'])
-                            if success:
-                                logger.info(f"   ✓ BasalGanglia state restored")
-                            else:
-                                logger.warning(f"   ⚠️ BasalGanglia state load failed")
-                        except Exception as e:
-                            logger.error(f"   ❌ BasalGanglia load error: {e}")
-
-                    logger.info(f"🎉 All brain regions loaded successfully")
-
-                # Reinitialize memory system to pick up new database
-                # (Memory system will reconnect on next query)
-                logger.info(f"🔄 Memory system will reload on next operation")
-
-            return result
-
-        except Exception as e:
-            logger.error(f"❌ Failed to load memory archive: {e}", exc_info=True)
-            return {
-                'success': False,
-                'error': str(e),
-                'loaded_files': []
-            }
+        """Delegate to MemoryArchiveManager. See archive_manager.load_archive() for docs."""
+        return self.archive_manager.load_archive(
+            archive_path=archive_path,
+            target_dir=target_dir,
+            validate=validate,
+            force=force
+        )
 
     def validate_memory_archive(
         self,
         archive_path: Path,
         check_checksums: bool = True
     ) -> Dict[str, Any]:
-        """
-        Validate memory archive integrity and compatibility.
+        """Delegate to MemoryArchiveManager. See archive_manager.validate_archive() for docs."""
+        return self.archive_manager.validate_archive(
+            archive_path=archive_path,
+            check_checksums=check_checksums
+        )
 
-        Checks:
-        - Archive structure (manifest, database, etc.)
-        - File integrity via checksums
-        - Format version compatibility
-        - Required features availability
-
-        Args:
-            archive_path: Path to .bma archive directory
-            check_checksums: Whether to verify file checksums (slower but thorough)
-
-        Returns:
-            Dict with validation results:
-            {
-                'valid': bool,
-                'errors': List[str],
-                'warnings': List[str],
-                'manifest_valid': bool,
-                'files_valid': bool,
-                'checksums_valid': bool,
-                'compatibility': Dict
-            }
-
-        Example:
-            validation = coordinator.validate_memory_archive(
-                archive_path=Path("archives/memory_baseline.bma"),
-                check_checksums=True
-            )
-
-            if validation['valid']:
-                print("✅ Archive is valid")
-            else:
-                print(f"❌ Validation errors: {validation['errors']}")
-        """
-        try:
-            from ..memory.memory_archive import MemoryArchive
-
-            archive_path = Path(archive_path)
-
-            if not archive_path.exists():
-                return {
-                    'valid': False,
-                    'errors': [f'Archive not found: {archive_path}'],
-                    'warnings': [],
-                    'manifest_valid': False,
-                    'files_valid': False,
-                    'checksums_valid': False
-                }
-
-            archive = MemoryArchive(archive_path)
-            validation = archive.validate(check_checksums=check_checksums)
-
-            return validation
-
-        except Exception as e:
-            logger.error(f"❌ Failed to validate archive: {e}", exc_info=True)
-            return {
-                'valid': False,
-                'errors': [f'Validation failed: {str(e)}'],
-                'warnings': [],
-                'manifest_valid': False,
-                'files_valid': False,
-                'checksums_valid': False
-            }
 
     def get_system_status(self) -> Dict[str, Any]:
         """Delegate to MetricsCollector"""
         return self.metrics_collector.get_system_status(self.agents, self.is_running)
 
+    def get_feature_health(self) -> Dict[str, Any]:
+        """
+        Get health check status for optional features.
+
+        Returns dict with:
+        - features: Dict[str, bool] - availability of each optional feature
+        - healthy_count: int - number of features successfully loaded
+        - total_count: int - total number of optional features
+        - degraded_features: List[str] - features running in degraded mode
+
+        Example:
+            health = coordinator.get_feature_health()
+            if health['degraded_features']:
+                print(f"Degraded features: {health['degraded_features']}")
+        """
+        healthy = [k for k, v in self._feature_status.items() if v]
+        degraded = [k for k, v in self._feature_status.items() if not v]
+        return {
+            'features': self._feature_status.copy(),
+            'healthy_count': len(healthy),
+            'total_count': len(self._feature_status),
+            'degraded_features': degraded,
+            'health_percentage': len(healthy) / len(self._feature_status) * 100 if self._feature_status else 100
+        }
+
     async def run_continuous_learning_cycle(self) -> Dict[str, Any]:
         """Delegate to LearningManager"""
         return await self.learning_manager.run_continuous_learning_cycle(self.hippocampus)
+
+    async def run_introspection_cycle(self) -> Dict[str, Any]:
+        """
+        运行自省周期任务 - 汇总最近的失败/低置信度/冲突
+
+        🔥 2025-12-19: P0 真实自省与洞察库
+
+        This should be called periodically or after significant events.
+        The summary is stored in searchable format for future reference.
+
+        Returns:
+            Dict containing introspection summary
+        """
+        summary = self.soul_state.generate_introspection_summary()
+
+        # 如果有重大关注点，记录为insight
+        if summary['top_concerns']:
+            self.soul_state.record_insight(
+                trigger_type='reflection',
+                trigger_reason='Periodic introspection cycle',
+                conclusion=f"Identified {len(summary['top_concerns'])} concerns: {'; '.join(summary['top_concerns'])}",
+                follow_up_actions=['Review and address identified concerns', 'Consider strategy adjustments'],
+                confidence=0.7
+            )
+
+        logger.info(f"🔍 Introspection completed: {summary['total_insights']} insights, "
+                    f"{len(summary['top_concerns'])} concerns")
+        return summary
+
+    def record_processing_failure(self, query: str, error: str):
+        """记录处理失败到洞察库"""
+        self.soul_state.record_failure(query, error)
+
+    def record_low_confidence_decision(self, query: str, confidence: float, analysis: str):
+        """记录低置信度决策到洞察库"""
+        if confidence < 0.5:
+            self.soul_state.record_low_confidence(query, confidence, analysis)
+
+    # ============================================================================
+    # 🔥 2025-12-19: ValueProfile Methods - 价值观/偏好累积 (P0)
+    # ============================================================================
+
+    def extract_and_update_preferences(self, user_input: str):
+        """
+        从用户输入中提取偏好并更新用户档案
+
+        Args:
+            user_input: 用户输入文本
+        """
+        if not self._feature_status.get('preference_extraction'):
+            return
+
+        try:
+            # 使用 UserPreferenceExtractor 提取偏好
+            extracted = self.preference_extractor.extract_from_text(user_input)
+
+            # 更新到 SoulState 的用户档案
+            self.soul_state.update_from_preference_extractor(extracted)
+
+            # 记录提取结果
+            total = sum(len(v) for v in extracted.values())
+            if total > 0:
+                logger.debug(f"📊 Extracted {total} preferences from user input")
+
+        except Exception as e:
+            logger.warning(f"Failed to extract preferences: {e}")
+
+    def get_value_aware_routing_context(self) -> Dict[str, Any]:
+        """
+        获取包含价值观信息的路由上下文
+
+        Returns:
+            路由上下文字典，包含用户偏好、目标、禁忌等
+        """
+        return self.soul_state.get_routing_context()
+
+    def get_response_constraints(self) -> Dict[str, Any]:
+        """
+        获取响应生成约束
+
+        Returns:
+            响应约束字典，包含风格约束、避免主题等
+        """
+        return self.soul_state.get_response_constraints()
+
+    def check_value_gaps(self) -> List[ValueGap]:
+        """
+        检查价值观缺口
+
+        Returns:
+            价值缺口列表
+        """
+        return self.soul_state.check_value_gaps()
+
+    def get_value_gap_warnings(self) -> List[str]:
+        """
+        获取价值缺口警告 (用于UI显示)
+
+        Returns:
+            警告消息列表
+        """
+        return self.soul_state.get_value_gap_warnings()
+
+    def update_user_identity(self, name: str = None, description: str = None):
+        """更新用户身份信息"""
+        self.soul_state.update_user_identity(name, description)
+
+    def add_user_goal(self, goal: str, is_long_term: bool = False):
+        """添加用户目标"""
+        self.soul_state.add_user_goal(goal, is_long_term)
+
+    def add_user_taboo(self, taboo: str):
+        """添加用户禁忌"""
+        self.soul_state.add_user_taboo(taboo)
+
+    # ============================================================================
+    # 🔥 2025-12-19: Scenario Simulation API - 场景模拟 (P1)
+    # ============================================================================
+
+    async def simulate_scenario(
+        self,
+        condition: str,
+        context: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
+        """
+        模拟"如果...会怎样"场景
+
+        Args:
+            condition: 假设条件 (e.g., "如果用户换工作", "What if it rains tomorrow")
+            context: 额外上下文
+
+        Returns:
+            场景模拟结果字典，包含:
+            - prediction: 预测结果
+            - confidence: 置信度
+            - is_speculation: 是否为推测 (记忆不足时为True)
+            - formatted_response: 格式化的响应文本
+
+        Example:
+            result = await coordinator.simulate_scenario("如果用户搬到新城市")
+            print(result['formatted_response'])
+        """
+        try:
+            # 从 clean_agent_system 获取 ReflectionAgent
+            reflection_agent = self.agent_manager.agents.get('reflection')
+            if not reflection_agent:
+                logger.warning("ReflectionAgent not available for scenario simulation")
+                return {
+                    'success': False,
+                    'error': 'ReflectionAgent not available',
+                    'prediction': f"无法模拟场景: {condition}"
+                }
+
+            # 检索相关记忆
+            memories = []
+            if hasattr(self, 'hippocampus') and self.hippocampus:
+                try:
+                    # 提取关键词进行检索
+                    keywords = [w for w in condition.split() if len(w) > 2][:5]
+                    for kw in keywords:
+                        results = await self.hippocampus.search(kw, limit=5)
+                        for r in results:
+                            memories.append({
+                                'id': r.get('id', ''),
+                                'content': r.get('content', ''),
+                                'importance': r.get('importance', 0.5)
+                            })
+                except Exception as e:
+                    logger.debug(f"Memory retrieval for scenario failed: {e}")
+
+            # 调用场景模拟
+            result = await reflection_agent.simulate_scenario(
+                condition=condition,
+                memories=memories[:20],  # 限制记忆数量
+                context=context
+            )
+
+            # 添加推测警告到 soul_state
+            if result.is_speculation:
+                self.soul_state.add_thought(
+                    f"🔮 Scenario simulation (speculation): {condition[:30]}..."
+                )
+
+            return {
+                'success': True,
+                'scenario_id': result.scenario_id,
+                'condition': result.condition,
+                'prediction': result.prediction,
+                'confidence': result.confidence,
+                'is_speculation': result.is_speculation,
+                'supporting_memories': result.supporting_memories,
+                'reasoning_chain': result.reasoning_chain,
+                'alternative_outcomes': result.alternative_outcomes,
+                'formatted_response': reflection_agent.format_scenario_for_response(result)
+            }
+
+        except Exception as e:
+            logger.error(f"Scenario simulation failed: {e}", exc_info=True)
+            return {
+                'success': False,
+                'error': str(e),
+                'prediction': f"场景模拟失败: {condition}"
+            }
+
+    async def batch_simulate_scenarios(
+        self,
+        conditions: List[str]
+    ) -> List[Dict[str, Any]]:
+        """
+        批量模拟多个场景
+
+        Args:
+            conditions: 条件列表
+
+        Returns:
+            场景结果列表
+        """
+        results = []
+        for condition in conditions:
+            result = await self.simulate_scenario(condition)
+            results.append(result)
+        return results
 
     async def _select_optimal_retrieval_strategy(self, query: str, context: Dict[str, Any]) -> str:
         """Delegate to RoutingManager"""

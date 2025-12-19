@@ -21,6 +21,7 @@ import numpy as np
 
 from ..agents.base import BrainAgent, AgentMessage
 from ..utils.config import get_logger
+from ..utils.paths import BMAMPaths
 from .distributed_memory import get_distributed_memory
 from .region_activation import RegionActivationDynamics
 from .hippocampal_loop import HippocampalPrefrontalLoop
@@ -72,7 +73,7 @@ class BrainNetwork:
         # 🧠 键值记忆系统 - 替代旧的分布式记忆
         from ..memory.key_value_stores import KeyValueMemoryStore
         self.memory_store = KeyValueMemoryStore(
-            value_store_path="data/brain_memory.db",
+            value_store_path=str(BMAMPaths.BRAIN_MEMORY_DB),
             enable_vector_index=True
         )
         self.distributed_memory = None  # Deprecated

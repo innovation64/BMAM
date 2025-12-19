@@ -22,6 +22,7 @@ from ....memory.storage_adapter import MemoryStorageAdapter, StorageConfig
 from ....memory.key_value_stores import KeyValueMemoryStore
 from ....memory.brain_regions.hippocampal_event_graph import HippocampalEventGraph
 from ....memory.storage_coordinator import get_storage_coordinator
+from ....utils.paths import BMAMPaths
 
 
 @dataclass
@@ -116,8 +117,8 @@ class HippocampusAgentCore(BrainAgent):
 
         self._shared_kg_builder = kg_builder is not None
 
-        # 🔥 Auto-persistence setup
-        self.state_file = Path("data/hippocampus_state.json")
+        # 🔥 Auto-persistence setup (使用 BMAMPaths 统一路径管理)
+        self.state_file = BMAMPaths.HIPPOCAMPUS_STATE
         self._load_state_from_file()
 
         # 🔥 NEW: Track if global sync is needed on first async operation

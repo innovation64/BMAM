@@ -77,8 +77,9 @@ class StorageCoordinator:
         self._write_history: List[WriteOperation] = []
         self._max_history = 100
 
-        # 备份目录
-        self._backup_dir = Path("data/storage_backups")
+        # 🔥 使用 BMAMPaths 统一路径管理
+        from ..utils.paths import BMAMPaths
+        self._backup_dir = BMAMPaths.BACKUPS_DIR / "storage"
         self._backup_dir.mkdir(parents=True, exist_ok=True)
 
         self._initialized = True

@@ -101,11 +101,12 @@ class ConfidenceCalibrator:
         # 初始化所有脑区
         self._init_region_states()
 
-        # 数据目录
+        # 🔥 使用 BMAMPaths 统一路径管理
+        from ..utils.paths import BMAMPaths
         if data_dir:
             self.data_path = Path(data_dir) / "calibration_state.json"
         else:
-            self.data_path = Path("data") / "calibration_state.json"
+            self.data_path = BMAMPaths.CALIBRATION_STATE
 
         # 尝试加载历史校准数据
         self._load_calibration()

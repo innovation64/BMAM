@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BMAM Soul - System Monitor</title>
+    <link rel="stylesheet" href="/static/monitor/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        /* Override unified_theme.css for monitor page */
+        body {
+            overflow-y: auto !important;
+            height: auto !important;
+        }
+        .main-nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 70px;
+            background: rgba(15, 15, 26, 0.9);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 40px;
+            z-index: 1000;
+        }
+        .nav-brand {
+            font-size: 24px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #00e6ff, #7d5fff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .nav-links {
+            display: flex;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.03);
+            padding: 5px;
+            border-radius: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .nav-item {
+            color: #a0a0b0;
+            text-decoration: none;
+            padding: 8px 24px;
+            border-radius: 25px;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        .nav-item:hover { color: #fff; background: rgba(255, 255, 255, 0.05); }
+        .nav-item.active {
+            background: linear-gradient(135deg, #7d5fff, #ff4d88);
+            color: white;
+            box-shadow: 0 4px 15px rgba(125, 95, 255, 0.4);
+        }
+        .monitor-content {
+            margin-top: 90px;
+            padding-bottom: 40px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="main-nav">
+        <div class="nav-brand">
+            <span>🧠</span> BMAM Soul
+        </div>
+        <div class="nav-links">
+            <a href="/" class="nav-item">Voice</a>
+            <a href="/static/text_ui.html" class="nav-item">Text</a>
+            <a href="/static/monitor.html" class="nav-item active">Monitor</a>
+        </div>
+    </nav>
+
+    <div class="monitor-content">
+        <div class="container">
+            <!-- 头部 -->
+            <header class="header">
+                <h1>🧠 BMAM 五脑区记忆系统可视化</h1>
+                <div class="header-info">
+                    <span id="update-time">加载中...</span>
+                    <button id="refresh-btn" class="btn btn-primary">🔄 刷新</button>
+                    <button id="auto-refresh-btn" class="btn btn-secondary">⏸️ 暂停自动刷新</button>
+                </div>
+            </header>
+
+            <!-- 灵魂状态区 -->
+            <section class="section soul-section">
+                <h2>👁️ 灵魂状态 (Soul State)</h2>
+                <div class="soul-container">
+                    <div class="soul-visual">
+                        <div class="soul-core" id="soul-core"></div>
+                        <div class="soul-ring ring-1"></div>
+                        <div class="soul-ring ring-2"></div>
+                        <div class="soul-ring ring-3"></div>
+                    </div>
+                    <div class="soul-stats">
+                        <div class="soul-stat">
+                            <span class="soul-label">Emotion:</span>
+                            <span class="soul-value" id="current-emotion">Neutral</span>
+                        </div>
+                        <div class="soul-stat">
+                            <span class="soul-label" id="emotion-intensity">Intensity: 0.00</span>
+                        </div>
+                        <div class="soul-stat">
+                            <span class="soul-label">State:</span>
+                            <span class="soul-value" id="dream-state">Awake 👁️</span>
+                        </div>
+                        <div class="soul-stat">
+                            <span class="soul-label">Status:</span>
+                            <span class="soul-value" id="soul-status">--</span>
+                        </div>
+                    </div>
+                    <div class="soul-radar">
+                        <canvas id="soul-radar-chart"></canvas>
+                    </div>
+                </div>
+                <div class="consciousness-stream" id="consciousness-stream">
+                    <span class="stream-label">💭 Active Thought:</span>
+                    <span class="stream-text">Waiting for input...</span>
+                </div>
+            </section>
+
+            <!-- 系统概览 -->
+            <section class="overview">
+                <div class="stat-card">
+                    <div class="stat-icon">💾</div>
+                    <div class="stat-content">
+                        <div class="stat-label">总记忆数</div>
+                        <div class="stat-value" id="total-memories">-</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">📊</div>
+                    <div class="stat-content">
+                        <div class="stat-label">容量使用率</div>
+                        <div class="stat-value" id="overall-usage">-%</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">🟢</div>
+                    <div class="stat-content">
+                        <div class="stat-label">活跃脑区</div>
+                        <div class="stat-value" id="active-regions">-/5</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" id="health-icon">💚</div>
+                    <div class="stat-content">
+                        <div class="stat-label">健康评分</div>
+                        <div class="stat-value" id="health-score">-</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 脑区容量可视化 -->
+            <section class="section">
+                <h2>📦 脑区容量分布</h2>
+                <div class="brain-regions" id="brain-regions">
+                    <!-- 动态生成 -->
+                </div>
+            </section>
+
+            <!-- 图表区域 -->
+            <section class="charts-section">
+                <div class="chart-container">
+                    <h2>📈 容量使用对比</h2>
+                    <canvas id="capacity-chart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h2>🔄 数据流向图</h2>
+                    <div id="flow-chart" style="height: 400px;"></div>
+                </div>
+            </section>
+
+            <!-- 数据流统计 -->
+            <section class="section">
+                <h2>🔄 数据流统计（24小时）</h2>
+                <div class="dataflow-stats">
+                    <div class="dataflow-card">
+                        <h3>事件类型分布</h3>
+                        <div id="event-types">
+                            <div class="empty-state">暂无数据</div>
+                        </div>
+                    </div>
+                    <div class="dataflow-card">
+                        <h3>最活跃的数据流</h3>
+                        <div id="top-flows">
+                            <div class="empty-state">暂无数据</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 性能统计 -->
+            <section class="section">
+                <h2>⚡ 性能统计（24小时）</h2>
+                <div class="performance-stats">
+                    <div class="perf-card">
+                        <div class="perf-label">总调用次数</div>
+                        <div class="perf-value" id="total-calls">-</div>
+                    </div>
+                    <div class="perf-card">
+                        <div class="perf-label">成功率</div>
+                        <div class="perf-value" id="success-rate">-%</div>
+                    </div>
+                    <div class="perf-card">
+                        <div class="perf-label">平均响应时间</div>
+                        <div class="perf-value" id="avg-duration">- ms</div>
+                    </div>
+                    <div class="perf-card">
+                        <div class="perf-label">错误数</div>
+                        <div class="perf-value" id="error-count">-</div>
+                    </div>
+                </div>
+                <div class="slowest-functions">
+                    <h3>最慢的函数</h3>
+                    <div id="slowest-functions">
+                        <div class="empty-state">暂无数据</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 学习反馈统计 -->
+            <section class="section">
+                <h2>🎯 学习反馈统计</h2>
+                <div class="charts-section">
+                    <div class="chart-container" style="flex: 1;">
+                        <h3>Effectiveness Over Time</h3>
+                        <canvas id="feedback-chart" style="height: 200px;"></canvas>
+                    </div>
+                    <div class="dataflow-card" style="flex: 1;">
+                        <h3>Recent Feedback</h3>
+                        <div id="feedback-list" class="events-list">
+                            <div class="empty-state">暂无反馈数据</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 最近事件 -->
+            <section class="section">
+                <h2>📋 最近事件</h2>
+                <div class="events-list" id="events-list">
+                    <div class="empty-state">暂无事件</div>
+                </div>
+            </section>
+
+            <!-- 页脚 -->
+            <footer class="footer">
+                <p>BMAM Memory Visualizer v1.0 | 自动刷新间隔: 5秒</p>
+            </footer>
+        </div>
+    </div>
+
+    <script src="/static/monitor/js/main.js"></script>
+</body>
+</html>

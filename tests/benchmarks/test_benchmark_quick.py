@@ -94,7 +94,7 @@ async def test_basic_evaluation():
     # Test 5: Test BMAM coordinator initialization
     print("\n🧠 Test 5: Testing BMAM coordinator...")
     try:
-        from src.coordination.brain_coordinator import BrainInspiredCoordinator
+        from src.coordination.brain_coordinator_refactored import BrainInspiredCoordinator
 
         coordinator = BrainInspiredCoordinator()
         print(f"✅ Coordinator created")

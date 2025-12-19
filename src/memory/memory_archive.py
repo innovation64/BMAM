@@ -34,6 +34,8 @@ from typing import Dict, Any, List, Optional, Set
 from datetime import datetime
 import logging
 
+from ..utils.paths import BMAMPaths
+
 logger = logging.getLogger(__name__)
 
 
@@ -49,11 +51,12 @@ class MemoryArchive:
     - Human-readable README
 
     Example:
-        # Create archive
+        # Create archive (使用 BMAMPaths 获取正确路径)
+        from src.utils.paths import BMAMPaths
         archive = MemoryArchive.create(
             name="memory_baseline",
-            source_db_path=Path("data/brain_memory.db"),
-            output_dir=Path("archives/"),
+            source_db_path=BMAMPaths.BRAIN_MEMORY_DB,
+            output_dir=BMAMPaths.ARCHIVE_DIR,
             description="Memory snapshot baseline",
             tags=["baseline", "test"]
         )
@@ -260,7 +263,7 @@ class MemoryArchive:
 
         # 1. Temporal Lobe (long-term memory - SQLite)
         import os
-        database_url = os.getenv('DATABASE_URL', 'data/brain_memory.db')
+        database_url = os.getenv('DATABASE_URL', str(BMAMPaths.BRAIN_MEMORY_DB))
         if database_url.startswith('sqlite:///'):
             database_url = database_url.replace('sqlite:///', '')
         db_path = Path(database_url)
@@ -353,8 +356,9 @@ class MemoryArchive:
                 logger.warning(f"   ⚠️ BasalGanglia export failed: {e}")
 
         # 6. Copy FAISS vector index if exists
+        # 🔥 使用 BMAMPaths 统一路径管理
         has_faiss = False
-        faiss_path = Path("data/faiss_index")
+        faiss_path = BMAMPaths.FAISS_INDEX_DIR
         if faiss_path.exists():
             faiss_dest = archive_path / "vectors"
             if faiss_dest.exists():
@@ -932,8 +936,9 @@ archive = MemoryArchive(Path("{name}.bma"))
 validation = archive.validate()
 print(f"Valid: {{validation['valid']}}")
 
-# Load to runtime
-result = archive.load(target_dir=Path("data/"))
+# Load to runtime (使用 BMAMPaths.DATA_DIR)
+from src.utils.paths import BMAMPaths
+result = archive.load(target_dir=BMAMPaths.DATA_DIR)
 ```
 
 ### Load with Memory Manager CLI
@@ -1083,7 +1088,7 @@ def create_archive(
 
 def load_archive(
     archive_path: Path,
-    target_dir: Path = Path("data/"),
+    target_dir: Path = None,
     validate: bool = True
 ) -> Dict[str, Any]:
     """
@@ -1091,12 +1096,15 @@ def load_archive(
 
     Args:
         archive_path: Path to .bma directory
-        target_dir: Target directory for loading (default: data/)
+        target_dir: Target directory for loading (default: BMAMPaths.DATA_DIR)
         validate: Whether to validate before loading
 
     Returns:
         Load result dictionary
     """
+    # 🔥 使用 BMAMPaths 统一路径管理
+    if target_dir is None:
+        target_dir = BMAMPaths.DATA_DIR
     archive = MemoryArchive(archive_path)
     return archive.load(target_dir=target_dir, validate=validate)
 

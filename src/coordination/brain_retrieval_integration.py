@@ -1156,8 +1156,9 @@ For "Who" questions, only memories with names should score 7+.
 Output: {{"scores": [s0, s1, ...]}}"""
 
         try:
+            from ..core.constants import DEFAULT_LLM_MODEL
             response = await self.llm_client.chat.completions.create(
-                model="gpt-4o-mini",  # 使用快速模型
+                model=DEFAULT_LLM_MODEL,  # 使用配置的模型
                 messages=[
                     {"role": "system", "content": "You are a relevance scoring expert. Output valid JSON only."},
                     {"role": "user", "content": prompt}

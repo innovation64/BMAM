@@ -216,8 +216,10 @@ class MemoryTransferSystem:
             self._clear_all_memories()
 
             # Step 4: Load archive data
+            # 🔥 使用 BMAMPaths 统一路径管理
+            from ..utils.paths import BMAMPaths
             archive_data = archive.load(
-                target_dir=Path("data/"),
+                target_dir=BMAMPaths.DATA_DIR,
                 validate=True,
                 force=False
             )
@@ -502,8 +504,10 @@ class MemoryTransferSystem:
 
     async def _create_backup(self) -> TransferReport:
         """Create backup of current memory"""
+        # 🔥 使用 BMAMPaths 统一路径管理
+        from ..utils.paths import BMAMPaths
         backup_name = f"backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        backup_dir = Path("data/backups")
+        backup_dir = BMAMPaths.BACKUPS_DIR
         backup_dir.mkdir(parents=True, exist_ok=True)
 
         return await self.export_memory(

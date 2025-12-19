@@ -278,10 +278,12 @@ class SearchMixin:
 
         # Step 2: Vector语义检索 (使用client embedding)
         try:
+            from ....core.constants import DEFAULT_EMBEDDING_MODEL
+
             # 获取查询向量
             query_embedding_response = await self.client.embeddings.create(
                 input=[query],
-                model="text-embedding-3-small"
+                model=DEFAULT_EMBEDDING_MODEL
             )
             query_vector = query_embedding_response.data[0].embedding
 
@@ -295,7 +297,7 @@ class SearchMixin:
                 # 获取记忆向量
                 mem_embedding_response = await self.client.embeddings.create(
                     input=[mem_content],
-                    model="text-embedding-3-small"
+                    model=DEFAULT_EMBEDDING_MODEL
                 )
                 mem_vector = mem_embedding_response.data[0].embedding
 

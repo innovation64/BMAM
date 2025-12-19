@@ -22,7 +22,7 @@ os.environ['USE_EXTERNAL_MEMORY'] = 'true'
 
 from src.systems.external_memory_system import ExternalMemorySystem, NotebookStore, DocumentStore
 from src.utils.knowledge_graph_builder import KnowledgeGraphBuilder
-from src.coordination.brain_coordinator import BrainInspiredCoordinator
+from src.coordination.brain_coordinator_refactored import BrainInspiredCoordinator
 
 
 async def test_notebook_store():

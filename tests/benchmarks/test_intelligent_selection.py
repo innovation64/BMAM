@@ -4,9 +4,13 @@ Quick test for intelligent answer selection
 
 import asyncio
 import sys
-sys.path.insert(0, '/Users/liyang/Desktop/testversion/BMAM')
+from pathlib import Path
 
-from src.coordination.brain_coordinator import BrainInspiredCoordinator
+# Use relative path instead of hardcoded absolute path
+_BMAM_ROOT = Path(__file__).parent.parent.parent.resolve()
+sys.path.insert(0, str(_BMAM_ROOT))
+
+from src.coordination.brain_coordinator_refactored import BrainInspiredCoordinator
 
 LOCOMO_SESSIONS = [
     {

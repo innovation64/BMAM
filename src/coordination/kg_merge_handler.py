@@ -175,8 +175,10 @@ class KGMergeHandler:
             List of triple dicts
         """
         import os
+        from ..utils.paths import BMAMPaths
         if kg_file_path is None:
-            kg_file_path = os.getenv('BMAM_KG_FILE', 'data/knowledge_graph.json')
+            # 🔥 使用 BMAMPaths 统一路径管理
+            kg_file_path = os.getenv('BMAM_KG_FILE', str(BMAMPaths.KNOWLEDGE_GRAPH_JSON))
         if self._kg_cache is not None:
             return self._kg_cache
 

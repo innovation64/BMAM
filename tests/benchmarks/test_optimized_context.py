@@ -10,7 +10,7 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Any
 
-from src.coordination.brain_coordinator import BrainInspiredCoordinator
+from src.coordination.brain_coordinator_refactored import BrainInspiredCoordinator
 from src.utils.context_budget_manager import get_budget_manager, Priority
 from src.agents.core.context_compaction import ContextCompactionAgent
 

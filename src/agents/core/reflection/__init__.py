@@ -34,6 +34,7 @@ from .insight_generation import InsightGenerationMixin
 from .meta_learning import MetaLearningMixin
 from .performance_evaluation import PerformanceEvaluationMixin
 from .bias_detection import BiasDetectionMixin
+from .scenario_simulation import ScenarioSimulationMixin, ScenarioResult  # 🔥 2025-12-19: P1
 
 __all__ = [
     # 主类
@@ -54,6 +55,10 @@ __all__ = [
     'MetaLearningMixin',
     'PerformanceEvaluationMixin',
     'BiasDetectionMixin',
+    'ScenarioSimulationMixin',  # 🔥 2025-12-19: P1
+
+    # 场景模拟结果
+    'ScenarioResult',
 ]
 
 # 版本信息

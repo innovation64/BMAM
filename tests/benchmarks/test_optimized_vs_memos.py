@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import Dict, List, Any
 import time
 
-from src.coordination.brain_coordinator import BrainInspiredCoordinator
+from src.coordination.brain_coordinator_refactored import BrainInspiredCoordinator
 from src.utils.context_budget_manager import get_budget_manager, Priority
 
 # 配置日志
@@ -181,7 +181,12 @@ class OptimizedBMAM_vs_MemOS_Tester:
         logger.info("="*60)
 
         # 使用BMAM之前的基线结果作为对比
-        memos_result_path = Path("/Users/liyang/Desktop/testversion/MemOS/evaluation/scripts/results/locomo/bmam-default/bmam_locomo_responses.json")
+        # Note: This path should be configured via environment variable MEMOS_BASELINE_PATH
+        import os
+        memos_result_path = Path(os.getenv(
+            "MEMOS_BASELINE_PATH",
+            str(Path(__file__).parent.parent.parent / "data" / "baselines" / "memos_locomo_responses.json")
+        ))
 
         if not memos_result_path.exists():
             logger.warning(f"⚠️  MemOS基线结果不存在: {memos_result_path}")

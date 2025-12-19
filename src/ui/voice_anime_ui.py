@@ -405,8 +405,18 @@ class VoiceAnimeUI:
 
     async def _update_bmam_memory(self, memory: MemoryCondition):
         """Update memory in BMAM system"""
-        # TODO: Implement actual BMAM memory update
-        pass
+        if not self.coordinator:
+            return
+
+        try:
+            # Use coordinator to update memory content
+            await self.coordinator.process_user_input(
+                f"[MEMORY_UPDATE] id={memory.id} content={memory.content}"
+            )
+        except Exception as e:
+            # Log error but don't crash the UI
+            import logging
+            logging.getLogger(__name__).warning(f"Failed to update memory: {e}")
 
     def get_layout_spec(self) -> Dict[str, Any]:
         """Get complete UI layout specification"""

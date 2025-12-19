@@ -118,9 +118,10 @@ class BrainAgent(ABC):
             if llm_cache.enable_cache and llm_cache.similarity_threshold > 0:
                 try:
                     from ..services.shared_openai_client import shared_client_manager
+                    from ..core.constants import DEFAULT_EMBEDDING_MODEL
                     embedding_client = await shared_client_manager.get_embedding_client()
                     embed_response = await embedding_client.embeddings.create(
-                        model="text-embedding-3-small",
+                        model=DEFAULT_EMBEDDING_MODEL,
                         input=prompt
                     )
                     import numpy as np
