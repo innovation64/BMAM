@@ -1,20 +1,37 @@
 #!/usr/bin/env python3
 """
-BMAM 消融实验脚本
+BMAM 消融实验脚本 v2.0
 
-测试各个模块对系统性能的贡献:
-- Full: 完整系统
-- -StoryArc: 移除时间线模块
-- -ToM: 移除心智理论模块
-- -KG: 移除知识图谱
-- -Emotion: 移除情绪模块
-- -HRM: 移除层次记忆管理
+支持脑区级别和功能模块级别消融，验证类脑多智能体协作的优越性。
+
+消融类型:
+1. 脑区消融 (验证五脑区协作):
+   - no_hippocampus: 禁用海马体 (情景记忆编码)
+   - no_temporal_lobe: 禁用颞叶 (语义记忆 + KG)
+   - no_amygdala: 禁用杏仁核 (显著性标记)
+   - no_prefrontal: 禁用前额叶 (工作记忆控制)
+   - no_basal_ganglia: 禁用基底神经节 (程序性记忆)
+
+2. 功能模块消融:
+   - no_story_arc: 禁用时间线索引
+   - no_temporal_reasoning: 禁用时间推理
+   - no_kg: 禁用知识图谱
+   - no_hybrid_retrieval: 禁用混合检索
+   - no_consolidation: 禁用记忆巩固
+   - no_hrm: 禁用层次记忆管理
+
+3. 极端消融 (基线对比):
+   - hippocampus_only: 仅保留海马体基础记忆
+   - vector_only: 仅向量检索 (类RAG基线)
 
 使用:
-  python run_ablation.py                           # 在 LoCoMo 上运行全部消融
-  python run_ablation.py --dataset longmemeval     # 在 LongMemEval 上运行
-  python run_ablation.py --ablations story_arc tom # 只测试特定消融
-  python run_ablation.py --samples 50              # 限制样本数
+  python run_ablation.py                              # 运行全部消融
+  python run_ablation.py --ablations full no_story_arc no_kg  # 指定消融
+  python run_ablation.py --brain-regions             # 仅脑区消融
+  python run_ablation.py --components                 # 仅功能模块消融
+  python run_ablation.py --groups 1                   # 测试1组 (快速验证)
+  python run_ablation.py --groups 3                   # 测试3组 (平衡)
+  python run_ablation.py --groups 10                  # 测试全部10组
 """
 
 import asyncio
@@ -27,8 +44,7 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Any, Optional
-from tqdm import tqdm
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 
 # Setup path
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
@@ -42,6 +58,12 @@ for name in ['src', 'openai', 'httpx', 'httpcore', 'urllib3', 'faiss']:
     logging.getLogger(name).setLevel(logging.CRITICAL)
 os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 
+# Import ablation config
+from src.config.ablation_config import (
+    AblationConfig, get_ablation_config, set_active_ablation,
+    list_ablation_configs, ABLATION_PRESETS
+)
+
 try:
     from openai import AsyncOpenAI
     from dotenv import load_dotenv
@@ -52,81 +74,64 @@ except ImportError:
 
 # Paths
 DATA_DIR = PROJECT_ROOT / 'data'
+MEMORY_DIR = DATA_DIR / 'memory'
+STATE_DIR = DATA_DIR / 'state'
+CACHE_DIR = DATA_DIR / 'cache'
 RESULTS_DIR = PROJECT_ROOT / 'evaluation' / 'results' / 'ablation'
 
-
-@dataclass
-class AblationConfig:
-    """消融配置"""
-    name: str
-    description: str
-    enable_story_arc: bool = True
-    enable_tom: bool = True
-    enable_kg: bool = True
-    enable_emotion: bool = True
-    enable_hrm: bool = True
-
-
-# 消融配置列表
-ABLATION_CONFIGS = {
-    'full': AblationConfig(
-        name='full',
-        description='完整系统 (Full BMAM)',
-        enable_story_arc=True, enable_tom=True, enable_kg=True,
-        enable_emotion=True, enable_hrm=True
-    ),
-    'no_story_arc': AblationConfig(
-        name='no_story_arc',
-        description='移除 StoryArc (- StoryArc)',
-        enable_story_arc=False, enable_tom=True, enable_kg=True,
-        enable_emotion=True, enable_hrm=True
-    ),
-    'no_tom': AblationConfig(
-        name='no_tom',
-        description='移除 Theory of Mind (- ToM)',
-        enable_story_arc=True, enable_tom=False, enable_kg=True,
-        enable_emotion=True, enable_hrm=True
-    ),
-    'no_kg': AblationConfig(
-        name='no_kg',
-        description='移除知识图谱 (- KG)',
-        enable_story_arc=True, enable_tom=True, enable_kg=False,
-        enable_emotion=True, enable_hrm=True
-    ),
-    'no_emotion': AblationConfig(
-        name='no_emotion',
-        description='移除情绪模块 (- Emotion)',
-        enable_story_arc=True, enable_tom=True, enable_kg=True,
-        enable_emotion=False, enable_hrm=True
-    ),
-    'no_hrm': AblationConfig(
-        name='no_hrm',
-        description='移除层次记忆管理 (- HRM)',
-        enable_story_arc=True, enable_tom=True, enable_kg=True,
-        enable_emotion=True, enable_hrm=False
-    ),
-    'hippocampus_only': AblationConfig(
-        name='hippocampus_only',
-        description='仅使用 Hippocampus',
-        enable_story_arc=False, enable_tom=False, enable_kg=False,
-        enable_emotion=False, enable_hrm=False
-    ),
-}
+# LoCoMo dataset path
+_locomo_env = os.getenv('LOCOMO_DATASET_PATH')
+LOCOMO_PATH = Path(_locomo_env) if _locomo_env else DATA_DIR / 'datasets' / 'locomo' / 'locomo10.json'
 
 
 def clear_memory():
     """清空记忆文件"""
-    files = ['hippocampus_state.json', 'basal_ganglia_state.json', 'prefrontal_state.json',
-             'amygdala_state.json', 'brain_memory.db', 'temporal_lobe.db', 'working_memory.db',
-             'story_arc_state.json', 'tom_state.json', 'kv_value_store.db']
-    for f in files:
+    # 数据库文件
+    db_files = ['brain_memory.db', 'temporal_lobe.db', 'working_memory.db', 'kv_value_store.db',
+                'memory_vectors.index', 'memory_vectors_mappings.json']
+    for f in db_files:
+        p = MEMORY_DIR / f
+        if p.exists():
+            p.unlink()
+
+    # Memory checkpoints
+    checkpoint_dir = MEMORY_DIR / 'checkpoints'
+    if checkpoint_dir.exists():
+        for f in checkpoint_dir.glob('*.json'):
+            f.unlink()
+
+    # 状态文件
+    state_files = ['hippocampus_state.json', 'basal_ganglia_state.json', 'prefrontal_state.json',
+                   'amygdala_state.json', 'story_arc_state.json', 'calibration_state.json']
+    for f in state_files:
+        p = STATE_DIR / f
+        if p.exists():
+            p.unlink()
+
+    # 用户画像
+    for f in ['value_profiles.json', 'user_portraits.json']:
         p = DATA_DIR / f
         if p.exists():
             p.unlink()
-    for d in ['embedding_cache', 'knowledge_graph', 'faiss_index']:
-        p = DATA_DIR / d
+
+    # 缓存目录
+    for d in ['embedding', 'knowledge_graph', 'faiss_index']:
+        p = CACHE_DIR / d
         if p.exists():
             shutil.rmtree(p)
+
+    # 旧版缓存路径
+    for d in ['embedding_cache', 'knowledge_graph', 'faiss_index']:
+        p = MEMORY_DIR / d
+        if p.exists():
+            shutil.rmtree(p)
+
+    # 重置 StoryArc 单例
+    try:
+        from src.memory.story_arc import reset_story_arc_manager
+        reset_story_arc_manager()
+    except ImportError:
+        pass
 
 
 def parse_date(s: str) -> datetime:
@@ -142,11 +147,8 @@ def parse_date(s: str) -> datetime:
 async def create_coordinator(config: AblationConfig):
     """根据消融配置创建 coordinator"""
 
-    # 设置环境变量控制模块
-    os.environ['BMAM_DISABLE_STORY_ARC'] = 'true' if not config.enable_story_arc else 'false'
-    os.environ['BMAM_DISABLE_TOM'] = 'true' if not config.enable_tom else 'false'
-    os.environ['BMAM_DISABLE_KG'] = 'true' if not config.enable_kg else 'false'
-    os.environ['BMAM_DISABLE_EMOTION'] = 'true' if not config.enable_emotion else 'false'
+    # 应用消融配置到环境变量
+    set_active_ablation(config)
 
     from src.coordination.brain_coordinator_refactored import BrainInspiredCoordinator
 
@@ -188,17 +190,35 @@ Return JSON: {{"label": "CORRECT" or "WRONG"}}"""
         return str(gold).lower() in str(gen).lower()
 
 
-async def run_locomo_ablation(config: AblationConfig, data: List[Dict],
-                               llm_client: Optional[AsyncOpenAI],
-                               max_samples: Optional[int] = None) -> Dict[str, Any]:
+# LoCoMo category mapping
+CATEGORY_NAMES = {
+    1: 'single-hop',
+    2: 'multi-hop',
+    3: 'temporal',
+    4: 'open-domain',
+    5: 'adversarial'
+}
+
+
+async def run_locomo_ablation(
+    config: AblationConfig,
+    data: List[Dict],
+    llm_client: Optional[AsyncOpenAI],
+    max_groups: int = 1
+) -> Dict[str, Any]:
     """在 LoCoMo 数据集上运行消融实验"""
 
-    samples = data[:max_samples] if max_samples else data
+    samples = data[:max_groups]
     results = []
     correct_total = 0
     question_total = 0
 
-    for sample_idx, sample in enumerate(tqdm(samples, desc=f"  {config.name}")):
+    # 按类别统计
+    category_stats = {cat: {'correct': 0, 'total': 0} for cat in CATEGORY_NAMES.values()}
+
+    for sample_idx, sample in enumerate(samples):
+        print(f"  [{sample_idx+1}/{len(samples)}] {sample['sample_id']}", end='', flush=True)
+
         # 清空记忆
         clear_memory()
 
@@ -221,11 +241,15 @@ async def run_locomo_ablation(config: AblationConfig, data: List[Dict],
 
             for idx, (dialogs, date, ob) in enumerate(sessions):
                 ts = parse_date(date)
+
+                # 存储对话
                 for t in dialogs:
                     if t.get('text'):
                         await coord.store_memory_with_timestamp(
                             f"{t['speaker']}: {t['text']}", ts, t['speaker'], 0.6
                         )
+
+                # 存储观察事件
                 for spk, items in ob.items():
                     for it in items:
                         if isinstance(it, list) and it:
@@ -241,7 +265,9 @@ async def run_locomo_ablation(config: AblationConfig, data: List[Dict],
             sample_results = []
 
             for qa in sample['qa']:
-                q, gold, cat = qa['question'], qa.get('answer', ''), qa.get('category', 0)
+                q, gold = qa['question'], qa.get('answer', '')
+                cat_id = qa.get('category', 1)
+                cat_name = CATEGORY_NAMES.get(cat_id, 'unknown')
 
                 context = {'skip_memory_store': True, 'evaluation_mode': True}
                 r = await coord.process_user_input(q, context=context)
@@ -254,17 +280,23 @@ async def run_locomo_ablation(config: AblationConfig, data: List[Dict],
 
                 if ok:
                     sample_correct += 1
+                    category_stats[cat_name]['correct'] += 1
+
+                category_stats[cat_name]['total'] += 1
 
                 sample_results.append({
                     'question': q,
                     'gold': str(gold),
                     'generated': gen,
                     'correct': ok,
-                    'category': cat
+                    'category': cat_name
                 })
 
             correct_total += sample_correct
             question_total += len(sample['qa'])
+
+            acc = sample_correct / len(sample['qa']) * 100 if sample['qa'] else 0
+            print(f" → {sample_correct}/{len(sample['qa'])} ({acc:.1f}%)")
 
             results.append({
                 'sample_id': sample['sample_id'],
@@ -283,20 +315,15 @@ async def run_locomo_ablation(config: AblationConfig, data: List[Dict],
 
     accuracy = correct_total / question_total if question_total > 0 else 0
 
-    # 按类别统计
-    category_stats = {}
-    for sample_result in results:
-        for qa_result in sample_result['results']:
-            cat = qa_result['category']
-            if cat not in category_stats:
-                category_stats[cat] = {'correct': 0, 'total': 0}
-            category_stats[cat]['total'] += 1
-            if qa_result['correct']:
-                category_stats[cat]['correct'] += 1
-
-    for cat in category_stats:
-        stats = category_stats[cat]
-        stats['accuracy'] = stats['correct'] / stats['total'] if stats['total'] > 0 else 0
+    # 计算各类别准确率
+    category_accuracy = {}
+    for cat_name, stats in category_stats.items():
+        if stats['total'] > 0:
+            category_accuracy[cat_name] = {
+                'correct': stats['correct'],
+                'total': stats['total'],
+                'accuracy': stats['correct'] / stats['total']
+            }
 
     return {
         'config': config.name,
@@ -306,48 +333,119 @@ async def run_locomo_ablation(config: AblationConfig, data: List[Dict],
             'total': question_total,
             'accuracy': accuracy
         },
-        'by_category': category_stats,
+        'by_category': category_accuracy,
         'samples': results
     }
 
 
+def print_results_table(all_results: List[Dict], full_acc: float):
+    """打印结果表格"""
+    print("\n" + "=" * 80)
+    print("消融实验结果汇总")
+    print("=" * 80)
+
+    # Overall accuracy
+    print(f"\n{'配置':<25} {'总精度':>10} {'Δ':>8} {'正确/总数':>15}")
+    print("-" * 60)
+
+    for result in all_results:
+        acc = result['overall']['accuracy'] * 100
+        diff = (result['overall']['accuracy'] - full_acc) * 100 if result['config'] != 'full' else 0
+        diff_str = f"{diff:+.2f}%" if result['config'] != 'full' else '--'
+        print(f"{result['config']:<25} {acc:>9.2f}% {diff_str:>8} "
+              f"{result['overall']['correct']:>6}/{result['overall']['total']:<6}")
+
+    # Per-category breakdown (if available)
+    if all_results and 'by_category' in all_results[0] and all_results[0]['by_category']:
+        categories = list(all_results[0]['by_category'].keys())
+        print(f"\n{'配置':<20}", end='')
+        for cat in categories:
+            print(f" {cat[:8]:>10}", end='')
+        print()
+        print("-" * (20 + len(categories) * 11))
+
+        for result in all_results:
+            print(f"{result['config']:<20}", end='')
+            for cat in categories:
+                if cat in result['by_category']:
+                    acc = result['by_category'][cat]['accuracy'] * 100
+                    print(f" {acc:>9.1f}%", end='')
+                else:
+                    print(f" {'--':>10}", end='')
+            print()
+
+
 async def main():
-    parser = argparse.ArgumentParser(description='BMAM 消融实验')
-    parser.add_argument('--dataset', type=str, default='locomo',
-                       choices=['locomo'],
-                       help='数据集')
+    parser = argparse.ArgumentParser(description='BMAM 消融实验 v2.0')
     parser.add_argument('--ablations', nargs='+', default=None,
                        help='要运行的消融配置 (默认全部)')
-    parser.add_argument('--samples', type=int, default=None,
-                       help='样本数量限制')
+    parser.add_argument('--brain-regions', action='store_true',
+                       help='仅运行脑区消融')
+    parser.add_argument('--components', action='store_true',
+                       help='仅运行功能模块消融')
+    parser.add_argument('--groups', type=int, default=1,
+                       help='测试组数 (1-10)')
+    parser.add_argument('--list', action='store_true',
+                       help='列出所有可用消融配置')
     parser.add_argument('--output', type=str, default=None,
                        help='输出文件路径')
     args = parser.parse_args()
 
-    print("=" * 70)
-    print("BMAM 消融实验")
-    print("=" * 70)
-    print(f"数据集: {args.dataset}")
+    # 列出配置
+    if args.list:
+        print("可用消融配置:")
+        print("-" * 60)
+        for name, desc in list_ablation_configs().items():
+            print(f"  {name:<25} {desc}")
+        return
 
-    # 加载数据
-    if args.dataset == 'locomo':
-        dataset_path = DATA_DIR / 'locomo' / 'locomo10.json'
-        if not dataset_path.exists():
-            print(f"错误: 数据集文件不存在: {dataset_path}")
-            sys.exit(1)
-        with open(dataset_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        print(f"加载 {len(data)} 组数据")
+    print("=" * 80)
+    print("BMAM 消融实验 v2.0 - 验证类脑多智能体协作优越性")
+    print("=" * 80)
 
     # 确定要运行的消融配置
     if args.ablations:
-        configs_to_run = [ABLATION_CONFIGS[name] for name in args.ablations if name in ABLATION_CONFIGS]
+        configs_to_run = [get_ablation_config(name) for name in args.ablations]
+    elif args.brain_regions:
+        configs_to_run = [
+            get_ablation_config('full'),
+            get_ablation_config('no_hippocampus'),
+            get_ablation_config('no_temporal_lobe'),
+            get_ablation_config('no_amygdala'),
+            get_ablation_config('no_prefrontal'),
+            get_ablation_config('no_basal_ganglia'),
+        ]
+    elif args.components:
+        configs_to_run = [
+            get_ablation_config('full'),
+            get_ablation_config('no_story_arc'),
+            get_ablation_config('no_temporal_reasoning'),
+            get_ablation_config('no_kg'),
+            get_ablation_config('no_hybrid_retrieval'),
+            get_ablation_config('no_consolidation'),
+        ]
     else:
-        configs_to_run = list(ABLATION_CONFIGS.values())
+        # 默认: 完整 + 主要消融
+        configs_to_run = [
+            get_ablation_config('full'),
+            get_ablation_config('no_story_arc'),
+            get_ablation_config('no_kg'),
+            get_ablation_config('no_temporal_reasoning'),
+            get_ablation_config('hippocampus_only'),
+        ]
 
-    print(f"\n将运行 {len(configs_to_run)} 个消融配置:")
+    print(f"\n将运行 {len(configs_to_run)} 个消融配置 (每个 {args.groups} 组):")
     for cfg in configs_to_run:
-        print(f"  - {cfg.name}: {cfg.description}")
+        print(f"  • {cfg.name}: {cfg.description}")
+
+    # 加载数据
+    if not LOCOMO_PATH.exists():
+        print(f"\n错误: 数据集文件不存在: {LOCOMO_PATH}")
+        sys.exit(1)
+
+    with open(LOCOMO_PATH, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    print(f"\n✓ 加载 LoCoMo 数据集: {len(data)} 组")
 
     # LLM Client
     llm_client = None
@@ -356,69 +454,56 @@ async def main():
             api_key=os.getenv("OPENAI_API_KEY"),
             base_url=os.getenv("OPENAI_BASE_URL")
         )
-        print("\n✓ LLM Judge 已启用")
+        print("✓ LLM Judge 已启用")
 
     # 运行消融实验
     all_results = []
     start_time = datetime.now()
 
     for config in configs_to_run:
-        print(f"\n{'='*70}")
-        print(f"运行消融: {config.name}")
+        print(f"\n{'='*80}")
+        print(f"运行: {config.name}")
         print(f"描述: {config.description}")
-        print(f"{'='*70}")
+        print(f"{'='*80}")
 
-        if args.dataset == 'locomo':
-            result = await run_locomo_ablation(config, data, llm_client, args.samples)
-
+        result = await run_locomo_ablation(config, data, llm_client, args.groups)
         all_results.append(result)
 
-        print(f"\n  结果: {result['overall']['accuracy']*100:.2f}% "
+        print(f"\n  → 总精度: {result['overall']['accuracy']*100:.2f}% "
               f"({result['overall']['correct']}/{result['overall']['total']})")
 
     elapsed = (datetime.now() - start_time).total_seconds()
 
-    # 打印汇总
-    print("\n" + "=" * 70)
-    print("消融实验汇总")
-    print("=" * 70)
-    print(f"{'配置':<20} {'准确率':>10} {'正确/总数':>15}")
-    print("-" * 50)
-    for result in all_results:
-        print(f"{result['config']:<20} {result['overall']['accuracy']*100:>9.2f}% "
-              f"{result['overall']['correct']:>6}/{result['overall']['total']:<6}")
+    # 获取 full 配置的准确率作为基准
+    full_acc = next((r['overall']['accuracy'] for r in all_results if r['config'] == 'full'), 0)
 
-    # 计算各模块贡献
-    print("\n模块贡献分析:")
-    full_acc = next((r['overall']['accuracy'] for r in all_results if r['config'] == 'full'), None)
-    if full_acc:
-        for result in all_results:
-            if result['config'] != 'full':
-                diff = (full_acc - result['overall']['accuracy']) * 100
-                print(f"  {result['config']}: {diff:+.2f}% "
-                      f"({'正贡献' if diff > 0 else '负贡献/无影响'})")
+    # 打印结果表格
+    print_results_table(all_results, full_acc)
 
     print(f"\n总耗时: {elapsed/60:.1f} 分钟")
 
     # 保存结果
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    output_file = args.output or (RESULTS_DIR / f"ablation_{args.dataset}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
+    ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+    output_file = args.output or (RESULTS_DIR / f"ablation_{args.groups}g_{ts}.json")
 
     output_data = {
-        'config': {
-            'dataset': args.dataset,
-            'samples': args.samples,
+        'meta': {
+            'timestamp': datetime.now().isoformat(),
+            'groups': args.groups,
             'ablations': [cfg.name for cfg in configs_to_run],
-            'timestamp': datetime.now().isoformat()
+            'elapsed_seconds': elapsed
         },
         'summary': {
-            cfg['config']: {
-                'accuracy': cfg['overall']['accuracy'],
-                'correct': cfg['overall']['correct'],
-                'total': cfg['overall']['total']
-            } for cfg in all_results
+            r['config']: {
+                'accuracy': r['overall']['accuracy'],
+                'correct': r['overall']['correct'],
+                'total': r['overall']['total'],
+                'delta': r['overall']['accuracy'] - full_acc if r['config'] != 'full' else 0,
+                'by_category': r.get('by_category', {})
+            } for r in all_results
         },
-        'results': all_results
+        'full_results': all_results
     }
 
     with open(output_file, 'w', encoding='utf-8') as f:
