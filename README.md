@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/bamalogo.png" alt="BMAM Logo" width="600">
+</p>
+
 # BMAM: Brain-inspired Multi-Agent Memory System
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
