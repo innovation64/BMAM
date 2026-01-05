@@ -22,8 +22,8 @@ BMAM implements a multi-agent memory system inspired by human brain memory mecha
 |-----------|-------|----------|------|
 | **LoCoMo** | 10 groups, 1986 QA | **78.45%** | Long-context temporal reasoning |
 | **LongMemEval** | 500 samples | **67.60%** | 6 question types |
-| **PrefEval** | 993 samples | **63.04%** | User preference understanding |
-| **PersonaMem** | 20 users, 306 QA | 42.81% | User persona memory |
+| **PrefEval** | 1000 samples | **72.9%** | User preference understanding |
+| **PersonaMem** | 20 users, 589 QA | 48.9% | User persona memory |
 
 ### LoCoMo Category Breakdown
 
@@ -119,7 +119,7 @@ data/datasets/
 ├── prefeval/
 │   └── prefeval.json           # PrefEval (1000 samples)
 └── personamem/
-    └── personamem.json         # PersonaMem (37 users)
+    └── personamem.json         # PersonaMem (20 users, 589 QA)
 ```
 
 ## Quick Start
@@ -174,8 +174,8 @@ python evaluation/benchmarks/longmemeval/test_longmemeval.py --questions 0
 # PrefEval (1000 samples)
 python evaluation/benchmarks/prefeval/test_prefeval.py --questions 0
 
-# PersonaMem (37 users)
-python evaluation/benchmarks/personamem/test_personamem.py --users 37
+# PersonaMem (20 users)
+python evaluation/benchmarks/personamem/test_personamem.py --users 20
 ```
 
 ### Ablation Experiments
