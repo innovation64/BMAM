@@ -41,6 +41,7 @@ class EpisodicMemory:
     embedding: Optional[List[float]] = None
     event_id: Optional[str] = None
     speaker: Optional[str] = None
+    user_id: str = "default"  # 🔥 2025-12-25: 用户ID隔离
 
 
 class HippocampusAgentCore(BrainAgent):
@@ -55,7 +56,8 @@ class HippocampusAgentCore(BrainAgent):
         embedding_service=None,
         kg_builder: Optional[KnowledgeGraphBuilder] = None,
         memory_system=None,  # ✅ NEW: Global memory system for delegation
-        use_global_storage: bool = False  # ✅ NEW: Enable storage delegation
+        use_global_storage: bool = False,  # ✅ NEW: Enable storage delegation
+        global_vector_db=None  # 🔥 2025-12-20 FIX: 全局FAISS向量库用于检索Agent
     ):
         super().__init__(
             agent_id="hippocampus",
@@ -75,7 +77,8 @@ class HippocampusAgentCore(BrainAgent):
                 use_global_storage=use_global_storage,
                 enable_local_cache=True,  # Keep cache for fast access
                 sync_on_store=True
-            )
+            ),
+            global_vector_db=global_vector_db  # 🔥 2025-12-20 FIX: 传递全局FAISS
         )
 
         # 🧠 Key-Value Memory Store Integration

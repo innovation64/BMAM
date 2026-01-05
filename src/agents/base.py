@@ -135,10 +135,11 @@ class BrainAgent(ABC):
                 self.log_execution("LLM cache hit", {"query_length": len(prompt)}, "success")
                 return cached_response
 
-            # 统一应用层重试策略（增加重试次数以应对网络波动）
-            max_retries = 0 if quick_fail else 4  # 提高到4次重试
+            # 统一应用层重试策略（增加重试次数以应对网络波动和长时间断网）
+            # 🔥 2025-12-26: 提高到15次重试以应对长时间断网（10分钟+）
+            max_retries = 0 if quick_fail else 15
             timeout_override = 5.0 if quick_fail else None  # 5s timeout for quick_fail
-            base_delay = 1.0
+            base_delay = 2.0  # 增加基础延迟
             cache_key = self._build_cache_key(prompt, context)
 
             for attempt in range(max_retries + 1):
@@ -216,8 +217,8 @@ class BrainAgent(ABC):
                     ]) or error_type in ['TimeoutError', 'asyncio.TimeoutError']
                     
                     if is_retryable and attempt < max_retries:
-                        # 指数退避重试
-                        delay = base_delay * (2 ** attempt)
+                        # 指数退避重试（限制最大等待时间为120秒，应对长时间断网）
+                        delay = min(base_delay * (2 ** attempt), 120)  # 2s, 4s, 8s, 16s, 32s, 64s, 120s...
                         logger.warning(f"Agent {self.agent_id} retrying after {delay}s, attempt {attempt + 1}/{max_retries}")
 
                         # 连接错误时报告给管理器

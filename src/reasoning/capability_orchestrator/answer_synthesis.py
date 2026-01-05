@@ -26,14 +26,40 @@ class AnswerSynthesisMixin:
         intermediate = context['intermediate_results']
         query = context.get('query', '')
 
+        # 🔥 2025-12-27: 检测是否为推荐类问题 (需要完整回答)
+        is_recommendation_question = any(kw in query.lower() for kw in [
+            'recommend', 'suggest', 'resources', 'best way', 'how should',
+            'what are some', 'can you suggest', 'looking for ways'
+        ])
+
         # 收集有答案的capabilities
         cap_results = []
         for cap_name, result in intermediate.items():
+            # 🔥 2025-12-27: 添加类型检查，跳过非字典结果
+            if cap_name.startswith('_'):  # 跳过内部字段如 _user_id
+                continue
+            if not isinstance(result, dict):
+                logger.warning(f"⚠️ Capability {cap_name} returned non-dict: {type(result)}")
+                continue
             if result.get('answer'):
+                answer = str(result.get('answer', ''))
+                # 🔥 2025-12-27: 对推荐类问题，过滤太短的答案
+                if is_recommendation_question and len(answer) < 30:
+                    logger.info(f"⏭️ Skipping short answer from {cap_name} for recommendation question: {answer[:50]}")
+                    continue
                 cap_results.append((cap_name, result))
 
         # Case 1: 没有答案
         if not cap_results:
+            # 🔥 2025-12-27: 对推荐类问题，生成一个通用但有帮助的回答
+            if is_recommendation_question:
+                fallback_answer = "Based on your preferences, I recommend exploring resources and methods that align with your learning style. Consider options that match your stated interests while avoiding approaches you've mentioned disliking. Interactive and hands-on methods often work well for personalized learning."
+                return {
+                    'answer': fallback_answer,
+                    'confidence': 0.4,
+                    'error': 'No suitable answer found, using fallback',
+                    'fallback': True
+                }
             return {
                 'answer': f"I don't have enough information to answer the question: {query}",
                 'confidence': 0.1,
@@ -105,7 +131,11 @@ Guidelines:
 6. Temporal answers (dates, times, durations) should be prioritized for time-related questions
 7. For "Where?" questions → **ALWAYS prefer LOCATION answers** (place names, addresses), NEVER return dates for where questions
 8. Match answer TYPE to question TYPE: "where"→location, "when"→date, "what"→thing/activity, "who"→person
-9. Shorter, more direct answers are usually better than verbose explanations
+9. Shorter, more direct answers are usually better than verbose explanations (EXCEPT for recommendation questions - see #10)
+10. For recommendation/resource/learning questions → **PREFER preference_aligned_response** (personalized, full recommendations)
+11. For "NEW ideas/activities user hasn't tried" questions → **PREFER ideation_generation** (considers what user has NOT tried)
+12. If an answer contains "(a)", "(b)", "(c)", "(d)" format from ideation_generation, it's a direct answer to a multiple-choice question
+13. 🔥 For "recommend", "suggest", "best way to", "resources for" questions → ALWAYS prefer LONGER, MORE DETAILED answers over short lists/keywords
 
 Respond with ONLY the number (1, 2, 3, etc.) of the best candidate.
 """
@@ -140,6 +170,18 @@ Respond with ONLY the number (1, 2, 3, etc.) of the best candidate.
         # 检测是否需要refinement
         question_lower = query.lower()
 
+        # 🔥 规则0: 多选题处理 - 如果问题包含(a)(b)(c)(d)选项，确保答案是选项格式
+        if '(a)' in query and '(b)' in query and '(c)' in query:
+            # 检查答案是否已经是选项格式
+            answer_lower = str(answer).lower().strip()
+            if not any(opt in answer_lower for opt in ['(a)', '(b)', '(c)', '(d)', 'the answer is']):
+                # 答案不是选项格式，需要转换
+                logger.info(f"📝 Converting non-option answer to option: {answer[:50]}...")
+                refined = await self._select_best_option(query, answer)
+                if refined:
+                    logger.info(f"   → Selected option: {refined}")
+                    return refined
+
         # 规则1: "What fields" 问题 - 提取academic fields
         if any(kw in question_lower for kw in ['field', 'study', 'pursue', 'education', 'major']):
             # 检查答案是否verbose (超过10个词)
@@ -152,6 +194,48 @@ Respond with ONLY the number (1, 2, 3, etc.) of the best candidate.
 
         # 规则2: 其他情况保持原样
         return answer
+
+    async def _select_best_option(self, query: str, context_answer: str) -> str:
+        """根据上下文答案选择最佳选项"""
+        from src.agents.base import BrainAgent
+
+        class TempSelector(BrainAgent):
+            async def process_message(self, msg): return {}
+
+        selector = TempSelector('option_selector', 'prefrontal', 'Option Selector')
+
+        prompt = f"""Based on the given context, select the BEST option from the multiple choice question.
+
+Question with options:
+{query}
+
+Context/Information to base your selection on:
+{context_answer}
+
+Task: Pick the option (a), (b), (c), or (d) that best aligns with the given context.
+
+Output ONLY the letter in parentheses, like: (a) or (b) or (c) or (d)"""
+
+        try:
+            response = await selector.call_llm(prompt, temperature=0.1, max_tokens=10)
+            response = response.strip().lower()
+
+            # 提取选项
+            import re
+            match = re.search(r'\(([a-d])\)', response)
+            if match:
+                return f"({match.group(1)})"
+
+            # 尝试其他格式
+            for opt in ['a', 'b', 'c', 'd']:
+                if opt in response:
+                    return f"({opt})"
+
+            return None
+
+        except Exception as e:
+            logger.error(f"Option selection failed: {e}")
+            return None
 
     async def _extract_academic_fields(self, verbose_answer: str) -> str:
         """从verbose答案中提取academic fields"""

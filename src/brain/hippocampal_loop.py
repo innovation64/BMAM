@@ -21,8 +21,12 @@ Author: BMAM Team
 
 import logging
 import time
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, TYPE_CHECKING
 from dataclasses import dataclass
+
+# 🔥 2025-12-20 FIX: 延迟导入避免循环依赖
+if TYPE_CHECKING:
+    from ..coordination.query_expansion import QueryExpander
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +65,9 @@ class HippocampalPrefrontalLoop:
         self.memory_system = memory_system
         self.llm_client = llm_client
         self.max_iterations = LOOP_CONFIG['default_iterations']  # 默认迭代次数
+        # 🔥 2025-12-20 FIX: 延迟导入并初始化 QueryExpander
+        from ..coordination.query_expansion import QueryExpander
+        self.query_expander = QueryExpander()
 
     def _estimate_query_complexity(self, query: str) -> str:
         """
@@ -150,6 +157,9 @@ class HippocampalPrefrontalLoop:
         prev_confidence = 0.0
         gap_analysis = None
 
+        # 🔥 2025-12-20 FIX: 初始化 QueryExpander 会话
+        self.query_expander.start_new_query(query)
+
         # 记录已有的memory ID (去重)
         for mem in initial_memories:
             if isinstance(mem, dict) and 'id' in mem:
@@ -213,10 +223,13 @@ class HippocampalPrefrontalLoop:
                 break
 
             # 海马体补充检索
+            # 🔥 2025-12-20 FIX: 传递当前记忆给 QueryExpander 提取线索
+            enriched_context = gap_analysis.retrieval_context.copy()
+            enriched_context['existing_memories'] = current_memories
             additional_memories = await self._retrieve_by_aspects(
                 query=query,
                 missing_aspects=missing_aspects,
-                context=gap_analysis.retrieval_context,
+                context=enriched_context,
                 exclude_ids=all_memory_ids
             )
 
@@ -239,15 +252,29 @@ class HippocampalPrefrontalLoop:
                 logger.info(f"⚠️ No new unique memories, stopping")
                 break
 
+        # 🔥 2025-12-20 FIX: 使用 QueryExpander 重排序，确保最相关记忆优先
+        if len(current_memories) > 10:
+            current_memories = self.query_expander.rerank_memories_by_original_query(
+                current_memories, top_k=30
+            )
+            logger.info(f"🔄 Re-ranked memories by original query relevance")
+
         # 最终返回
         total_time = time.time() - start_time
         logger.info(f"🏁 Iterative retrieval complete: {len(current_memories)} memories in {total_time:.1f}s")
+
+        # 记录扩展摘要
+        expansion_summary = self.query_expander.get_expansion_summary()
+        if expansion_summary:
+            logger.debug(f"📊 QueryExpansion summary: {expansion_summary}")
+
         return {
             'memories': current_memories,
             'iterations': iteration + 1 if 'iteration' in dir() else 0,
             'gap_analysis': gap_analysis,
             'complete': False,  # 没有在循环内完成
-            'total_time': total_time
+            'total_time': total_time,
+            'expansion_summary': expansion_summary  # 🔥 添加扩展摘要
         }
 
     async def _analyze_memory_gaps(
@@ -357,49 +384,75 @@ Output JSON:
         """
         根据缺失方面检索记忆
 
-        使用LLM生成检索query,针对性地补充信息
+        🔥 2025-12-20 FIX: 使用 QueryExpander 动态生成扩展查询
         """
         if not self.memory_system:
             logger.warning("⚠️ No memory system available for retrieval")
             return []
 
-        # 构建补充检索query
-        aspect_queries = []
-        for aspect in missing_aspects[:3]:  # 最多3个方面
-            if 'education' in aspect.lower():
-                aspect_queries.append(f"education study learning field subject")
-            elif 'relationship' in aspect.lower():
-                aspect_queries.append(f"relationship status single married dating partner")
-            elif 'date' in aspect.lower() or 'time' in aspect.lower():
-                aspect_queries.append(f"date time when ago yesterday")
-            elif 'context' in aspect.lower():
-                aspect_queries.append(query)  # 使用原问题
-            else:
-                aspect_queries.append(aspect)
-
-        # 执行检索
         all_additional = []
-        for aspect_query in aspect_queries:
-            logger.debug(f"🔎 Retrieving for aspect: {aspect_query[:50]}...")
 
-            try:
-                # 调用memory_system检索
-                # 🔥 FIX 2025-12-05: 参数名 limit→k, min_similarity→threshold
-                memories = await self.memory_system.search_memories(
-                    query=aspect_query,
-                    search_type='semantic',
-                    k=8,  # 🔥 优化: 增加检索数量
-                    threshold=0.35  # 🔥 优化: 降低阈值提高召回率
-                )
+        # 🔥 2025-12-20 FIX: 使用 QueryExpander 生成扩展查询
+        # 获取当前迭代次数
+        current_iteration = self.query_expander.state.iteration if self.query_expander.state else 1
 
-                # 过滤已有的记忆
-                for mem in memories:
-                    mem_id = mem.get('id') if isinstance(mem, dict) else None
-                    if mem_id and mem_id not in exclude_ids:
-                        all_additional.append(mem)
+        # 从已检索的记忆中提取线索，生成扩展查询
+        existing_memories = context.get('existing_memories', [])
+        expanded_query = self.query_expander.get_query_for_iteration(
+            iteration=current_iteration + 1,  # 下一轮迭代
+            memories=existing_memories,
+            kg_facts=context.get('kg_facts', [])
+        )
 
-            except Exception as e:
-                logger.error(f"Aspect retrieval failed for '{aspect_query}': {e}")
+        # 获取当前迭代的检索配置
+        retrieval_config = self.query_expander.get_retrieval_config_for_iteration(current_iteration + 1)
+
+        logger.info(f"🔍 QueryExpander iteration {current_iteration + 1}: '{expanded_query[:60]}...'")
+
+        # 执行扩展查询检索
+        try:
+            memories = await self.memory_system.search_memories(
+                query=expanded_query,
+                search_type='semantic',
+                k=retrieval_config.get('k', 25),
+                threshold=retrieval_config.get('threshold', 0.25)
+            )
+
+            for mem in memories:
+                mem_id = mem.get('id') if isinstance(mem, dict) else None
+                if mem_id and mem_id not in exclude_ids:
+                    all_additional.append(mem)
+
+        except Exception as e:
+            logger.error(f"QueryExpander retrieval failed: {e}")
+
+        # 🔥 补充：基于 missing_aspects 的检索（保留原有逻辑作为备份）
+        if len(all_additional) < 3:
+            aspect_queries = []
+            for aspect in missing_aspects[:2]:
+                if 'education' in aspect.lower():
+                    aspect_queries.append(f"education study learning field subject")
+                elif 'relationship' in aspect.lower():
+                    aspect_queries.append(f"relationship status single married dating partner")
+                elif 'date' in aspect.lower() or 'time' in aspect.lower():
+                    aspect_queries.append(f"date time when ago yesterday")
+                else:
+                    aspect_queries.append(aspect)
+
+            for aspect_query in aspect_queries:
+                try:
+                    memories = await self.memory_system.search_memories(
+                        query=aspect_query,
+                        search_type='semantic',
+                        k=8,
+                        threshold=0.35
+                    )
+                    for mem in memories:
+                        mem_id = mem.get('id') if isinstance(mem, dict) else None
+                        if mem_id and mem_id not in exclude_ids:
+                            all_additional.append(mem)
+                except Exception as e:
+                    logger.error(f"Aspect retrieval failed for '{aspect_query}': {e}")
 
         logger.debug(f"📦 Retrieved {len(all_additional)} additional memories")
         return all_additional

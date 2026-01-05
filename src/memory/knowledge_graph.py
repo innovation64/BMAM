@@ -684,6 +684,27 @@ class LightweightKnowledgeGraph:
             }
         }
 
+    def get_all_triples(self) -> List[Dict[str, Any]]:
+        """
+        🔥 2025-12-20 FIX: 获取所有三元组（用于 KGMergeHandler 查询）
+
+        Returns:
+            List of triple dicts with keys: subject, predicate, object
+        """
+        triples = []
+        for source in self.graph.nodes():
+            for target in self.graph.successors(source):
+                for rel_type in self.graph[source][target]:
+                    edge_data = self.graph[source][target][rel_type]
+                    triples.append({
+                        'subject': source,
+                        'predicate': rel_type,
+                        'object': target,
+                        'strength': edge_data.get('strength', 1.0),
+                        'metadata': edge_data.get('metadata', {})
+                    })
+        return triples
+
     def export_to_json(self, output_path: str):
         """导出为JSON格式"""
         data = {

@@ -634,7 +634,8 @@ class StorageMixin:
         emotion_tags: List[str] = None,
         emotion_intensity: float = 0.0,
         metadata: Dict[str, Any] = None,
-        inherited_event_time: datetime = None  # 🔥 2025-12-16: 继承的事件时间 (用于 [Event] 记忆)
+        inherited_event_time: datetime = None,  # 🔥 2025-12-16: 继承的事件时间 (用于 [Event] 记忆)
+        user_id: str = "default"  # 🔥 2025-12-25: 用户ID隔离
     ) -> Dict[str, Any]:
         """
         带事件分割的记忆存储 (Phase 1核心功能)
@@ -791,7 +792,8 @@ class StorageMixin:
             emotion_intensity=emotion_intensity,
             metadata=final_metadata,
             event_id=self.current_event_id,  # 🔥 关联事件ID
-            speaker=speaker  # 🔥 记录说话人
+            speaker=speaker,  # 🔥 记录说话人
+            user_id=user_id  # 🔥 2025-12-25: 用户ID隔离
         )
 
         # 🔥 FIX: 保存提取的关系到metadata

@@ -368,7 +368,7 @@ async def main():
     print(f"\n结果已保存到: {RESULTS_DIR / f'result_{ts}.json'}")
 
     # 🔥 清理checkpoint
-    checkpoint.cleanup()
+    checkpoint.clear()
     print(f"🗑️  清理checkpoint: {checkpoint.test_name}")
 
 

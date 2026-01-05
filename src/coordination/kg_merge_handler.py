@@ -17,17 +17,19 @@ logger = get_logger(__name__)
 class KGMergeHandler:
     """Handles Knowledge Graph operations and memory fusion"""
 
-    def __init__(self, kg_patterns_fn, phrases_checker_fn):
+    def __init__(self, kg_patterns_fn, phrases_checker_fn, unified_kg=None):
         """
         Initialize KG Merge Handler
 
         Args:
             kg_patterns_fn: Function to get KG patterns
             phrases_checker_fn: Function to check phrases in text
+            unified_kg: 🔥 2025-12-20 FIX: LightweightKnowledgeGraph 实例（内存中的统一KG）
         """
         self._get_kg_patterns = kg_patterns_fn
         self._phrases_in_text = phrases_checker_fn
         self._kg_cache = None  # Cached KG triples
+        self.unified_kg = unified_kg  # 🔥 2025-12-20 FIX: 内存KG引用
 
 
     def should_trigger_kg_search(
@@ -218,7 +220,51 @@ class KGMergeHandler:
         Returns:
             List of KG facts as memory dicts
         """
-        all_triples = self.load_kg_triples(kg_file_path)
+        # 🔥 2025-12-20 FIX: 优先从内存 unified_kg 查询，再 fallback 到文件
+        all_triples = []
+        kg_facts = []
+
+        # 🔥 2025-12-20 FIX: 使用 unified_kg 的高级查询功能
+        if self.unified_kg is not None:
+            try:
+                # 1. 使用 search_nodes 找到相关实体
+                query_words = query.lower().split()
+                for word in query_words[:5]:  # 最多5个关键词
+                    if len(word) > 3:  # 跳过短词
+                        found_nodes = self.unified_kg.search_nodes(word)
+                        for node in found_nodes[:3]:  # 每个词最多3个节点
+                            # 2. 使用 multi_hop_query 进行多跳推理
+                            paths = self.unified_kg.multi_hop_query(node.id, max_depth=2)
+                            for path in paths[:5]:  # 每个节点最多5条路径
+                                for source, rel, target in path:
+                                    triple = {
+                                        'subject': source,
+                                        'predicate': rel,
+                                        'object': target,
+                                        'source': 'multi_hop_inference'
+                                    }
+                                    kg_facts.append(self.triple_to_memory(triple))
+
+                # 3. 获取所有三元组用于后续模式匹配
+                memory_triples = self.unified_kg.get_all_triples()
+                if memory_triples:
+                    all_triples.extend(memory_triples)
+                    logger.debug(f"🔥 KG: 从内存获取 {len(memory_triples)} 个三元组, "
+                               f"多跳推理发现 {len(kg_facts)} 个事实")
+            except Exception as e:
+                logger.warning(f"Failed to get triples from unified_kg: {e}")
+
+        # 2. 补充从文件加载（预置知识）
+        file_triples = self.load_kg_triples(kg_file_path)
+        if file_triples:
+            # 去重：避免重复添加相同的三元组
+            existing_keys = {(t.get('subject', ''), t.get('predicate', ''), t.get('object', ''))
+                           for t in all_triples}
+            for triple in file_triples:
+                key = (triple.get('subject', ''), triple.get('predicate', ''), triple.get('object', ''))
+                if key not in existing_keys:
+                    all_triples.append(triple)
+                    existing_keys.add(key)
 
         if not all_triples:
             return []

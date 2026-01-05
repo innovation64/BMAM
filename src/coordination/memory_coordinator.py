@@ -15,6 +15,7 @@ from ..monitoring.memory_metrics import get_metrics_collector
 from ..utils.model_selector import select_model_for_task  # 🔥 P1-5: Smart model selection
 from .confidence_calibrator import get_confidence_calibrator, ConfidenceCalibrator  # 🔥 Phase 3: 置信度校准
 from .brain_retrieval_integration import get_brain_retrieval, BrainInspiredRetrieval  # 🔥 Phase 4: 脑仿生检索整合
+from ..memory.story_arc import get_story_arc_manager, StoryArcManager  # 🔥 2025-12-20: 时间线索引
 
 logger = get_logger(__name__)
 
@@ -62,6 +63,10 @@ class MemoryCoordinator:
             max_iterations=3
         )
         logger.info("MemoryCoordinator: BrainInspiredRetrieval initialized")
+
+        # 🔥 2025-12-20: 时间线索引 (StoryArc) - 提升时间推理精度
+        self.story_arc = get_story_arc_manager()
+        logger.info(f"MemoryCoordinator: StoryArcManager initialized ({self.story_arc.get_statistics()['total_events']} events)")
 
 
     async def store_long_document(
@@ -181,20 +186,20 @@ class MemoryCoordinator:
                 logger.info(f"   📝 Medium content ({estimated_tokens} tokens) → extracting key paragraphs with original text...")
 
                 try:
-                    extraction_prompt = f"""从以下文档中提取3-5个最重要的段落或片段。
+                    extraction_prompt = f"""Extract 3-5 most important paragraphs or fragments from the following document.
 
-文档内容:
+Document content:
 {content}
 
-请提取:
-1. 关键对话片段（保留原文）
-2. 重要事实段落（保留原文）
-3. 核心观点段落（保留原文）
+Please extract:
+1. Key dialogue fragments (preserve original text)
+2. Important factual paragraphs (preserve original text)
+3. Core viewpoint paragraphs (preserve original text)
 
-以JSON格式输出，每个片段包含ORIGINAL TEXT:
+Output in JSON format, each fragment containing ORIGINAL TEXT:
 {{"paragraphs": [
-  {{"type": "dialogue", "original_text": "完整原文...", "importance": 0.8}},
-  {{"type": "fact", "original_text": "完整原文...", "importance": 0.7}}
+  {{"type": "dialogue", "original_text": "full original text...", "importance": 0.8}},
+  {{"type": "fact", "original_text": "full original text...", "importance": 0.7}}
 ]}}"""
 
                     # 🔥 P1-5: Use smart model selection for extraction
@@ -236,17 +241,17 @@ class MemoryCoordinator:
                     # Prompt for event extraction
                     # Limit content to 4000 chars to avoid token overflow
                     truncated_content = content[:4000]
-                    extraction_prompt = f"""从以下长文档中提取关键事件和重要信息。
+                    extraction_prompt = f"""Extract key events and important information from the following long document.
 
-文档内容:
+Document content:
 {truncated_content}
 
-请提取:
-1. 关键事件 (时间、地点、人物、行动)
-2. 重要事实和数据
-3. 核心观点和结论
+Please extract:
+1. Key events (time, place, people, actions)
+2. Important facts and data
+3. Core viewpoints and conclusions
 
-以JSON格式输出，每个事件/信息一个对象:
+Output in JSON format, one object per event/information:
 {{"events": [
   {{"type": "event", "description": "...", "importance": 0.8}},
   {{"type": "fact", "description": "...", "importance": 0.6}}
@@ -349,12 +354,12 @@ class MemoryCoordinator:
 
                 summary_model = select_model_for_task('summary')
 
-                summary_prompt = f"""请为以下文档创建一个高层次的语义摘要 (2-3句话):
+                summary_prompt = f"""Create a high-level semantic summary (2-3 sentences) for the following document:
 
-文档ID: {document_id}
-关键事件: {len(events)}个
+Document ID: {document_id}
+Key events: {len(events)}
 
-简要总结文档的核心主题和关键信息。"""
+Briefly summarize the core themes and key information of the document."""
 
                 summary_response = await client.chat.completions.create(
                     model=summary_model,
@@ -396,7 +401,8 @@ class MemoryCoordinator:
         chunk_threshold: int = 1000,  # tokens
         chunk_overlap: int = 150,  # overlap tokens between chunks
         async_summary: bool = False,  # 🔥 P1-5: Async summary generation
-        inherited_event_time: datetime = None  # 🔥 2025-12-16: 继承的事件时间
+        inherited_event_time: datetime = None,  # 🔥 2025-12-16: 继承的事件时间
+        user_id: str = "default"  # 🔥 2025-12-25: 用户ID隔离
     ) -> Dict[str, Any]:
         """
         Store memory with custom timestamp (for learning historical conversations)
@@ -535,7 +541,8 @@ class MemoryCoordinator:
                     timestamp=timestamp,
                     speaker=speaker,
                     importance=importance,
-                    inherited_event_time=inherited_event_time  # 🔥 2025-12-16: 传递继承的事件时间
+                    inherited_event_time=inherited_event_time,  # 🔥 2025-12-16: 传递继承的事件时间
+                    user_id=user_id  # 🔥 2025-12-25: 传递用户ID
                 )
                 results.append(result)
 
@@ -559,9 +566,19 @@ class MemoryCoordinator:
                 timestamp=timestamp,
                 speaker=speaker,
                 importance=importance,
-                inherited_event_time=inherited_event_time  # 🔥 2025-12-16: 传递继承的事件时间
+                inherited_event_time=inherited_event_time,  # 🔥 2025-12-16: 传递继承的事件时间
+                user_id=user_id  # 🔥 2025-12-25: 传递用户ID
             )
             result['chunks_created'] = 1
+
+            # 🔥 2025-12-27 FIX: 偏好提取并存储到PersonaMemory
+            # 解决PersonaMem测试0条记忆问题 - 在系统层而非测试层修复
+            if speaker == 'user' and hasattr(self, 'persona_memory') and self.persona_memory:
+                await self._extract_and_store_preferences(
+                    content=content,
+                    user_id=user_id,
+                    timestamp=timestamp
+                )
 
             # 🔥 Phase 1: 5-Brain Region Collaborative Storage
             # After storing to Hippocampus, dispatch to other brain regions based on content features
@@ -579,6 +596,22 @@ class MemoryCoordinator:
             if dispatch_count > 0:
                 regions_list = [region for region, ids in dispatched.items() if ids]
                 logger.info(f"   📊 Dispatched to {len(regions_list)} regions: {', '.join(regions_list)}")
+
+            # 🔥 2025-12-20: 提取事件到 StoryArc 时间线索引
+            try:
+                # 使用 inherited_event_time (精确事件时间) 或 timestamp (对话时间)
+                event_time = inherited_event_time or timestamp
+                story_event = await self.story_arc.add_event_from_memory(
+                    memory_id=memory_id,
+                    content=content,
+                    event_time=event_time,
+                    metadata={'speaker': speaker, 'importance': importance}
+                )
+                if story_event:
+                    result['story_arc_event_id'] = story_event.event_id
+                    logger.debug(f"   📅 StoryArc event: {story_event.event_id} ({story_event.event_type})")
+            except Exception as e:
+                logger.warning(f"   ⚠️ StoryArc event extraction failed: {e}")
 
             # 🔥 P1-5: Async Summary Generation
             if async_summary:
@@ -689,6 +722,70 @@ class MemoryCoordinator:
 
         return dispatched_regions
 
+    async def _extract_and_store_preferences(
+        self,
+        content: str,
+        user_id: str,
+        timestamp: datetime
+    ) -> int:
+        """
+        🔥 2025-12-27 FIX: 使用LLM偏好提取器提取并存储偏好到PersonaMemory
+
+        Args:
+            content: 用户消息内容
+            user_id: 用户ID
+            timestamp: 时间戳
+
+        Returns:
+            存储的偏好数量
+        """
+        if not content or len(content) < 10:
+            return 0
+
+        # 懒加载偏好提取器
+        if not hasattr(self, '_preference_extractor'):
+            try:
+                from ..optimization.metacognition import get_preference_extractor
+                self._preference_extractor = get_preference_extractor()
+            except Exception as e:
+                logger.debug(f"Preference extractor not available: {e}")
+                self._preference_extractor = None
+
+        if not self._preference_extractor:
+            return 0
+
+        try:
+            # 使用LLM提取偏好
+            extracted = self._preference_extractor.extract_from_text(content)
+            total_stored = 0
+
+            for pref_type, prefs in extracted.items():
+                for pref in prefs:
+                    if pref and len(pref) > 3:  # 过滤太短的
+                        await self.persona_memory.store_persona({
+                            'content': f"User {pref_type}: {pref}",
+                            'category': pref_type,
+                            'importance': 0.7,
+                            'user_id': user_id,
+                            'metadata': {
+                                'source': 'preference_extraction_shaping',
+                                'preference_type': pref_type,
+                                'original_statement': content[:200],
+                                'timestamp': str(timestamp),
+                                'user_id': user_id
+                            }
+                        })
+                        total_stored += 1
+
+            if total_stored > 0:
+                logger.debug(f"   🎯 Extracted {total_stored} preferences from shaping")
+
+            return total_stored
+
+        except Exception as e:
+            logger.debug(f"Preference extraction failed: {e}")
+            return 0
+
     async def store_memory_if_needed(
         self,
         user_input: str,
@@ -778,9 +875,12 @@ class MemoryCoordinator:
 
         return result
 
-    async def consolidate_memories(self) -> Dict[str, Any]:
+    async def consolidate_memories(self, evaluation_mode: bool = False) -> Dict[str, Any]:
         """
         Consolidate memories from Hippocampus to Temporal Lobe
+
+        Args:
+            evaluation_mode: 🔥 评估模式 - 绕过时间/访问次数限制
 
         Returns:
             Consolidation result dict
@@ -788,7 +888,10 @@ class MemoryCoordinator:
         try:
 
             # Get memories from hippocampus for consolidation
-            candidates = await self.hippocampus.get_consolidation_candidates()
+            # 🔥 2025-12-20: 传递 evaluation_mode 参数
+            candidates = await self.hippocampus.get_consolidation_candidates(
+                evaluation_mode=evaluation_mode
+            )
 
             if not candidates:
                 return {'consolidated': 0, 'message': 'No candidates'}
@@ -923,12 +1026,12 @@ class MemoryCoordinator:
             # Use smart model selection for summary
             summary_model = select_model_for_task('summary')
 
-            summary_prompt = f"""请为以下文档创建一个高层次的语义摘要 (2-3句话):
+            summary_prompt = f"""Create a high-level semantic summary (2-3 sentences) for the following document:
 
-文档ID: {document_id}
-关键事件: {len(events)}个
+Document ID: {document_id}
+Key events: {len(events)}
 
-简要总结文档的核心主题和关键信息。"""
+Briefly summarize the core themes and key information of the document."""
 
             summary_response = await client.chat.completions.create(
                 model=summary_model,
@@ -1405,6 +1508,78 @@ class MemoryCoordinator:
                 except Exception as e:
                     logger.warning(f"Silent engram reactivation failed: {e}")
 
+            # 🔥 V2.1: StoryArc + ToM 增强检索
+            # 不仅限于 temporal 查询，对所有查询都尝试增强
+            try:
+                augmented = False
+
+                # 1. StoryArc 实体上下文增强
+                if self.story_arc:
+                    # 提取查询中的实体
+                    query_words = query.split()
+                    query_entities = [w for w in query_words if len(w) > 1 and w[0].isupper()]
+
+                    for entity in query_entities[:3]:  # 最多处理3个实体
+                        entity_context = self.story_arc.get_entity_context(entity, limit=5)
+                        if entity_context:
+                            for event in entity_context:
+                                # 避免重复
+                                event_content = event.get('content', '')
+                                if not any(event_content in m.get('content', '') for m in memories):
+                                    memories.append({
+                                        'content': event_content,
+                                        'source': 'story_arc',
+                                        'event_type': event.get('event_type'),
+                                        'event_date': event.get('event_date'),
+                                        'relevance': 0.75,  # StoryArc 匹配给予较高分数
+                                        'memory_id': event.get('memory_id')
+                                    })
+                                    augmented = True
+
+                    if augmented:
+                        logger.info(f"   📅 StoryArc augmented: +{len([m for m in memories if m.get('source') == 'story_arc'])} events")
+
+                # 2. ToM 心智模型增强 (偏好/意图相关查询)
+                try:
+                    from ..agents.brain_regions.theory_of_mind_agent import get_theory_of_mind_agent
+                    tom = get_theory_of_mind_agent()
+
+                    # 检测是否是偏好/意图相关查询
+                    preference_keywords = ['prefer', 'like', 'want', 'favorite', 'choice', 'opinion', 'think', 'feel']
+                    is_preference_query = any(kw in query.lower() for kw in preference_keywords)
+
+                    if is_preference_query and query_entities:
+                        for entity in query_entities[:2]:
+                            mental_model = tom.get_mental_model(entity)
+                            if mental_model:
+                                # 将心智模型转换为记忆格式
+                                for entry in mental_model[:3]:
+                                    model_content = f"[Mental Model] {entity}: {entry.entry_type} - {entry.content}"
+                                    if not any(model_content in m.get('content', '') for m in memories):
+                                        memories.append({
+                                            'content': model_content,
+                                            'source': 'theory_of_mind',
+                                            'relevance': 0.8,  # ToM 匹配给予高分数
+                                            'entity': entity,
+                                            'entry_type': entry.entry_type
+                                        })
+                                logger.info(f"   🎭 ToM mental model: +{len(mental_model[:3])} entries for {entity}")
+                except Exception as e:
+                    logger.debug(f"ToM augmentation skipped: {e}")
+
+                # 重新排序：原始结果优先，然后是增强结果
+                if augmented:
+                    memories.sort(
+                        key=lambda x: (
+                            0 if x.get('source') not in ('story_arc', 'theory_of_mind') else 1,
+                            -x.get('relevance', x.get('score', 0))
+                        )
+                    )
+                    memories = memories[:k * 2]  # 限制总数
+
+            except Exception as e:
+                logger.warning(f"StoryArc/ToM augmentation failed: {e}")
+
             # P0-1: 存入检索缓存
             retrieval_cache.put(
                 query=query,
@@ -1444,19 +1619,19 @@ class MemoryCoordinator:
         ])
 
         # Use consolidation agent's LLM capability
-        prompt = f"""从以下{len(episodes)}条情节记忆中提取核心的语义知识:
+        prompt = f"""Extract core semantic knowledge from the following {len(episodes)} episodic memories:
 
-日期: {date}
+Date: {date}
 
-情节记忆:
+Episodic memories:
 {combined_content}
 
-请提取:
-1. 核心事实和知识点
-2. 共同的主题或模式
-3. 重要的实体关系
+Please extract:
+1. Core facts and knowledge points
+2. Common themes or patterns
+3. Important entity relationships
 
-以简洁的语义知识形式输出 (2-3句话)。"""
+Output as concise semantic knowledge (2-3 sentences)."""
 
         try:
             response = await self.consolidation_agent.call_llm(
@@ -1538,14 +1713,15 @@ class MemoryCoordinator:
 
         logger.info(f"🧠 Phase 3: Cross-region retrieval for query: '{query[:50]}...'")
 
-        # Default: activate all regions if no plan provided
+        # Default: activate only core memory regions (hippocampus + temporal_lobe)
+        # Other regions (prefrontal, amygdala, basal_ganglia) add noise for factual queries
         if activation_plan is None:
             activation_plan = {
-                'hippocampus': True,
-                'temporal_lobe': True,
-                'prefrontal': True,
-                'amygdala': True,
-                'basal_ganglia': True
+                'hippocampus': True,      # Episodic memory - essential
+                'temporal_lobe': True,    # Semantic memory - essential
+                'prefrontal': False,      # Working memory - skip by default (adds reasoning traces)
+                'amygdala': False,        # Emotional tags - skip by default (adds noise)
+                'basal_ganglia': False    # Procedural patterns - skip by default
             }
 
         # Phase 1: Build parallel retrieval tasks
@@ -1871,3 +2047,61 @@ class MemoryCoordinator:
             return memory.importance
         else:
             return 0.5  # Default neutral score
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # 🔥 2025-12-20: StoryArc 时间线查询接口
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    async def query_event_time(
+        self,
+        entity: str,
+        event_keywords: List[str],
+        time_hint: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        查询实体的事件发生时间 (通过 StoryArc 时间线索引)
+
+        Args:
+            entity: 实体名称 (e.g., 'Caroline')
+            event_keywords: 事件关键词 (e.g., ['museum', 'visit'])
+            time_hint: 时间提示 (e.g., 'July 2023', 'summer')
+
+        Returns:
+            {
+                'event_date': date,
+                'formatted_date': str,  # e.g., '5 July 2023'
+                'confidence': float,
+                'event': TimelineEvent
+            }
+        """
+        return await self.story_arc.query_event_time(entity, event_keywords, time_hint)
+
+    async def calculate_duration(
+        self,
+        entity: str,
+        reference: str,
+        reference_date: Optional[datetime] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        计算时间跨度 (通过 StoryArc)
+
+        Args:
+            entity: 实体名称
+            reference: 参考内容 (e.g., 'friends', 'living in current city')
+            reference_date: 参考日期
+
+        Returns:
+            {'duration': str, 'start_date': date, 'confidence': float}
+        """
+        from datetime import date as date_type
+        ref_date = reference_date.date() if reference_date else date_type.today()
+        return await self.story_arc.calculate_duration(entity, reference, ref_date)
+
+    def get_story_arc_statistics(self) -> Dict[str, Any]:
+        """获取 StoryArc 统计信息"""
+        return self.story_arc.get_statistics()
+
+    def clear_story_arc(self):
+        """清空 StoryArc 时间线 (用于测试重置)"""
+        self.story_arc.clear()
+        logger.info("StoryArc timeline cleared")

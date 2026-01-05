@@ -16,14 +16,14 @@ BMAM implements a multi-agent memory system inspired by human brain memory mecha
 - **Soul Portability**: Export/import memory archives (.bma format) for identity transfer
 - **HRM Integration**: Hierarchical Recurrent Memory for multi-timescale organization
 
-## Performance (SOTA on LoCoMo)
+## Performance
 
-| Benchmark | Scale | Accuracy | vs MemOS |
-|-----------|-------|----------|----------|
-| **LoCoMo** | 10 groups, 1986 QA | **78.45%** | +5.14% |
-| **LongMemEval** | 500 samples | Testing... | - |
-| **PrefEval** | 1000 samples | Testing... | - |
-| **PersonaMem** | 37 users, 589 QA | Testing... | - |
+| Benchmark | Scale | Accuracy | Note |
+|-----------|-------|----------|------|
+| **LoCoMo** | 10 groups, 1986 QA | **78.45%** | Long-context temporal reasoning |
+| **LongMemEval** | 500 samples | **67.60%** | 6 question types |
+| **PrefEval** | 993 samples | **63.04%** | User preference understanding |
+| **PersonaMem** | 20 users, 306 QA | 42.81% | User persona memory |
 
 ### LoCoMo Category Breakdown
 

@@ -117,6 +117,40 @@ CAPABILITY_LIBRARY = {
         description='Combine multiple pieces of information across memories',
         required_agents=['reflection', 'consolidation', 'reasoning_validator'],
         priority=3
+    ),
+
+    # === 创意生成 (Ideation) - 2025-12-22 ===
+    'ideation_generation': ReasoningCapability(
+        name='ideation_generation',
+        description='Generate NEW ideas/suggestions that the user has NOT tried before, by excluding known activities from recommendations',
+        required_agents=['persona_memory', 'reflection', 'reasoning_validator'],
+        priority=2
+    ),
+
+    # === 活动历史追踪 (Activity Tracking) - 2025-12-22 ===
+    'activity_tracking': ReasoningCapability(
+        name='activity_tracking',
+        description='Track what activities/hobbies the user has already done or tried',
+        required_agents=['persona_memory', 'hippocampus'],
+        priority=1
+    ),
+
+    # === 事实回忆 (Fact Recall) - 2025-12-23 ===
+    # 🔥 专门用于回忆用户自己陈述的事实 (recall_user_shared_facts)
+    'fact_recall': ReasoningCapability(
+        name='fact_recall',
+        description='Recall specific facts that the USER personally stated or shared (NOT assistant responses). Filter memories by speaker=User to find what the user themselves said about events, experiences, or facts.',
+        required_agents=['hippocampus', 'reasoning_validator'],
+        priority=1
+    ),
+
+    # === 偏好感知响应 (Preference-Aligned Response) - 2025-12-27 ===
+    # 🔥 专门用于生成尊重用户偏好的推荐 (PrefEval benchmark)
+    'preference_aligned_response': ReasoningCapability(
+        name='preference_aligned_response',
+        description='Generate recommendations that RESPECT user preferences and aversions. Retrieves stated preferences from memory, explicitly acknowledges them, and provides personalized suggestions that align with likes and avoid dislikes.',
+        required_agents=['persona_memory', 'hippocampus', 'reasoning_validator'],
+        priority=2
     )
 }
 
@@ -191,13 +225,26 @@ Guidelines for capability selection:
 - Questions needing synthesis across multiple memories → need multi_hop_inference
 - Questions about patterns/themes → need pattern_recognition
 - Questions about interests/preferences → need interest_inference
+- 🔥 Questions asking for RECOMMENDATIONS with user having stated PREFERENCES/AVERSIONS → **preference_aligned_response**
+- Questions like "What would you recommend..." or "Can you suggest..." or "What resources..." → **preference_aligned_response**
+- Questions asking "best way to..." or "best resources for..." or "effective ways to..." → **preference_aligned_response**
+- Questions like "How should I go about..." or "I'm looking for ways to..." → **preference_aligned_response**
+- Questions asking for learning strategies, study methods, or resources → **preference_aligned_response**
+- 🔥 Questions asking for NEW ideas/suggestions/activities/ways the user HASN'T tried yet → **ideation_generation** (needs activity_tracking first!)
+- Questions like "How can I find new ways to..." or "suggest new ideas" or "What NEW should I try" → **ideation_generation**
+- Questions asking "What else could I do" or "unexplored options" → **ideation_generation**
+- 🔥 Questions starting with "I recently..." or "I attended..." → use **fact_recall** (user is recalling their OWN experience)
+- 🔥 Questions asking about what the USER personally did/experienced → use **fact_recall** (NOT fact_extraction)
 
 Focus on WHAT the question asks for, not what you might infer:
 - "What community" asks for a simple fact (the community name) → fact_extraction
 - "What is their identity" asks for identity inference (who they are) → identity_inference
 - Questions about interests/pursuits/fields → consider interest_inference
+- Questions asking for creative outlets or suggestions → consider interest_inference
 - Questions requiring synthesis across memories → consider multi_hop_inference
 - Questions about time ordering → consider temporal_calculation
+- 🔥 "I recently attended an event..." → fact_recall (user recalling their own stated facts)
+- 🔥 "I revisited a project..." → fact_recall (user-stated experience)
 
 Output JSON:
 {{

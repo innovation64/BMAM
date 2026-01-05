@@ -1,8 +1,8 @@
 """
-Temporal Cue Extraction - 时间线索提取
-LLM理解时间语义
-
+Temporal Cue Extraction
 Extracts temporal cues from query using LLM
+
+LLM understands temporal semantics to identify time-related information.
 """
 
 import logging
@@ -15,12 +15,12 @@ logger = logging.getLogger(__name__)
 
 class TemporalCueExtractor:
     """
-    时间线索提取器 (Temporal Cue Extractor)
+    Temporal Cue Extractor
 
-    Uses LLM to understand temporal semantics | 使用LLM理解时间语义:
-    - Explicit time expressions | 显式时间表达
-    - Implicit temporal cues | 隐式时间线索
-    - Time relations | 时间关系
+    Uses LLM to understand temporal semantics:
+    - Explicit time expressions
+    - Implicit temporal cues
+    - Time relations
     """
 
     def __init__(self, agent):
@@ -30,10 +30,10 @@ class TemporalCueExtractor:
 
     async def extract(self, query: str) -> Dict[str, Any]:
         """
-        提取时间线索 - Extract Temporal Cues
+        Extract Temporal Cues from query
 
         Args:
-            query: 查询文本
+            query: Query text
 
         Returns:
             {
@@ -59,29 +59,29 @@ class TemporalCueExtractor:
 
 
     def _build_prompt(self, query: str) -> str:
-        """构建提取提示"""
-        return f"""分析查询中的时间线索:
+        """Build extraction prompt"""
+        return f"""Analyze temporal cues in the query:
 
-查询: "{query}"
+Query: "{query}"
 
-提取:
-1. **显式时间**: 明确的日期/时间 (如"2023年5月", "上周")
-2. **隐式时间**: 暗示的时序 (如"第一次", "最早", "最近")
-3. **时间关系**: 相对时间 (如"之前", "之后")
-4. **时序事件**: 涉及时间顺序的事件
+Extract:
+1. **Explicit time**: Specific dates/times (e.g., "May 2023", "last week")
+2. **Implicit cues**: Implied temporal markers (e.g., "first time", "earliest", "most recent")
+3. **Time relation**: Relative time (e.g., "before", "after")
+4. **Temporal event**: Events involving time order
 
-返回JSON:
+Return JSON:
 {{
-    "explicit_time": "显式时间或null",
-    "implicit_cues": ["隐式线索"],
+    "explicit_time": "explicit time or null",
+    "implicit_cues": ["implicit cues"],
     "time_relation": "before/after/during/none",
-    "temporal_event": "时序事件",
+    "temporal_event": "temporal event",
     "is_temporal_query": true/false
 }}"""
 
 
     def _parse_response(self, response: str) -> Dict[str, Any]:
-        """解析LLM响应"""
+        """Parse LLM response"""
         json_match = re.search(r'\{.*\}', response, re.DOTALL)
         if json_match:
             return json.loads(json_match.group())

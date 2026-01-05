@@ -113,6 +113,31 @@ class ConversationAgent(BrainAgent):
         # 智能判断记忆相关性
         relevant_memories = self._filter_relevant_memories(user_input, memories)
 
+        # 🎯 2025-12-22: 提前检测查询类型（用于偏好提取）
+        user_input_lower = user_input.lower()
+        is_recommendation = any(kw in user_input for kw in ['推荐', '建议', '介绍', '适合', '基于我的', '根据我的', 'recommend', 'suggest'])
+        is_preference_query = is_recommendation or any(kw in user_input_lower for kw in ['recommend', 'suggest', 'should i', 'best for', 'what would', 'which one'])
+
+        # 🎯 2025-12-22: 合并 PersonaMemory 检索的偏好与记忆中的偏好
+        # 优先使用 PersonaMemory 的结构化偏好（由 BrainCoordinator 设置）
+        extracted_preferences = list(context.get('user_preferences', []))
+
+        # 如果是偏好相关查询，从普通记忆中补充偏好
+        if is_preference_query or context.get('evaluation_mode', False):
+            preference_patterns = [
+                'i prefer', 'i like', 'i love', 'i hate', 'i dislike',
+                "i don't like", "can't stand", 'i enjoy', 'i avoid',
+                'i find', 'i usually', 'i always', 'i never',
+                'my preference', 'my favorite', 'not a fan',
+                'user likes:', 'user dislikes:', 'user prefers:'
+            ]
+            for mem in memories:
+                content = self._extract_memory_content(mem).lower()
+                if any(p in content for p in preference_patterns):
+                    full_content = self._extract_memory_content(mem)
+                    if full_content not in extracted_preferences and len(extracted_preferences) < 8:
+                        extracted_preferences.append(full_content)
+
         # 使用摘要压缩记忆上下文（Anthropic建议）
         memory_context = ""
         if relevant_memories:
@@ -168,8 +193,7 @@ class ConversationAgent(BrainAgent):
                 'source': 'reasoning_validator'
             }
 
-        # 根据查询类型调整prompt策略
-        is_recommendation = any(kw in user_input for kw in ['推荐', '建议', '介绍', '适合', '基于我的', '根据我的', 'recommend', 'suggest'])
+        # 根据查询类型调整prompt策略（is_recommendation 已在前面定义）
         is_recall = any(kw in user_input for kw in ['什么时候', '刚才说', '我说过', 'when', 'where', 'what', 'who', 'how'])
 
         if benchmark_mode:
@@ -275,15 +299,73 @@ WRONG Answer: "8 May 2023" ❌"""
             else:
                 requirement = "请生成自然、有帮助的中文回复。"
 
+        # 🎯 2025-12-22: 添加用户偏好（直接从记忆中提取）
+        # 🔥 2025-12-27: 基于query_category使用不同的提示策略
+        preference_section = ""
+        # 优先使用直接提取的偏好，其次使用 context 中的
+        user_prefs = extracted_preferences or context.get('user_preferences', [])
+        query_category = context.get('persona_query_category', '')
+
+        if user_prefs:
+            pref_lines = "\n".join([f"- {p}" for p in user_prefs[:5]])
+
+            if detected_language == 'en':
+                # 🔥 根据问题类型生成不同的指导语
+                if query_category == 'suggestion':
+                    category_instruction = """⚠️ Generate CREATIVE suggestions that BUILD ON these preferences.
+⚠️ Suggest NEW activities or ideas that ALIGN with their interests.
+⚠️ Be specific and actionable in your suggestions."""
+                elif query_category == 'recommendation':
+                    category_instruction = """⚠️ Recommend options that MATCH these stated preferences.
+⚠️ Explain WHY each recommendation fits their preferences.
+⚠️ Avoid recommending anything that contradicts their preferences."""
+                elif query_category == 'evolution':
+                    category_instruction = """⚠️ Track how preferences have CHANGED over time.
+⚠️ Identify the REASONS behind preference changes.
+⚠️ Reference specific past statements about changes."""
+                elif query_category == 'fact_recall':
+                    category_instruction = """⚠️ Recall SPECIFIC facts the user has shared.
+⚠️ Be precise about dates, events, and details.
+⚠️ Only state what was explicitly mentioned."""
+                else:
+                    category_instruction = """⚠️ You MUST respect these preferences when responding.
+⚠️ Your response MUST align with these stated preferences."""
+
+                preference_section = f"""
+[USER PREFERENCES - CRITICAL]
+The user has expressed these preferences in previous conversations:
+{pref_lines}
+
+{category_instruction}
+"""
+            else:
+                # 中文版本
+                if query_category == 'suggestion':
+                    category_instruction = """⚠️ 基于这些偏好生成创意建议。
+⚠️ 建议应该与用户兴趣一致。"""
+                elif query_category == 'recommendation':
+                    category_instruction = """⚠️ 推荐符合用户偏好的选项。
+⚠️ 解释为什么推荐适合他们。"""
+                else:
+                    category_instruction = """⚠️ 必须尊重这些偏好。"""
+
+                preference_section = f"""
+【用户偏好 - 关键】
+用户在之前的对话中表达了以下偏好：
+{pref_lines}
+
+{category_instruction}
+"""
+
         # ✅ P0: 根据检测到的语言生成prompt
         if detected_language == 'en':
             prompt = f"""User Question: {user_input}
-{memory_context}
+{preference_section}{memory_context}
 
 {requirement}"""
-        else:  # zh
-            prompt = f"""用户输入：{user_input}
-{memory_context}
+        else:  # zh - use English prompts for consistency
+            prompt = f"""User Question: {user_input}
+{preference_section}{memory_context}
 
 {requirement}"""
         
@@ -313,15 +395,14 @@ WRONG Answer: "8 May 2023" ❌"""
         if cache_key in self._adaptive_weights_cache:
             return self._adaptive_weights_cache[cache_key]
 
-        # LLM决策权重
-        prompt = f"""为了过滤相关记忆，针对"{query_intent or '通用'}"类型的查询，各因素的重要性如何？
-给出以下因素的权重（0-10分）：
-1. 向量相似度
-2. 关键词匹配
-3. 记忆类型
-4. 查询意图匹配
+        # LLM-based weight decision
+        prompt = f"""For filtering relevant memories for a "{query_intent or 'general'}" type query, rate the importance of each factor (0-10):
+1. Vector similarity
+2. Keyword match
+3. Memory type
+4. Query intent match
 
-只返回4个数字，用逗号分隔，例如：10,3,2,4"""
+Return only 4 numbers separated by commas, e.g.: 10,3,2,4"""
 
         try:
             response = await self.call_llm(prompt, max_tokens=50, temperature=0.3, quick_fail=True)
@@ -517,9 +598,9 @@ WRONG Answer: "8 May 2023" ❌"""
         return filtered_memories
 
     async def _summarize_memories(self, query: str, memories: List[Dict]) -> str:
-        """摘要压缩记忆上下文 - 减少token使用"""
+        """Summarize memory context to reduce token usage"""
         memory_contents = []
-        for mem in memories[:10]:  # 最多处理10条
+        for mem in memories[:10]:  # process up to 10 memories
             content = self._extract_memory_content(mem)
             if content:
                 memory_contents.append(content)
@@ -527,14 +608,14 @@ WRONG Answer: "8 May 2023" ❌"""
         if not memory_contents:
             return ""
 
-        # 使用LLM压缩记忆
-        summary_prompt = f"""针对用户查询"{query}"，将以下记忆压缩为关键事实（3-5个要点）：
+        # Use LLM to compress memories
+        summary_prompt = f"""For the user query "{query}", compress the following memories into key facts (3-5 points):
 {chr(10).join(f'{i+1}. {m}' for i, m in enumerate(memory_contents))}
 
-只保留与查询直接相关的核心信息，用简洁的中文列出。"""
+Keep only core information directly relevant to the query. Be concise."""
 
         summary = await self.call_llm(summary_prompt, max_tokens=200, quick_fail=True)
-        return f"\n【记忆摘要】{summary}\n"
+        return f"\n[Memory Summary] {summary}\n"
 
     def _extract_memory_content(self, memory: Dict) -> str:
         """统一提取记忆内容 - 处理多种数据格式，优先使用最新偏好"""

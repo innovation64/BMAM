@@ -1,0 +1,3 @@
+CURRENT_TEST="prefeval"
+PROGRESS="0"
+RESULTS_DIR="evaluation/results/sequential_full_20251228_085936"

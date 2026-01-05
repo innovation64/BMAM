@@ -95,29 +95,33 @@ class MemoryStorageMixin:
                     memory.embedding = await self.embedding_service.encode_text(
                         content
                     )
-
-                # Add to vector database
-                faiss_id = self.vector_db.add_vector(memory.id, memory.embedding)
-                memory.embedding_id = str(faiss_id)
-
             except Exception as e:
                 logger.warning(f"Failed to generate embedding for memory: {e}")
                 # Don't store memory without valid embedding
                 return None
 
-            # Save to persistent storage
-            success = self.db_manager.save_memory(memory)
+            # 🔥 2025-12-25 FIX: "幽灵记忆"修复 - 先DB后FAISS避免不一致
+            # 原问题: 先FAISS后DB,如果DB失败,FAISS中留下幽灵向量导致检索失败
+            # 修复: 反转顺序,先保存DB,成功后再添加FAISS
 
-            if success:
-                # Persist vector index
+            # 1. 先保存到持久化存储 (DB)
+            success = self.db_manager.save_memory(memory)
+            if not success:
+                logger.error(f"Failed to store memory {memory.id} to database")
+                return None
+
+            # 2. DB成功后再添加到向量数据库 (FAISS)
+            try:
+                faiss_id = self.vector_db.add_vector(memory.id, memory.embedding)
+                memory.embedding_id = str(faiss_id)
+
+                # 3. 持久化向量索引
                 self.vector_db.save_index()
 
-                # Verify FAISS mapping
+                # 4. 验证FAISS映射
                 if memory.id in self.vector_db.reverse_mapping:
-                    faiss_id = self.vector_db.reverse_mapping[memory.id]
                     logger.debug(
-                        f"Successfully stored memory {memory.id} -> "
-                        f"FAISS index {faiss_id}"
+                        f"✅ Memory {memory.id} stored: DB ✓ FAISS {faiss_id} ✓"
                     )
                     logger.debug(
                         f"Vector DB stats: total_vectors="
@@ -125,15 +129,24 @@ class MemoryStorageMixin:
                         f"mappings={len(self.vector_db.reverse_mapping)}"
                     )
                 else:
-                    logger.error(
-                        f"Memory {memory.id} stored in DB but NOT in "
-                        f"FAISS mapping!"
+                    # 理论上不应该发生,但记录日志
+                    logger.warning(
+                        f"Memory {memory.id} in DB but NOT in FAISS reverse mapping (may need rebuild)"
                     )
 
                 return memory.id
-            else:
-                logger.error(f"Failed to store memory {memory.id}")
-                return None
+
+            except Exception as e:
+                # 🔥 FAISS失败时回滚DB? 或保留DB但标记为无向量?
+                # 策略: 保留DB记忆但警告,避免数据丢失
+                logger.error(
+                    f"❌ Memory {memory.id} saved to DB but FAISS indexing failed: {e}"
+                )
+                logger.warning(
+                    f"Memory {memory.id} will NOT be searchable by semantic search until re-indexed"
+                )
+                # 不删除DB记忆,保留数据完整性
+                return memory.id  # 返回ID表示存储成功(虽然没有向量)
 
         except Exception as e:
             logger.error(f"Error storing memory: {e}")

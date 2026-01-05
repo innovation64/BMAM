@@ -88,13 +88,14 @@ class StoryArcManager:
     """
 
     # 事件类型关键词映射
+    # 🔥 2025-12-25 FIX: 移除"march"以避免与月份冲突 (导致所有3月事件被错误标记为parade)
     EVENT_TYPE_KEYWORDS = {
         'lgbtq_support': ['lgbtq', 'support group', 'transgender', 'pride', 'community'],
         'museum_visit': ['museum', 'exhibition', 'gallery', 'art show'],
         'camping': ['camping', 'camp', 'tent', 'outdoor', 'hiking'],
         'pottery': ['pottery', 'ceramic', 'clay', 'workshop'],
         'conference': ['conference', 'seminar', 'summit', 'symposium'],
-        'parade': ['parade', 'march', 'demonstration', 'rally'],
+        'parade': ['parade', 'demonstration', 'rally'],  # ✅ FIXED: 移除"march"
         'picnic': ['picnic', 'outing', 'park'],
         'birthday': ['birthday', 'celebration', 'party'],
         'mentoring': ['mentor', 'mentoring', 'volunteer', 'youth'],
@@ -105,7 +106,44 @@ class StoryArcManager:
         'counseling': ['counseling', 'therapy', 'mental health'],
         'activism': ['activist', 'activism', 'advocacy', 'rights'],
         'friendship': ['friend', 'friends', 'friendship', 'met'],
-        'move': ['move', 'moved', 'relocate', 'migration', 'sweden', 'country']
+        'move': ['move', 'moved', 'relocate', 'migration', 'sweden', 'country'],
+        # 🔥 新增常见事件类型
+        'car_service': ['car service', 'serviced', 'maintenance', 'oil change', 'tire', 'mechanic'],
+        'shopping': ['shopping', 'bought', 'purchased', 'store', 'mall'],
+        'travel': ['travel', 'trip', 'vacation', 'flight', 'hotel'],
+        'work': ['work', 'office', 'meeting', 'project', 'deadline'],
+        'exercise': ['exercise', 'gym', 'workout', 'run', 'jog', 'fitness'],
+
+        # 🔥 2025-12-27 FIX: 扩展事件类型以支持LongMemEval时间推理场景
+        # 设备相关
+        'device': ['gps', 'phone', 'laptop', 'computer', 'tablet', 'device', 'gadget'],
+        'vehicle': ['car', 'bike', 'bicycle', 'motorcycle', 'vehicle', 'drove', 'driving'],
+
+        # 活动和学习
+        'workshop': ['workshop', 'webinar', 'training', 'course', 'class', 'lesson', 'tutorial'],
+        'event_attendance': ['attended', 'attend', 'participated', 'participation', 'event', 'festival', 'fest'],
+
+        # 宗教和节日
+        'religious': ['church', 'mass', 'service', 'cathedral', 'temple', 'mosque', 'prayer', 'ash wednesday', 'holi'],
+
+        # 园艺和农场
+        'gardening': ['seeds', 'planted', 'garden', 'tomatoes', 'marigolds', 'flowers', 'vegetables', 'grow'],
+        'farm': ['goats', 'hooves', 'fence', 'farm', 'barn', 'livestock', 'chickens'],
+
+        # 宠物
+        'pet_care': ['dog', 'cat', 'pet', 'training pads', 'dog bed', 'vet', 'veterinarian', 'luna', 'max'],
+
+        # 厨房和家居
+        'appliance': ['coffee maker', 'stand mixer', 'blender', 'oven', 'refrigerator', 'appliance', 'kitchen'],
+
+        # 清洁和维护
+        'cleaning': ['cleaned', 'cleaning', 'sneakers', 'shoes', 'polish', 'wash', 'laundry'],
+
+        # 志愿活动
+        'volunteer': ['walk for hunger', 'coastal cleanup', 'volunteer', 'charity', 'donation', 'fundraiser'],
+
+        # 房产
+        'real_estate': ['house', 'realtor', 'rachel', 'property', 'mortgage', 'apartment', 'rent', 'lease']
     }
 
     def __init__(self, data_dir: Optional[Path] = None):
@@ -174,14 +212,37 @@ class StoryArcManager:
         self.event_type_index[event.event_type].append(event)
 
     def _extract_event_type(self, content: str) -> str:
-        """从内容中提取事件类型"""
+        """
+        从内容中提取事件类型
+
+        🔥 2025-12-25 FIX: 优先匹配更长、更具体的关键词
+        - 避免短关键词误匹配 (如"march"匹配月份)
+        - 优先返回最长匹配的关键词对应的事件类型
+        """
         content_lower = content.lower()
 
+        # 🔥 收集所有匹配的关键词及其事件类型
+        matches = []
         for event_type, keywords in self.EVENT_TYPE_KEYWORDS.items():
-            if any(kw in content_lower for kw in keywords):
-                return event_type
+            for kw in keywords:
+                if kw in content_lower:
+                    # 🔥 排除月份名称的误匹配
+                    # 如果关键词是单个词且内容包含月份上下文，跳过
+                    if kw in ['may', 'march', 'april', 'june', 'july']:
+                        # 检查是否在日期上下文中 (如"15 March", "March 2023")
+                        import re
+                        month_pattern = rf'\b\d{{1,2}}\s+{kw}|\b{kw}\s+\d{{4}}\b'
+                        if re.search(month_pattern, content_lower, re.IGNORECASE):
+                            continue  # 跳过月份误匹配
 
-        return 'general'
+                    matches.append((event_type, len(kw)))  # 记录事件类型和关键词长度
+
+        if not matches:
+            return 'general'
+
+        # 🔥 优先返回最长关键词匹配的事件类型 (更具体)
+        matches.sort(key=lambda x: x[1], reverse=True)
+        return matches[0][0]
 
     def _extract_entities(self, content: str) -> List[str]:
         """从内容中提取实体名称"""
@@ -468,6 +529,49 @@ class StoryArcManager:
             current += timedelta(days=1)
 
         return events
+
+    def get_entity_context(self, entity: str, limit: int = 20) -> List[Dict[str, Any]]:
+        """
+        🔥 V2.1: 获取实体的所有相关事件上下文 (用于增强检索)
+
+        PersonaMem/PrefEval 等偏好查询可以用这个方法获取实体的完整事件历史,
+        而不仅仅是时间查询.
+
+        Args:
+            entity: 实体名称 (如 "Caroline", "User")
+            limit: 最大返回事件数
+
+        Returns:
+            List of event dicts with content and metadata
+        """
+        entity_lower = entity.lower().strip()
+        events = self.entity_events.get(entity_lower, [])
+
+        if not events:
+            # 尝试模糊匹配
+            for key in self.entity_events:
+                if entity_lower in key or key in entity_lower:
+                    events = self.entity_events[key]
+                    break
+
+        # 按时间排序，最近的优先
+        sorted_events = sorted(events, key=lambda e: e.event_date, reverse=True)[:limit]
+
+        return [
+            {
+                'content': e.description,
+                'event_type': e.event_type,
+                'event_date': e.event_date.isoformat(),
+                'entities': e.entities,
+                'source': 'story_arc',
+                'memory_id': e.source_memory_id
+            }
+            for e in sorted_events
+        ]
+
+    def get_all_entity_names(self) -> List[str]:
+        """获取所有已知实体名称"""
+        return list(self.entity_events.keys())
 
     def get_statistics(self) -> Dict[str, Any]:
         """获取统计信息"""

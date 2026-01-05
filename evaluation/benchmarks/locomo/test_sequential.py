@@ -52,14 +52,49 @@ STATUS_FILE = RESULTS_DIR / 'live_status.json'
 
 def clear_memory():
     """清空记忆文件"""
-    files = ['hippocampus_state.json', 'basal_ganglia_state.json', 'prefrontal_state.json',
-             'amygdala_state.json', 'brain_memory.db', 'temporal_lobe.db', 'working_memory.db']
-    for f in files:
+    # 数据库文件 (在 data/memory/ 下)
+    db_files = ['brain_memory.db', 'temporal_lobe.db', 'working_memory.db', 'kv_value_store.db',
+                'memory_vectors.index', 'memory_vectors_mappings.json']
+    for f in db_files:
         p = DATA_DIR / f
         if p.exists(): p.unlink()
+
+    # Memory checkpoints
+    checkpoint_dir = DATA_DIR / 'checkpoints'
+    if checkpoint_dir.exists():
+        for f in checkpoint_dir.glob('*.json'):
+            f.unlink()
+
+    # 状态文件 (在 data/state/ 下)
+    state_dir = PROJECT_ROOT / 'data' / 'state'
+    state_files = ['hippocampus_state.json', 'basal_ganglia_state.json', 'prefrontal_state.json',
+                   'amygdala_state.json', 'story_arc_state.json', 'calibration_state.json']
+    for f in state_files:
+        p = state_dir / f
+        if p.exists(): p.unlink()
+
+    # 用户画像文件
+    for f in ['value_profiles.json', 'user_portraits.json']:
+        p = PROJECT_ROOT / 'data' / f
+        if p.exists(): p.unlink()
+
+    # 缓存目录 (正确路径: data/cache/)
+    cache_dir = PROJECT_ROOT / 'data' / 'cache'
+    for d in ['embedding', 'knowledge_graph', 'faiss_index']:
+        p = cache_dir / d
+        if p.exists(): shutil.rmtree(p)
+
+    # 旧版缓存路径 (data/memory/)
     for d in ['embedding_cache', 'knowledge_graph', 'faiss_index']:
         p = DATA_DIR / d
         if p.exists(): shutil.rmtree(p)
+
+    # 🔥 2025-12-20: 重置 StoryArc 单例
+    try:
+        from src.memory.story_arc import reset_story_arc_manager
+        reset_story_arc_manager()
+    except ImportError:
+        pass
 
 
 def parse_date(s):
@@ -213,15 +248,35 @@ async def main():
     data = json.load(open(LOCOMO_PATH))
     print(f"✓ 加载 {len(data)} 组")
 
+    # 🔥 2025-12-26: 添加Checkpoint支持断点续跑
+    sys.path.insert(0, str(PROJECT_ROOT))
+    from evaluation.checkpoint_manager import CheckpointManager
+    checkpoint = CheckpointManager(f"locomo_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+    completed_groups = checkpoint.load() if checkpoint.has_checkpoint() else set()
+
     results = []
     total_c, total_t = 0, 0
     start = datetime.now()
 
     for i in range(start_group, start_group + num_groups):
+        group_id = f"group_{i}"
+
+        # 🔥 跳过已完成的组
+        if group_id in completed_groups:
+            print(f"⏭️  跳过已完成组 {i}")
+            continue
+
         r = await test_group(i, data[i], num_q, client, num_groups, skip_shaping=skip_shaping)
         results.append(r)
         total_c += r['correct']
         total_t += r['total']
+
+        # 🔥 保存checkpoint
+        completed_groups.add(group_id)
+        checkpoint.save(completed_groups, metadata={
+            'current_accuracy': total_c / total_t if total_t > 0 else 0,
+            'elapsed_seconds': (datetime.now() - start).total_seconds()
+        })
 
         # 实时状态
         save_status({
@@ -249,6 +304,9 @@ async def main():
         json.dump({'config': {'groups': num_groups, 'questions': str(num_q)},
                    'summary': {'acc': acc, 'correct': total_c, 'total': total_t, 'elapsed': elapsed},
                    'results': results}, f, indent=2, ensure_ascii=False)
+
+    # 🔥 2025-12-26: 完成后清理checkpoint
+    checkpoint.clear()
 
 
 if __name__ == '__main__':

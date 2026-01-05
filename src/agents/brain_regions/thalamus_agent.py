@@ -521,7 +521,7 @@ class ThalamusAgent(IAgent):
                 output = {'response': response}
             elif hasattr(region, 'process_message'):
                 # Agent with process_message (most IAgent implementations)
-                from src.core.interfaces.message_interface import AgentMessage
+                from src.core.interfaces.agent_interface import AgentMessage
                 message = AgentMessage(
                     sender="thalamus",
                     receiver=region_name,

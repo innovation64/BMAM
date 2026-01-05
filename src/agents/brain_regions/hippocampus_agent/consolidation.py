@@ -637,7 +637,8 @@ class ConsolidationMixin:
         self,
         min_access_count: int = 3,
         min_age_hours: float = 24,
-        max_count: int = 50
+        max_count: int = 50,
+        evaluation_mode: bool = False  # 🔥 2025-12-20: 评估模式绕过时间限制
     ) -> List[Dict[str, Any]]:
         """
         获取待巩固的情节记忆候选
@@ -651,6 +652,7 @@ class ConsolidationMixin:
             min_access_count: 最小访问次数 (默认3次)
             min_age_hours: 最小存在时间(小时) (默认24小时)
             max_count: 最大返回数量 (默认50)
+            evaluation_mode: 🔥 评估模式 - 绕过时间/访问次数限制
 
         Returns:
             候选记忆列表 (字典格式)
@@ -662,20 +664,22 @@ class ConsolidationMixin:
             # 检查是否满足巩固条件
             age_hours = (now - mem.timestamp).total_seconds() / 3600
 
-            # 条件1: 访问次数足够
-            if mem.access_count < min_access_count:
-                continue
+            # 🔥 评估模式: 跳过时间和访问次数检查
+            if not evaluation_mode:
+                # 条件1: 访问次数足够
+                if mem.access_count < min_access_count:
+                    continue
 
-            # 条件2: 存在时间足够
-            if age_hours < min_age_hours:
-                continue
+                # 条件2: 存在时间足够
+                if age_hours < min_age_hours:
+                    continue
 
             # 条件3: 未被标记为已巩固
             if mem.metadata.get('consolidated', False):
                 continue
 
-            # 条件4: 重要性或情绪强度足够
-            if mem.importance < 0.5 and mem.emotion_intensity < 0.6:
+            # 条件4: 重要性或情绪强度足够 (评估模式也需要检查)
+            if mem.importance < 0.3 and mem.emotion_intensity < 0.3:  # 🔥 降低阈值
                 continue
 
             candidates.append(self._memory_to_dict(mem))

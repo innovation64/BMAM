@@ -39,6 +39,7 @@ os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 
 from src.coordination.brain_coordinator_refactored import BrainInspiredCoordinator
 from src.coordination.hrm_coordinator_wrapper import HRMCoordinatorWrapper, HRMConfig
+from src.utils.paths import BMAMPaths
 
 try:
     from openai import AsyncOpenAI
@@ -53,6 +54,7 @@ except ImportError:
 DATA_DIR = PROJECT_ROOT / 'data'
 DATASET_DIR = DATA_DIR / 'longmemeval'
 RESULTS_DIR = PROJECT_ROOT / 'evaluation' / 'results' / 'longmemeval'
+EXPORT_DIR = DATA_DIR / 'export'  # 统一导出目录
 
 
 @dataclass
@@ -68,18 +70,45 @@ class EvalResult:
 
 
 def clear_memory():
-    """清空记忆文件"""
-    files = ['hippocampus_state.json', 'basal_ganglia_state.json', 'prefrontal_state.json',
-             'amygdala_state.json', 'brain_memory.db', 'temporal_lobe.db', 'working_memory.db',
-             'story_arc_state.json', 'tom_state.json', 'kv_value_store.db']
-    for f in files:
-        p = DATA_DIR / f
-        if p.exists():
-            p.unlink()
-    for d in ['embedding_cache', 'knowledge_graph', 'faiss_index']:
-        p = DATA_DIR / d
-        if p.exists():
-            shutil.rmtree(p)
+    """清空记忆文件 - 使用 BMAMPaths 统一清理"""
+    BMAMPaths.clean_all_runtime_data()
+
+
+def export_memory(label: str, accuracy: float = 0.0):
+    """导出记忆状态到 export 目录，带标签"""
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    export_subdir = EXPORT_DIR / f"{label}_{timestamp}_acc{accuracy*100:.0f}pct"
+    export_subdir.mkdir(parents=True, exist_ok=True)
+
+    # 复制 state 文件
+    state_dir = DATA_DIR / 'state'
+    state_files = ['hippocampus_state.json', 'basal_ganglia_state.json', 'prefrontal_state.json',
+                   'amygdala_state.json', 'story_arc_state.json', 'tom_state.json']
+    for f in state_files:
+        src = state_dir / f
+        if src.exists():
+            shutil.copy2(src, export_subdir / f)
+
+    # 复制 memory DB 文件
+    memory_dir = DATA_DIR / 'memory'
+    memory_files = ['brain_memory.db', 'temporal_lobe.db', 'kv_value_store.db',
+                    'memory_vectors.index', 'memory_vectors_mappings.json']
+    for f in memory_files:
+        src = memory_dir / f
+        if src.exists():
+            shutil.copy2(src, export_subdir / f)
+
+    # 写入元数据
+    meta = {
+        'label': label,
+        'accuracy': accuracy,
+        'timestamp': timestamp,
+        'exported_files': [f for f in os.listdir(export_subdir) if not f.endswith('.json') or f != 'metadata.json']
+    }
+    with open(export_subdir / 'metadata.json', 'w', encoding='utf-8') as mf:
+        json.dump(meta, mf, indent=2, ensure_ascii=False)
+
+    return export_subdir
 
 
 def parse_date(s: str) -> datetime:
@@ -94,22 +123,37 @@ def parse_date(s: str) -> datetime:
 
 
 async def llm_judge(client: AsyncOpenAI, question: str, gold_answer: str, generated: str) -> bool:
-    """LLM 评判答案正确性"""
-    prompt = f"""Label the generated answer as CORRECT or WRONG.
+    """LLM 评判答案正确性 - 与 MemOS 评估标准对齐"""
+    # 使用与 MemOS 完全相同的 prompt 模板
+    prompt = f"""Your task is to label an answer to a question as 'CORRECT' or 'WRONG'. You will be given the following data:
+    (1) a question (posed by one user to another user),
+    (2) a 'gold' (ground truth) answer,
+    (3) a generated answer
+which you will score as CORRECT/WRONG.
 
+The point of the question is to ask about something one user should know about the other user based on their prior conversations.
+The gold answer will usually be a concise and short answer that includes the referenced topic, for example:
+Question: Where did I buy my new tennis racket from?
+Gold answer: the sports store downtown
+The generated answer might be much longer, but you should be generous with your grading - as long as it touches on the same topic as the gold answer, it should be counted as CORRECT.
+
+For time related questions, the gold answer will be a specific date, month, year, etc. The generated answer might be much longer or use relative time references (like "last Tuesday" or "next month"), but you should be generous with your grading - as long as it refers to the same date or time period as the gold answer, it should be counted as CORRECT. Even if the format differs (e.g., "May 7th" vs "7 May"), consider it CORRECT if it's the same date.
+
+Now it's time for the real question:
 Question: {question}
 Gold answer: {gold_answer}
 Generated answer: {generated}
 
-Be generous: same meaning = CORRECT. Same date different format = CORRECT.
-For time-related questions, accept different formats of the same date.
-Return JSON: {{"label": "CORRECT" or "WRONG"}}"""
+First, provide a short (one sentence) explanation of your reasoning, then finish with CORRECT or WRONG.
+Do NOT include both CORRECT and WRONG in your response, or it will break the evaluation script.
+
+Just return the label CORRECT or WRONG in a json format with the key as "label"."""
 
     try:
         r = await client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "You are an expert grader"},
+                {"role": "system", "content": "You are an expert grader that determines if answers to questions match a gold standard answer"},
                 {"role": "user", "content": prompt}
             ],
             temperature=0
@@ -226,6 +270,10 @@ async def evaluate_sample(sample: Dict, llm_client: Optional[AsyncOpenAI],
         # 评估问题
         result = await evaluate_question(coord, sample, llm_client)
 
+        # 导出记忆 (每个样本导出)
+        accuracy = 1.0 if result.is_correct else 0.0
+        export_path = export_memory(f"longmemeval_{question_id}", accuracy)
+
         return {
             'question_id': result.question_id,
             'question': result.question,
@@ -236,7 +284,8 @@ async def evaluate_sample(sample: Dict, llm_client: Optional[AsyncOpenAI],
             'response_duration_ms': result.response_duration_ms,
             'search_duration_ms': result.search_duration_ms,
             'ingest_duration_ms': ingest_duration,
-            'stored_memories': stored_count
+            'stored_memories': stored_count,
+            'export_path': str(export_path)
         }
     finally:
         if hasattr(coord, 'stop_system'):

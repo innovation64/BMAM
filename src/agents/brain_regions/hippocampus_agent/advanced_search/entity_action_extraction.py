@@ -1,8 +1,8 @@
 """
-Entity-Action Extraction - 实体-动作提取
-LLM理解深层语义
-
+Entity-Action Extraction
 Extracts entity and action from query using LLM
+
+LLM understands deep semantics for entity-action binding.
 """
 
 import logging
@@ -15,9 +15,9 @@ logger = logging.getLogger(__name__)
 
 class EntityActionExtractor:
     """
-    实体-动作提取器 (Entity-Action Extractor)
+    Entity-Action Extractor
 
-    Uses LLM to understand deep semantics | 使用LLM理解深层语义:
+    Uses LLM to understand deep semantics:
     - No hardcoded verb lists
     - Understands implicit actions
     """
@@ -29,14 +29,14 @@ class EntityActionExtractor:
 
     async def extract(self, query: str) -> Dict[str, Any]:
         """
-        提取实体和动作 - Extract Entity and Action
+        Extract Entity and Action from query
 
-        Examples | 示例:
-        - "PersonA研究什么?" → entity=PersonA, action=研究
-        - "谁参加了活动?" → entity=None, action=参加
+        Examples:
+        - "What does PersonA research?" → entity=PersonA, action=research
+        - "Who attended the event?" → entity=None, action=attend
 
         Args:
-            query: 查询文本
+            query: Query text
 
         Returns:
             {
@@ -61,31 +61,31 @@ class EntityActionExtractor:
 
 
     def _build_prompt(self, query: str) -> str:
-        """构建提取提示"""
-        return f"""提取实体和动作:
+        """Build extraction prompt"""
+        return f"""Extract entity and action:
 
-查询: "{query}"
+Query: "{query}"
 
-提取:
-1. **实体** (Entity): 人物/组织 (如"PersonA", "PersonB")
-   - 如果查询是"谁..."，则entity=null
-2. **动作** (Action): 关键行为 (如"研究", "参加", "买")
-   - 理解语义，不只匹配动词
-3. **对象** (Object): 动作对象
-   - "研究什么?" → object=unknown
-   - "参加活动" → object=活动
+Extract:
+1. **Entity**: Person/organization (e.g., "PersonA", "PersonB")
+   - If query is "Who...", then entity=null
+2. **Action**: Key behavior (e.g., "research", "attend", "buy")
+   - Understand semantics, not just verb matching
+3. **Object**: Target of action
+   - "What does X research?" → object=unknown
+   - "Attend the event" → object=event
 
-返回JSON:
+Return JSON:
 {{
-    "entity": "实体或null",
-    "action": "动作或null",
-    "object": "对象或unknown",
-    "query_intent": "查询意图"
+    "entity": "entity or null",
+    "action": "action or null",
+    "object": "object or unknown",
+    "query_intent": "query intent type"
 }}"""
 
 
     def _parse_response(self, response: str) -> Dict[str, Any]:
-        """解析LLM响应"""
+        """Parse LLM response"""
         json_match = re.search(r'\{.*\}', response, re.DOTALL)
         if json_match:
             return json.loads(json_match.group())

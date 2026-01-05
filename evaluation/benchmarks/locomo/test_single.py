@@ -99,16 +99,48 @@ def clear_checkpoint():
 
 
 def clear_memory():
-    """清空记忆文件"""
-    files = ['hippocampus_state.json', 'basal_ganglia_state.json', 'prefrontal_state.json',
-             'amygdala_state.json', 'brain_memory.db', 'temporal_lobe.db', 'working_memory.db']
-    for f in files:
+    """清空记忆文件 - 完整清除所有存储（新旧路径都清理）"""
+    from src.utils.paths import BMAMPaths
+
+    # 🔥 2025-12-20 FIX: 使用 BMAMPaths.clean_all_runtime_data() 彻底清理
+    try:
+        result = BMAMPaths.clean_all_runtime_data()
+        print(f"\n  [clean_all] 清理完成: {len(result.get('cleaned', []))} 项")
+    except Exception as e:
+        print(f"\n  [clean_all] 警告: {e}")
+
+    # 额外清理：确保新旧路径都被清理
+    # 1. 新路径 data/memory/
+    memory_files = [
+        'brain_memory.db', 'temporal_lobe.db', 'working_memory.db',
+        'kv_value_store.db', 'memory_vectors.index', 'memory_vectors_mappings.json',
+    ]
+    for f in memory_files:
         p = DATA_DIR / f
         if p.exists(): p.unlink()
+
+    # 2. 新路径 data/state/
+    STATE_DIR = PROJECT_ROOT / 'data' / 'state'
+    state_files = [
+        'hippocampus_state.json', 'basal_ganglia_state.json', 'prefrontal_state.json',
+        'amygdala_state.json', 'story_arc_state.json', 'calibration_state.json',
+    ]
+    for f in state_files:
+        p = STATE_DIR / f
+        if p.exists(): p.unlink()
+
+    # 3. 旧路径 data/ (兼容清理)
+    OLD_DATA_DIR = PROJECT_ROOT / 'data'
+    legacy_files = memory_files + state_files + ['tom_state.json']
+    for f in legacy_files:
+        p = OLD_DATA_DIR / f
+        if p.exists(): p.unlink()
+
     # 清除目录
-    for d in ['embedding_cache', 'knowledge_graph', 'faiss_index']:
-        p = DATA_DIR / d
-        if p.exists(): shutil.rmtree(p)
+    for d in ['embedding_cache', 'knowledge_graph', 'faiss_index', 'checkpoints']:
+        for base in [DATA_DIR, STATE_DIR]:
+            p = base / d
+            if p.exists(): shutil.rmtree(p)
 
 
 def parse_date(s):
@@ -347,9 +379,9 @@ async def main():
     print("⏳ 巩固中...", end='', flush=True)
     consolidation_start = time.time()
     try:
-        # 调用显式巩固
+        # 调用显式巩固 (🔥 2025-12-20: evaluation_mode 绕过时间限制)
         if hasattr(coord, 'consolidate_memories'):
-            result = await coord.consolidate_memories()
+            result = await coord.consolidate_memories(evaluation_mode=True)
             consolidated = result.get('consolidated', 0) if isinstance(result, dict) else 0
             print(f" ✓ ({consolidated} 条, {time.time()-consolidation_start:.1f}s)")
         else:

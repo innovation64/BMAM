@@ -366,11 +366,23 @@ class RetrievalMixin:
                         datetime.fromisoformat(time_range.get('end', '2100-01-01'))
                     )
 
+                # 🔥 2025-12-20 FIX: 计算查询向量用于语义检索
+                # 修复存储/检索割裂问题 - 全局检索路径之前未使用向量检索
+                query_vector = None
+                if query and self.embedding_service:
+                    try:
+                        query_embedding = await self.embedding_service.encode_text(query)
+                        query_vector = query_embedding.tolist() if hasattr(query_embedding, 'tolist') else query_embedding
+                        logger.debug(f"Computed query embedding for global retrieval: {len(query_vector)} dims")
+                    except Exception as e:
+                        logger.warning(f"Failed to compute query embedding: {e}")
+
                 # Delegate to global system via adapter
                 memory_dicts = await self.storage_adapter.retrieve_memories(
                     query=query,
                     filters=filters,
-                    k=k
+                    k=k,
+                    query_vector=query_vector  # 🔥 FIX: 传递查询向量
                 )
 
                 # Convert to EpisodicMemory objects and calculate relevance

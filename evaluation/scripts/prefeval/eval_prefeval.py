@@ -55,21 +55,81 @@ except ImportError:
 DATA_DIR = PROJECT_ROOT / 'data'
 DATASET_DIR = DATA_DIR / 'prefeval'
 RESULTS_DIR = PROJECT_ROOT / 'evaluation' / 'results' / 'prefeval'
+EXPORT_DIR = DATA_DIR / 'export'  # 统一导出目录
 
 
 def clear_memory():
-    """清空记忆文件"""
-    files = ['hippocampus_state.json', 'basal_ganglia_state.json', 'prefrontal_state.json',
-             'amygdala_state.json', 'brain_memory.db', 'temporal_lobe.db', 'working_memory.db',
-             'story_arc_state.json', 'tom_state.json', 'kv_value_store.db']
-    for f in files:
+    """清空记忆文件 - 修复: 使用正确的子目录路径"""
+    # State files in /data/state/
+    state_files = ['hippocampus_state.json', 'basal_ganglia_state.json', 'prefrontal_state.json',
+                   'amygdala_state.json', 'story_arc_state.json', 'tom_state.json', 'calibration_state.json']
+    state_dir = DATA_DIR / 'state'
+    for f in state_files:
+        p = state_dir / f
+        if p.exists():
+            p.unlink()
+
+    # Memory DB files in /data/memory/
+    memory_files = ['brain_memory.db', 'temporal_lobe.db', 'working_memory.db',
+                    'kv_value_store.db', 'memory_vectors.index', 'memory_vectors_mappings.json']
+    memory_dir = DATA_DIR / 'memory'
+    for f in memory_files:
+        p = memory_dir / f
+        if p.exists():
+            p.unlink()
+
+    # Cache directories in /data/cache/
+    cache_dir = DATA_DIR / 'cache'
+    for d in ['embedding', 'knowledge_graph', 'faiss_index']:
+        p = cache_dir / d
+        if p.exists():
+            shutil.rmtree(p)
+
+    # Also clean legacy paths (for backwards compatibility)
+    legacy_files = ['hippocampus_state.json', 'basal_ganglia_state.json', 'prefrontal_state.json',
+                    'amygdala_state.json', 'brain_memory.db', 'temporal_lobe.db', 'working_memory.db',
+                    'story_arc_state.json', 'tom_state.json', 'kv_value_store.db']
+    for f in legacy_files:
         p = DATA_DIR / f
         if p.exists():
             p.unlink()
-    for d in ['embedding_cache', 'knowledge_graph', 'faiss_index']:
-        p = DATA_DIR / d
-        if p.exists():
-            shutil.rmtree(p)
+
+
+def export_memory(label: str, accuracy: float = 0.0):
+    """导出记忆状态到 export 目录，带标签"""
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    export_subdir = EXPORT_DIR / f"{label}_{timestamp}_acc{accuracy*100:.0f}pct"
+    export_subdir.mkdir(parents=True, exist_ok=True)
+
+    # 复制 state 文件
+    state_dir = DATA_DIR / 'state'
+    state_files = ['hippocampus_state.json', 'basal_ganglia_state.json', 'prefrontal_state.json',
+                   'amygdala_state.json', 'story_arc_state.json', 'tom_state.json']
+    for f in state_files:
+        src = state_dir / f
+        if src.exists():
+            shutil.copy2(src, export_subdir / f)
+
+    # 复制 memory DB 文件
+    memory_dir = DATA_DIR / 'memory'
+    memory_files = ['brain_memory.db', 'temporal_lobe.db', 'kv_value_store.db',
+                    'memory_vectors.index', 'memory_vectors_mappings.json']
+    for f in memory_files:
+        src = memory_dir / f
+        if src.exists():
+            shutil.copy2(src, export_subdir / f)
+
+    # 写入元数据
+    meta = {
+        'label': label,
+        'accuracy': accuracy,
+        'timestamp': timestamp,
+        'exported_files': [f for f in os.listdir(export_subdir) if not f.endswith('.json') or f != 'metadata.json']
+    }
+    with open(export_subdir / 'metadata.json', 'w', encoding='utf-8') as mf:
+        json.dump(meta, mf, indent=2, ensure_ascii=False)
+
+    return export_subdir
 
 
 async def ingest_conversation(coord, conversation: List[Dict], add_turns: int = 10) -> int:
@@ -244,6 +304,9 @@ async def evaluate_conversation(conv_data: Dict, add_turns: int,
             score = judge_result['score']
             reasoning = judge_result['reasoning']
 
+        # 导出记忆
+        export_path = export_memory(f"prefeval_{conv_id}", score)
+
         return {
             'conversation_id': conv_id,
             'stored_memories': stored_count,
@@ -252,7 +315,8 @@ async def evaluate_conversation(conv_data: Dict, add_turns: int,
             'response': eval_result['response'],
             'response_duration_ms': eval_result['response_duration_ms'],
             'score': score,
-            'reasoning': reasoning
+            'reasoning': reasoning,
+            'export_path': str(export_path)
         }
     finally:
         if hasattr(coord, 'stop_system'):

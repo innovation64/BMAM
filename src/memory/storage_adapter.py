@@ -59,7 +59,8 @@ class MemoryStorageAdapter:
         self,
         memory_system=None,
         agent_id: str = "hippocampus",
-        config: Optional[StorageConfig] = None
+        config: Optional[StorageConfig] = None,
+        global_vector_db=None  # 🔥 2025-12-20 FIX: 全局FAISS用于MemoryRetrievalAgent
     ):
         """
         Initialize Storage Adapter
@@ -68,10 +69,12 @@ class MemoryStorageAdapter:
             memory_system: Global MemorySystem instance (None for local-only mode)
             agent_id: Agent identifier for filtering
             config: Storage configuration
+            global_vector_db: 🔥 Global VectorDB (FAISS) used by MemoryRetrievalAgent
         """
         self.memory_system = memory_system
         self.agent_id = agent_id
         self.config = config or StorageConfig()
+        self.global_vector_db = global_vector_db  # 🔥 2025-12-20 FIX: 存储FAISS引用
 
         # Local cache (for fast access even in delegation mode)
         self._local_cache: Dict[str, Any] = {}  # {memory_id: memory_dict}
@@ -84,13 +87,15 @@ class MemoryStorageAdapter:
             'total_retrievals': 0,
             'cache_hits': 0,
             'cache_misses': 0,
-            'delegation_calls': 0
+            'delegation_calls': 0,
+            'faiss_syncs': 0  # 🔥 2025-12-20 FIX: FAISS同步次数
         }
 
         logger.info(
             f"MemoryStorageAdapter initialized "
             f"(mode={'delegated' if self.config.use_global_storage else 'local'}, "
-            f"cache={'enabled' if self.config.enable_local_cache else 'disabled'})"
+            f"cache={'enabled' if self.config.enable_local_cache else 'disabled'}, "
+            f"global_faiss={'enabled' if global_vector_db else 'disabled'})"  # 🔥 FIX
         )
 
     async def store_memory(
@@ -132,6 +137,9 @@ class MemoryStorageAdapter:
                 # Convert hippocampus memory format to global system format
                 global_memory_id = await self._store_to_global(memory_dict)
 
+                # 🔥 2025-12-20 FIX: 同步到全局FAISS (MemoryRetrievalAgent使用)
+                await self._sync_to_global_faiss(memory_dict)
+
                 # Update local cache if enabled
                 if self.config.enable_local_cache:
                     self._update_cache(memory_id, memory_dict)
@@ -142,7 +150,8 @@ class MemoryStorageAdapter:
                     'memory_id': global_memory_id or memory_id,
                     'stored': True,
                     'storage_location': 'global',
-                    'cached': self.config.enable_local_cache
+                    'cached': self.config.enable_local_cache,
+                    'faiss_synced': self.global_vector_db is not None  # 🔥 FIX
                 }
 
             except Exception as e:
@@ -203,6 +212,74 @@ class MemoryStorageAdapter:
             logger.error(f"Error storing to global system: {e}")
             return None
 
+    async def _sync_to_global_faiss(self, memory_dict: Dict[str, Any]) -> bool:
+        """
+        🔥 2025-12-20 FIX: 同步记忆到全局FAISS向量库
+
+        解决问题: Hippocampus存储到KV后，MemoryRetrievalAgent无法通过FAISS检索到新记忆，
+        因为它们使用不同的存储系统 (KV vs FAISS)。
+
+        此方法在存储到KV后，同时索引到全局FAISS，确保检索一致性。
+
+        Args:
+            memory_dict: 包含 'id', 'content', 'embedding' 的记忆字典
+
+        Returns:
+            True if synced successfully, False otherwise
+        """
+        if not self.global_vector_db:
+            return False  # 无FAISS，跳过同步
+
+        try:
+            import numpy as np
+
+            memory_id = memory_dict.get('id')
+            content = memory_dict.get('content', '')
+            embedding = memory_dict.get('embedding')
+
+            if not embedding:
+                logger.debug(f"No embedding for memory {memory_id}, skipping FAISS sync")
+                return False
+
+            # 检查是否已存在于FAISS中
+            if hasattr(self.global_vector_db, 'reverse_mapping'):
+                if memory_id in self.global_vector_db.reverse_mapping:
+                    logger.debug(f"Memory {memory_id} already in FAISS, skipping")
+                    return True
+
+            # 添加到FAISS索引
+            embedding_np = np.array(embedding).astype('float32')
+            if len(embedding_np.shape) == 1:
+                embedding_np = embedding_np.reshape(1, -1)
+
+            # 获取当前索引位置
+            current_idx = self.global_vector_db.index.ntotal
+
+            # 添加到索引
+            self.global_vector_db.index.add(embedding_np)
+
+            # 更新映射
+            if hasattr(self.global_vector_db, 'id_mapping'):
+                self.global_vector_db.id_mapping[current_idx] = memory_id
+            if hasattr(self.global_vector_db, 'reverse_mapping'):
+                self.global_vector_db.reverse_mapping[memory_id] = current_idx
+            if hasattr(self.global_vector_db, 'content_cache'):
+                self.global_vector_db.content_cache[memory_id] = content
+
+            self.stats['faiss_syncs'] += 1
+
+            # 每100次同步保存一次索引
+            if self.stats['faiss_syncs'] % 100 == 0:
+                self.global_vector_db.save_index()
+                logger.info(f"📊 FAISS sync checkpoint: {self.stats['faiss_syncs']} memories synced, total={self.global_vector_db.index.ntotal}")
+
+            logger.debug(f"✅ Synced memory {memory_id} to global FAISS (total={self.global_vector_db.index.ntotal})")
+            return True
+
+        except Exception as e:
+            logger.warning(f"Failed to sync memory to FAISS: {e}")
+            return False
+
     async def _store_local(self, memory_dict: Dict[str, Any]) -> Dict[str, Any]:
         """
         Store to Local Cache Only (legacy mode)
@@ -222,7 +299,8 @@ class MemoryStorageAdapter:
         self,
         query: Optional[str] = None,
         filters: Optional[Dict[str, Any]] = None,
-        k: int = 10
+        k: int = 10,
+        query_vector: Optional[List[float]] = None  # 🔥 2025-12-20 FIX: 添加查询向量参数
     ) -> List[Dict[str, Any]]:
         """
         Retrieve Memories (from global system or local cache)
@@ -232,6 +310,7 @@ class MemoryStorageAdapter:
             query: Search query text
             filters: Filter criteria (entities, time_range, etc.)
             k: Number of results to return
+            query_vector: Pre-computed query embedding for semantic search (optional)
 
         Returns:
             List of memory dictionaries
@@ -245,11 +324,17 @@ class MemoryStorageAdapter:
                 global_filters = filters or {}
                 global_filters['context_tags'] = [self.agent_id]
 
+                # 🔥 2025-12-20 FIX: 传递查询向量以启用语义检索
+                # 修复存储/检索割裂问题 - 之前全局路径未使用向量检索
+                import numpy as np
+                query_vector_np = np.array(query_vector) if query_vector else None
+
                 # Call global system's search
                 results = await self.memory_system.search_memories(
                     query=query or "",
                     k=k,
-                    filters=global_filters
+                    filters=global_filters,
+                    query_vector=query_vector_np  # 🔥 FIX: 传递查询向量
                 )
 
                 self.stats['delegation_calls'] += 1

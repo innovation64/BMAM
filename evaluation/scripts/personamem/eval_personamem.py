@@ -58,32 +58,112 @@ except ImportError:
 DATA_DIR = PROJECT_ROOT / 'data'
 DATASET_DIR = DATA_DIR / 'personamem'
 RESULTS_DIR = PROJECT_ROOT / 'evaluation' / 'results' / 'personamem'
+EXPORT_DIR = DATA_DIR / 'export'  # 统一导出目录
 
 
 def clear_memory():
-    """清空记忆文件"""
-    files = ['hippocampus_state.json', 'basal_ganglia_state.json', 'prefrontal_state.json',
-             'amygdala_state.json', 'brain_memory.db', 'temporal_lobe.db', 'working_memory.db',
-             'story_arc_state.json', 'tom_state.json', 'kv_value_store.db']
-    for f in files:
-        p = DATA_DIR / f
+    """清空记忆文件 - 修复: 使用正确的子目录路径"""
+    # State files in /data/state/
+    state_files = ['hippocampus_state.json', 'basal_ganglia_state.json', 'prefrontal_state.json',
+                   'amygdala_state.json', 'story_arc_state.json', 'tom_state.json', 'calibration_state.json']
+    state_dir = DATA_DIR / 'state'
+    for f in state_files:
+        p = state_dir / f
         if p.exists():
             p.unlink()
-    for d in ['embedding_cache', 'knowledge_graph', 'faiss_index']:
-        p = DATA_DIR / d
+
+    # Memory DB files in /data/memory/
+    memory_files = ['brain_memory.db', 'temporal_lobe.db', 'working_memory.db',
+                    'kv_value_store.db', 'memory_vectors.index', 'memory_vectors_mappings.json']
+    memory_dir = DATA_DIR / 'memory'
+    for f in memory_files:
+        p = memory_dir / f
+        if p.exists():
+            p.unlink()
+
+    # Cache directories in /data/cache/
+    cache_dir = DATA_DIR / 'cache'
+    for d in ['embedding', 'knowledge_graph', 'faiss_index']:
+        p = cache_dir / d
         if p.exists():
             shutil.rmtree(p)
 
+    # Also clean legacy paths (for backwards compatibility)
+    legacy_files = ['hippocampus_state.json', 'basal_ganglia_state.json', 'prefrontal_state.json',
+                    'amygdala_state.json', 'brain_memory.db', 'temporal_lobe.db', 'working_memory.db',
+                    'story_arc_state.json', 'tom_state.json', 'kv_value_store.db']
+    for f in legacy_files:
+        p = DATA_DIR / f
+        if p.exists():
+            p.unlink()
+
+
+def export_memory(label: str, accuracy: float = 0.0):
+    """导出记忆状态到 export 目录，带标签"""
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    export_subdir = EXPORT_DIR / f"{label}_{timestamp}_acc{accuracy*100:.0f}pct"
+    export_subdir.mkdir(parents=True, exist_ok=True)
+
+    # 复制 state 文件
+    state_dir = DATA_DIR / 'state'
+    state_files = ['hippocampus_state.json', 'basal_ganglia_state.json', 'prefrontal_state.json',
+                   'amygdala_state.json', 'story_arc_state.json', 'tom_state.json']
+    for f in state_files:
+        src = state_dir / f
+        if src.exists():
+            shutil.copy2(src, export_subdir / f)
+
+    # 复制 memory DB 文件
+    memory_dir = DATA_DIR / 'memory'
+    memory_files = ['brain_memory.db', 'temporal_lobe.db', 'kv_value_store.db',
+                    'memory_vectors.index', 'memory_vectors_mappings.json']
+    for f in memory_files:
+        src = memory_dir / f
+        if src.exists():
+            shutil.copy2(src, export_subdir / f)
+
+    # 写入元数据
+    meta = {
+        'label': label,
+        'accuracy': accuracy,
+        'timestamp': timestamp,
+        'exported_files': [f for f in os.listdir(export_subdir) if not f.endswith('.json') or f != 'metadata.json']
+    }
+    with open(export_subdir / 'metadata.json', 'w', encoding='utf-8') as mf:
+        json.dump(meta, mf, indent=2, ensure_ascii=False)
+
+    return export_subdir
+
 
 def load_contexts(contexts_path: Path) -> Dict[str, List[Dict]]:
-    """加载共享上下文"""
+    """加载共享上下文
+
+    支持两种数据格式:
+    1. {context_id: [messages]} - 实际的 PersonaMem 格式
+    2. {"shared_context_id": "xxx", "messages": [...]} - 旧格式
+    """
     contexts = {}
     with open(contexts_path, 'r', encoding='utf-8') as f:
         for line in f:
             item = json.loads(line)
-            context_id = item.get('shared_context_id', item.get('id', ''))
-            messages = item.get('messages', item.get('context', []))
-            contexts[context_id] = messages
+
+            # 格式1: {context_id_hash: [messages]} - PersonaMem 实际格式
+            # 检测: 如果所有 key 都不是 'shared_context_id'/'id'/'messages'/'context'
+            standard_keys = {'shared_context_id', 'id', 'messages', 'context'}
+            item_keys = set(item.keys())
+
+            if not item_keys.intersection(standard_keys):
+                # 这是格式1: {hash: messages}
+                for context_id, messages in item.items():
+                    if isinstance(messages, list):
+                        contexts[context_id] = messages
+            else:
+                # 格式2: 标准格式
+                context_id = item.get('shared_context_id', item.get('id', ''))
+                messages = item.get('messages', item.get('context', []))
+                if context_id:
+                    contexts[context_id] = messages
+
     return contexts
 
 
@@ -139,16 +219,18 @@ async def answer_multiple_choice(coord, question: str, options: List[str],
                                   llm_client: Optional[AsyncOpenAI]) -> str:
     """回答多选题，返回选择的答案 (a), (b), (c), (d)"""
 
-    # 构造提示
+    # 构造提示 - 强制格式约束
     options_text = "\n".join(options)
-    full_question = f"""Based on our previous conversations, please answer the following question by selecting the most appropriate option.
+    full_question = f"""Based on our previous conversations, answer this multiple-choice question.
 
 Question: {question}
 
 Options:
 {options_text}
 
-Please respond with ONLY the letter of your answer (a), (b), (c), or (d)."""
+IMPORTANT: You MUST select exactly ONE option from (a), (b), (c), or (d).
+Your response format MUST be: "The answer is (X)" where X is a, b, c, or d.
+Do NOT explain. Do NOT say "I don't know". Just pick the best option."""
 
     # 查询 BMAM
     context = {'skip_memory_store': True, 'evaluation_mode': True}
@@ -161,20 +243,40 @@ Please respond with ONLY the letter of your answer (a), (b), (c), or (d)."""
     else:
         response = str(result)
 
-    # 提取选择的答案
+    # 提取选择的答案 - 增强提取逻辑
     response_lower = response.lower()
 
-    # 尝试找到答案选项
+    # 方法1: 匹配 "the answer is (x)" 或 "answer: (x)"
+    import re
+    answer_match = re.search(r'(?:the\s+)?answer\s*(?:is|:)\s*\(?([abcd])\)?', response_lower)
+    if answer_match:
+        return f'({answer_match.group(1)})'
+
+    # 方法2: 匹配 "**(x)**" 或 "**option (x)**" (markdown bold)
+    bold_match = re.search(r'\*\*\(?([abcd])\)?\*\*', response_lower)
+    if bold_match:
+        return f'({bold_match.group(1)})'
+
+    # 方法3: 尝试找到答案选项 (a), (b), (c), (d)
     for option in ['(a)', '(b)', '(c)', '(d)']:
         if option in response_lower:
             return option
 
-    # 尝试其他格式
+    # 方法4: 尝试其他格式 a), a., option a
     for letter in ['a', 'b', 'c', 'd']:
         if letter + ')' in response_lower or letter + '.' in response_lower:
             return f'({letter})'
         if f'option {letter}' in response_lower:
             return f'({letter})'
+        # 匹配开头的单独字母
+        if response_lower.strip().startswith(letter) and len(response_lower.strip()) < 50:
+            return f'({letter})'
+
+    # 方法5: 如果响应很短且包含单个字母，提取它
+    if len(response_lower.strip()) < 20:
+        single_letter = re.search(r'\b([abcd])\b', response_lower)
+        if single_letter:
+            return f'({single_letter.group(1)})'
 
     # 默认返回第一个最可能的选项
     return '(a)'
@@ -242,12 +344,19 @@ async def evaluate_persona(persona_id: str, persona_questions: List[Dict],
             result = await evaluate_question(coord, q, llm_client)
             results.append(result)
 
+        # 计算准确率并导出记忆
+        correct = sum(1 for r in results if r['is_correct'])
+        accuracy = correct / len(results) if results else 0
+        export_path = export_memory(f"personamem_p{persona_id}", accuracy)
+        print(f"    ✓ 记忆已导出: {export_path.name}")
+
         return {
             'persona_id': persona_id,
             'context_id': context_id,
             'stored_memories': stored_count,
             'ingest_duration_ms': ingest_duration,
-            'results': results
+            'results': results,
+            'export_path': str(export_path)
         }
     finally:
         if hasattr(coord, 'stop_system'):

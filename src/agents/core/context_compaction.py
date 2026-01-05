@@ -1,11 +1,11 @@
 """
 Context Compaction Agent
-上下文压缩智能体 - 实现对话历史压缩和重启
+Implements conversation history compression and restart
 
-基于Anthropic的有效上下文工程原则：
-- Compaction: 压缩长对话为结构化摘要
-- Reinitiate: 用摘要重启对话，释放上下文窗口
-- Structured Note-Taking: 持久化关键信息到外部存储
+Based on Anthropic's effective context engineering principles:
+- Compaction: Compress long conversations into structured summaries
+- Reinitiate: Restart conversation with summary, freeing context window
+- Structured Note-Taking: Persist key information to external storage
 """
 
 from datetime import datetime
@@ -19,12 +19,12 @@ logger = logging.getLogger(__name__)
 
 class ContextCompactionAgent(BrainAgent):
     """
-    Context Compaction Agent - 上下文压缩智能体
+    Context Compaction Agent
 
-    核心功能：
-    - 压缩长对话历史为结构化笔记
-    - 提取关键决策和未解决问题
-    - 清理上下文窗口以避免token浪费
+    Core functions:
+    - Compress long conversation history into structured notes
+    - Extract key decisions and unresolved questions
+    - Clean up context window to avoid token waste
     """
 
     def __init__(self):
@@ -35,15 +35,15 @@ class ContextCompactionAgent(BrainAgent):
             Extract key facts, decisions, preferences, and open questions. Be concise."""
         )
 
-        # 压缩历史
+        # Compaction history
         self.compaction_history = []
         self.max_history = 10
 
-        # 压缩阈值（对话轮数）
-        self.compaction_threshold = 10  # ✅ 降低至10轮以便测试验证 (生产环境可调回15)
+        # Compaction threshold (number of turns)
+        self.compaction_threshold = 10  # Lowered to 10 for testing (can adjust to 15 in production)
 
     async def process_message(self, message: AgentMessage) -> Dict[str, Any]:
-        """处理压缩请求"""
+        """Process compaction request"""
         action = message.content.get('action')
 
         if action == 'compact_conversation':
@@ -58,37 +58,37 @@ class ContextCompactionAgent(BrainAgent):
         return {'error': f'Unknown compaction action: {action}'}
 
     async def _compact_conversation(self, conversation_history: List[Dict]) -> Dict[str, Any]:
-        """压缩对话历史为结构化笔记"""
+        """Compress conversation history into structured notes"""
         if len(conversation_history) < 3:
             return {
                 'compacted': False,
                 'reason': 'Too few turns to compact'
             }
 
-        # 构建压缩prompt
+        # Build compression prompt
         history_text = self._format_history_for_compression(conversation_history)
 
-        compression_prompt = f"""分析以下对话历史，提取为结构化笔记：
+        compression_prompt = f"""Analyze the following conversation history and extract structured notes:
 
 {history_text}
 
-输出格式：
-1. 核心事实：[列出3-5个关键信息]
-2. 用户偏好：[如果有]
-3. 待办事项：[未完成的任务]
-4. 关键决策：[重要的决定]
-5. 开放问题：[未解决的疑问]
+Output format:
+1. Core facts: [List 3-5 key pieces of information]
+2. User preferences: [If any]
+3. Pending tasks: [Incomplete tasks]
+4. Key decisions: [Important decisions made]
+5. Open questions: [Unresolved questions]
 
-要求：极度简洁，只保留最重要信息。"""
+Requirement: Be extremely concise, keep only the most important information."""
 
         try:
             summary = await self.call_llm(
                 compression_prompt,
                 max_tokens=400,
-                temperature=0.3  # 低温度保证事实性
+                temperature=0.3  # Low temperature for factuality
             )
 
-            # 存储压缩记录
+            # Store compaction record
             compaction_record = {
                 'timestamp': datetime.now().isoformat(),
                 'turns_compressed': len(conversation_history),
@@ -104,7 +104,7 @@ class ContextCompactionAgent(BrainAgent):
             compression_ratio = compaction_record['compressed_tokens'] / max(compaction_record['original_tokens'], 1)
 
             logger.info(f"Compacted {len(conversation_history)} turns: "
-                       f"{compaction_record['original_tokens']}→{compaction_record['compressed_tokens']} tokens "
+                       f"{compaction_record['original_tokens']}->{compaction_record['compressed_tokens']} tokens "
                        f"(ratio: {compression_ratio:.2%})")
 
             return {
@@ -123,7 +123,7 @@ class ContextCompactionAgent(BrainAgent):
             }
 
     def _should_compact(self, turn_count: int) -> Dict[str, Any]:
-        """判断是否应该触发压缩"""
+        """Determine if compaction should be triggered"""
         should_compact = turn_count >= self.compaction_threshold
 
         return {
@@ -134,7 +134,7 @@ class ContextCompactionAgent(BrainAgent):
         }
 
     def _get_latest_summary(self) -> Dict[str, Any]:
-        """获取最近的压缩摘要"""
+        """Get the most recent compaction summary"""
         if not self.compaction_history:
             return {
                 'has_summary': False,
@@ -150,24 +150,24 @@ class ContextCompactionAgent(BrainAgent):
         }
 
     def _format_history_for_compression(self, history: List[Dict]) -> str:
-        """格式化对话历史用于压缩"""
+        """Format conversation history for compression"""
         formatted = []
-        for turn in history[-20:]:  # 只处理最近20轮
+        for turn in history[-20:]:  # Only process last 20 turns
             role = turn.get('role', 'unknown')
             content = turn.get('content', '')
-            formatted.append(f"{role}: {content[:200]}")  # 截断过长消息
+            formatted.append(f"{role}: {content[:200]}")  # Truncate long messages
 
         return '\n'.join(formatted)
 
     def _estimate_tokens(self, text: str) -> int:
-        """粗略估算token数（中文按字符，英文按单词）"""
-        # 简化估算：中文1字≈1.5token，英文1词≈1token
+        """Rough token estimation (Chinese by char, English by word)"""
+        # Simplified estimation: Chinese 1 char ≈ 1.5 tokens, English 1 word ≈ 1 token
         chinese_chars = sum(1 for c in text if '\u4e00' <= c <= '\u9fff')
         english_words = len([w for w in text.split() if w.isalpha()])
         return int(chinese_chars * 1.5 + english_words)
 
     def get_stats(self) -> Dict[str, Any]:
-        """获取压缩统计"""
+        """Get compaction statistics"""
         if not self.compaction_history:
             return {
                 'total_compactions': 0,

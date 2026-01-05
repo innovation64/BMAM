@@ -238,13 +238,19 @@ class OpenAIEmbeddingService:
         else:
             return await self._compute_embedding(text)
     
-    async def _compute_embedding(self, text: str, max_retries: int = 3) -> np.ndarray:
+    async def _compute_embedding(self, text: str, max_retries: int = 20) -> np.ndarray:
         """
         Actually compute embedding from OpenAI API with retry
         实际调用OpenAI API计算嵌入向量，带重试机制
+
+        🔥 2025-12-26: 增强重试机制应对网络不稳定（大段时间断网）
+        - max_retries: 3 → 20次（支持长时间断网）
+        - 捕获更多异常类型 (APITimeoutError, RemoteProtocolError等)
+        - 最大等待时间: 4s → 120s（支持长时间断网恢复）
         """
         import asyncio
         import openai
+        import httpx
 
         last_error = None
         for attempt in range(max_retries):
@@ -261,13 +267,22 @@ class OpenAIEmbeddingService:
                 embedding = response.data[0].embedding
                 return np.array(embedding, dtype=np.float32)
 
-            except (openai.APIConnectionError, ConnectionError) as e:
+            except (openai.APIConnectionError,
+                    openai.APITimeoutError,
+                    ConnectionError,
+                    TimeoutError,
+                    httpx.RemoteProtocolError,
+                    httpx.ConnectError,
+                    httpx.ReadError) as e:
                 last_error = e
-                wait_time = 2 ** attempt  # 指数退避: 1s, 2s, 4s
-                logger.warning(f"连接错误 (尝试 {attempt+1}/{max_retries})，{wait_time}s后重试...")
-                await asyncio.sleep(wait_time)
+                # 指数退避，但限制最大等待时间为120秒（应对长时间断网）
+                wait_time = min(2 ** attempt, 120)  # 1s, 2s, 4s, 8s, 16s, 32s, 64s, 120s, 120s...
+                logger.warning(f"网络错误 ({type(e).__name__}) - 尝试 {attempt+1}/{max_retries}，{wait_time}s后重试...")
+                if attempt < max_retries - 1:  # 最后一次不需要等待
+                    await asyncio.sleep(wait_time)
             except Exception as e:
                 last_error = e
+                logger.error(f"非网络错误 ({type(e).__name__}): {e} - 不重试")
                 break  # 其他错误不重试
 
         # 所有重试失败

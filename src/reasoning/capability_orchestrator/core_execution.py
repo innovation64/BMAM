@@ -24,7 +24,8 @@ class CoreExecutionMixin:
         capabilities: List[Dict[str, Any]],
         memories: List[Dict],
         execution_plan: str,
-        supplementary_context: Dict[str, Any] = None
+        supplementary_context: Dict[str, Any] = None,
+        user_id: str = None
     ) -> Dict[str, Any]:
         """
         执行推理能力组合
@@ -35,6 +36,7 @@ class CoreExecutionMixin:
             memories: 检索到的记忆
             execution_plan: 执行计划描述
             supplementary_context: 补充上下文(如反思模块的模式分析结果)
+            user_id: 用户ID (用于多用户记忆过滤)
 
         Returns:
             {
@@ -67,7 +69,8 @@ class CoreExecutionMixin:
             'memories': memories,
             'intermediate_results': {},
             'reasoning_chain': [f"📋 Initial Plan: {execution_plan}"],
-            'reflection_hints': supplementary_context or {}  # 🧠 反思模块提供的模式洞察
+            'reflection_hints': supplementary_context or {},  # 🧠 反思模块提供的模式洞察
+            'user_id': user_id  # 🔥 2025-12-27: 用于多用户记忆过滤
         }
 
         # 🧠 Log reflection insights if available
@@ -94,13 +97,44 @@ class CoreExecutionMixin:
             sorted_caps = sorted(capabilities, key=lambda c: c.get('priority', 99))
             logger.info(f"📋 Execution order (default priority): {[c['name'] for c in sorted_caps]}")
 
+        # 🔥 2025-12-22: 能力依赖关系 (必须串行执行)
+        CAPABILITY_DEPENDENCIES = {
+            'ideation_generation': ['activity_tracking'],  # ideation 依赖 activity_tracking
+        }
+
+        # 检查是否有依赖需要先执行
+        dependent_caps = set()
+        for cap in sorted_caps:
+            deps = CAPABILITY_DEPENDENCIES.get(cap['name'], [])
+            for dep in deps:
+                if dep not in [c['name'] for c in sorted_caps]:
+                    # 自动添加依赖能力
+                    sorted_caps.insert(0, {'name': dep, 'priority': 0, 'reason': 'dependency'})
+                    logger.info(f"🔗 Auto-added dependency: {dep} for {cap['name']}")
+                dependent_caps.add(dep)
+
         # 🚀 性能优化: 根据配置选择执行模式
         if ENABLE_PARALLEL_EXECUTION:
-            # 🚀 并行执行所有能力 (快2-3倍!)
-            logger.debug(f"🚀 Parallel execution mode: executing {len(sorted_caps)} capabilities concurrently")
+            # 🔥 分离依赖能力和独立能力
+            dep_caps = [c for c in sorted_caps if c['name'] in dependent_caps]
+            independent_caps = [c for c in sorted_caps if c['name'] not in dependent_caps]
+
+            # 先串行执行依赖能力
+            for cap in dep_caps:
+                cap_name = cap['name']
+                logger.debug(f"  🔗 Executing dependency: {cap_name}")
+                try:
+                    result = await self._execute_capability(cap_name, context)
+                    context['intermediate_results'][cap_name] = result
+                    context['reasoning_chain'].append(f"✅ {cap_name}: {str(result.get('summary', 'completed'))}")
+                except Exception as e:
+                    logger.error(f"  ❌ {cap_name} failed: {e}")
+
+            # 再并行执行独立能力
+            logger.debug(f"🚀 Parallel execution mode: executing {len(independent_caps)} capabilities concurrently")
 
             tasks = []
-            for cap in sorted_caps:
+            for cap in independent_caps:
                 task = self._execute_capability(cap['name'], context)
                 tasks.append((cap['name'], task))
 
@@ -201,6 +235,10 @@ class CoreExecutionMixin:
         intermediate = context['intermediate_results']
         reflection_hints = context.get('reflection_hints', {})  # 🧠 反思模块的模式洞察
 
+        # 🔥 2025-12-27: 将 user_id 添加到 intermediate 中，供能力函数使用
+        if context.get('user_id'):
+            intermediate['_user_id'] = context['user_id']
+
         # 🔥 能力实现路由表
         capability_implementations = {
             'memory_retrieval': self._memory_retrieval,
@@ -213,7 +251,14 @@ class CoreExecutionMixin:
             'causal_reasoning': self._causal_reasoning,
             'counterfactual_reasoning': self._counterfactual_reasoning,
             'comparison': self._comparison,
-            'multi_hop_inference': self._multi_hop_inference
+            'multi_hop_inference': self._multi_hop_inference,
+            # 🔥 2025-12-22: 新增创意生成能力
+            'activity_tracking': self._activity_tracking,
+            'ideation_generation': self._ideation_generation,
+            # 🔥 2025-12-23: 事实回忆能力 (recall_user_shared_facts)
+            'fact_recall': self._fact_recall,
+            # 🔥 2025-12-27: 偏好感知响应能力 (PrefEval)
+            'preference_aligned_response': self._preference_aligned_response
         }
 
         # 🧠 对于multi_hop_inference等复杂推理,传递reflection_hints
@@ -246,7 +291,14 @@ class CoreExecutionMixin:
             'relationship_inference': 'relationship_inference',
             'interest_inference': 'interest_inference',
             'pattern_recognition': 'pattern_recognition',
-            'multi_hop_inference': 'reflection'
+            'multi_hop_inference': 'reflection',
+            # 🔥 2025-12-22: 新增创意生成能力映射
+            'activity_tracking': 'hippocampus',
+            'ideation_generation': 'prefrontal',
+            # 🔥 2025-12-23: 事实回忆能力映射 (海马体)
+            'fact_recall': 'hippocampus',
+            # 🔥 2025-12-27: 偏好感知响应能力映射 (前额叶 + 海马体)
+            'preference_aligned_response': 'prefrontal'
         }
 
         # 为每个capability分配动态激活分数

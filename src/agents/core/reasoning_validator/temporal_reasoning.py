@@ -108,11 +108,23 @@ class TemporalReasoningMixin:
 
                 relevance_score = keyword_matches + phrase_bonus
 
-                # 🔥 2025-12-16: 提取时间方法的置信度
+                # 🔥 2025-12-27 FIX: 细粒度置信度映射（替代二元判断）
+                # 问题：之前是1.0或0.0的二元判断，无法区分不同提取方法的可靠性
+                # 修复：根据提取方法给予不同的置信度权重
                 extraction_method = metadata.get('event_time_extraction', 'unknown')
-                # 高置信度方法: relative, absolute, inherited (从原始对话继承)
-                # 低置信度方法: context_approximate, context, fallback
-                extraction_confidence = 1.0 if extraction_method in ['relative', 'absolute', 'inherited'] else 0.0
+
+                # 置信度映射表 - 基于提取方法的可靠性
+                EXTRACTION_CONFIDENCE_MAP = {
+                    'relative': 0.95,      # "3 days before X" - 最可靠，有明确相对关系
+                    'absolute': 0.90,      # "May 15, 2023" - 明确日期
+                    'inherited': 0.85,     # 从对话上下文继承 - 较可靠
+                    'metadata': 0.80,      # 从元数据提取 - 可靠
+                    'context_approximate': 0.50,  # 上下文近似推断 - 中等
+                    'context': 0.45,       # 纯上下文推断 - 较低
+                    'fallback': 0.30,      # 回退方法 - 低可靠性
+                    'unknown': 0.20        # 未知方法 - 最低
+                }
+                extraction_confidence = EXTRACTION_CONFIDENCE_MAP.get(extraction_method, 0.20)
 
                 candidates.append({
                     'event_time': dt,
@@ -139,9 +151,10 @@ class TemporalReasoningMixin:
 
         # 🔥 2025-12-13 FIX: 提高相关性阈值，避免返回错误的默认日期
         # 问题：阈值1.0太低，导致"27 June 2023"被错误返回给43个不相关问题
-        # 解决：提高阈值到3.0，要求更强的关键词匹配
-        if best['relevance_score'] < 3.0:
-            logger.info(f"📅 Metadata reasoning: relevance too low ({best['relevance_score']:.1f} < 3.0), fallback to LLM")
+        # 🔥 2025-12-25 REFIX: 阈值3.0太高，导致大量查询fallback到LLM且失败
+        # StoryArc bug修复后，metadata应该更可靠，降低阈值到1.5
+        if best['relevance_score'] < 1.5:
+            logger.info(f"📅 Metadata reasoning: relevance too low ({best['relevance_score']:.1f} < 1.5), fallback to LLM")
             return None
 
         # 🔥 额外检查：确保内容中包含查询的核心动词/动作
@@ -341,15 +354,35 @@ class TemporalReasoningMixin:
         - 只有在规则无法处理时才回退到 LLM
         """
 
+        # 🔥 2025-12-27 FIX: 先检测是否是duration问题，影响后续路径选择
+        query_lower = query.lower()
+        is_duration_query = any(keyword in query_lower for keyword in [
+            'how long', 'how many years', 'how many months', 'how many days',
+            'how many weeks', 'how many hours', 'duration', 'passed between',
+            'before', 'after', 'since', '多久', '多少天', 'how old'
+        ])
+
+        # 🔥 2025-12-27 FIX: 检测期望的答案格式
+        expects_count = any(kw in query_lower for kw in [
+            'how many days', 'how many months', 'how many years', 'how many weeks',
+            'how old was'
+        ])
+        expects_duration = any(kw in query_lower for kw in [
+            'how long'
+        ])
+        expects_time = 'what time' in query_lower
+
         # 🔥 2025-12-11 重构: 优先使用 metadata.event_time（存储时已计算好）
-        metadata_result = await self._try_metadata_based_reasoning(
-            query=query,
-            memories=memories,
-            memories_by_region=memories_by_region
-        )
-        if metadata_result and metadata_result.get('answer'):
-            logger.info(f"📅 Using metadata.event_time: {metadata_result.get('answer')}")
-            return metadata_result
+        # 但对于 duration 问题，跳过直接的 metadata 日期返回
+        if not (expects_count or expects_duration or expects_time):
+            metadata_result = await self._try_metadata_based_reasoning(
+                query=query,
+                memories=memories,
+                memories_by_region=memories_by_region
+            )
+            if metadata_result and metadata_result.get('answer'):
+                logger.info(f"📅 Using metadata.event_time: {metadata_result.get('answer')}")
+                return metadata_result
 
         # 🔥 V2.0: StoryArc 时间线直接查询 (比 LLM 更可靠)
         story_arc_result = await self._try_story_arc_reasoning(query)
@@ -373,11 +406,7 @@ class TemporalReasoningMixin:
         else:
             memories_text = self._format_memories(memories)
 
-        # 🔥 检测是否是duration问题 ("how long", "for how many years", "how many days")
-        is_duration_query = any(keyword in query.lower() for keyword in [
-            'how long', 'how many years', 'how many months', 'how many days',
-            'how many weeks', 'duration', 'passed between', '多久', '多少天'
-        ])
+        # 🔥 2025-12-27: is_duration_query 已在函数开头定义，此处不再重复
 
         reasoning_prompt = f"""You are simulating temporal reasoning in the prefrontal cortex.
 
