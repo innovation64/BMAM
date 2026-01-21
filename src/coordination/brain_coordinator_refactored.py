@@ -1494,6 +1494,52 @@ class BrainInspiredCoordinator:
         """
         return self.soul_state.get_response_constraints()
 
+    # 🔥 2026-01-21 FIX-005: 统一偏好检索 API
+    # PersonaMem 作为多用户主路径，SoulState 作为单用户备用
+    async def get_user_preferences(self, query: str, user_id: str = None, k: int = 5) -> List[str]:
+        """
+        统一偏好检索接口
+
+        Args:
+            query: 查询文本
+            user_id: 用户ID (可选)
+            k: 返回数量
+
+        Returns:
+            偏好内容列表
+        """
+        preferences = []
+
+        # 多用户模式: 使用 PersonaMem
+        if user_id and user_id != "default" and self.persona_memory:
+            try:
+                result = await self.persona_memory.retrieve_persona(
+                    query, k=k, user_id=user_id
+                )
+                for pm in result.get('memories', []):
+                    if isinstance(pm, dict):
+                        content = pm.get('content', '') or pm.get('memory', {}).get('content', '')
+                        if content and len(content) > 5:
+                            preferences.append(content)
+                if preferences:
+                    logger.debug(f"🎯 FIX-005: Retrieved {len(preferences)} preferences from PersonaMem (user={user_id})")
+                    return preferences[:k]
+            except Exception as e:
+                logger.debug(f"PersonaMem retrieval failed: {e}, falling back to SoulState")
+
+        # 单用户模式/备用: 使用 SoulState
+        try:
+            high_conf = self.soul_state.user_profile.get_high_confidence_preferences(min_confidence=0.5)
+            for pref in high_conf[:k]:
+                if hasattr(pref, 'item') and pref.item:
+                    preferences.append(f"User preference: {pref.item}")
+            if preferences:
+                logger.debug(f"🎯 FIX-005: Retrieved {len(preferences)} preferences from SoulState (fallback)")
+        except Exception as e:
+            logger.debug(f"SoulState retrieval failed: {e}")
+
+        return preferences[:k]
+
     def check_value_gaps(self) -> List[ValueGap]:
         """
         检查价值观缺口
