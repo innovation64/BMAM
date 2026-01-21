@@ -157,3 +157,6 @@ src/ui/web_ui_server/static/models/
 # Archived Documentation (optional - remove if too large)
 # =====================
 # docs/archived/
+
+backups/
+evaluation/checkpoints/
