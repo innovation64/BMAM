@@ -23,6 +23,9 @@ from ..utils.pattern_config import pattern_config
 from ..utils.flexible_date_parser import FlexibleDateParser
 from ..utils.i18n_config import get_config as get_i18n_config
 
+# 🔥 2026-01-20 ABL-001: 消融配置检查（解决消融实验结果异常问题）
+from ..config.ablation_config import is_component_enabled, get_active_ablation
+
 from .clean_agent_system import (
     BrainRegion, AgentMessage,
     ShortTermMemoryAgent, LongTermMemoryAgent, MemoryRetrievalAgent,
@@ -685,6 +688,33 @@ class BrainInspiredCoordinator:
 
         embedding_service = self.memory_system.embedding_service if self.memory_system else None
 
+        # 🔥 2026-01-20 ABL-001: 记录消融配置状态
+        # 问题: 消融实验结果异常（禁用组件反而准确率提高）
+        # 原因: 主代码从未检查 BMAM_DISABLE_* 环境变量
+        # 解决: 读取消融配置并在关键路径中检查
+        ablation_config = get_active_ablation()
+        self._ablation_state = {
+            'hippocampus': is_component_enabled('hippocampus'),
+            'temporal_lobe': is_component_enabled('temporal_lobe'),
+            'amygdala': is_component_enabled('amygdala'),
+            'prefrontal': is_component_enabled('prefrontal'),
+            'basal_ganglia': is_component_enabled('basal_ganglia'),
+            'story_arc': is_component_enabled('story_arc'),
+            'temporal_reasoning': is_component_enabled('temporal_reasoning'),
+            'kg': is_component_enabled('kg'),
+            'hybrid_retrieval': is_component_enabled('hybrid_retrieval'),
+            'consolidation': is_component_enabled('consolidation'),
+            'hrm': is_component_enabled('hrm'),
+            'salience': is_component_enabled('salience'),
+        }
+
+        # Log ablation status if any component is disabled
+        disabled = [k for k, v in self._ablation_state.items() if not v]
+        if disabled:
+            logger.warning(f"🔬 ABLATION MODE: Components DISABLED = {disabled}")
+        else:
+            logger.debug("🔬 ABLATION: All components enabled (full system)")
+
         # 🔥 FIX: 创建统一的知识图谱实例，供所有脑区共享
         from ..memory.knowledge_graph import LightweightKnowledgeGraph
         self.unified_kg = LightweightKnowledgeGraph()
@@ -941,6 +971,10 @@ class BrainInspiredCoordinator:
 
     async def trigger_consolidation(self, strategy: str = 'batch', batch_size: int = 50) -> Dict[str, Any]:
         """Delegate to MemoryCoordinator"""
+        # 🔥 2026-01-20 ABL-001: 消融检查 - consolidation 禁用时跳过
+        if hasattr(self, '_ablation_state') and not self._ablation_state.get('consolidation', True):
+            logger.debug("🔬 ABLATION: consolidation disabled, skipping trigger_consolidation")
+            return {'status': 'skipped', 'reason': 'ablation_disabled'}
         return await self.memory_coordinator.trigger_consolidation(strategy, batch_size)
 
     async def consolidate_memories(self, evaluation_mode: bool = False) -> Dict[str, Any]:
@@ -949,6 +983,10 @@ class BrainInspiredCoordinator:
         Args:
             evaluation_mode: 🔥 评估模式 - 绕过时间/访问次数限制
         """
+        # 🔥 2026-01-20 ABL-001: 消融检查 - consolidation 禁用时跳过
+        if hasattr(self, '_ablation_state') and not self._ablation_state.get('consolidation', True):
+            logger.debug("🔬 ABLATION: consolidation disabled, skipping consolidate_memories")
+            return {'status': 'skipped', 'reason': 'ablation_disabled'}
         return await self.memory_coordinator.consolidate_memories(evaluation_mode=evaluation_mode)
 
     async def trigger_forgetting(self, region: str) -> Dict[str, Any]:
@@ -977,21 +1015,20 @@ class BrainInspiredCoordinator:
             speaker_lower = speaker.lower()
             if speaker_lower == 'user' or 'user:' in content.lower()[:20]:
                 try:
-                    # 🔥 2025-12-27 FIX V3: 权重低于阈值时完全跳过偏好提取
-                    # 解决LongMemEval时间推理被偏好污染的问题
-                    # 权重范围: 0.0-0.8 (被temporal_suppression压制后可能为0)
-                    # - < 0.1 (极低): 完全跳过偏好提取（时间推理任务）
-                    # - 0.1-0.3 (低): 只提取强信号，最多1个偏好
-                    # - 0.3-0.8 (高): 正常提取
+                    # 🔥 2026-01-20 FIX-004: 偏好提取权重软下限，避免完全跳过
+                    # 原问题: weight<0.1时完全跳过，导致PrefEval偏好丢失
+                    # 解决: 使用可配置的最低权重，保证至少提取1个偏好
+                    # 设计原则: 模拟基底神经节的基线活动，即使被抑制也保持最小活跃度
                     if self.preference_extractor:
-                        weight = adaptive_weights.preference_extraction_weight
+                        raw_weight = adaptive_weights.preference_extraction_weight
+                        # 🔥 FIX-004: 从配置获取权重下限（避免硬编码）
+                        min_weight = adaptive_weights.min_preference_weight
+                        weight = max(raw_weight, min_weight)
 
-                        # 🔥 FIX: 权重低于0.1时完全跳过（时间推理等场景）
-                        if weight < 0.1:
-                            logger.debug(f"⏭️ Skipping preference extraction (weight={weight:.2f} < 0.1)")
-                            extracted_raw = {}
-                        else:
-                            extracted_raw = self.preference_extractor.extract_from_text(content)
+                        if raw_weight < min_weight:
+                            logger.debug(f"⏭️ Preference weight boosted: {raw_weight:.2f} → {weight:.2f}")
+
+                        extracted_raw = self.preference_extractor.extract_from_text(content)
 
                         # 根据权重动态限制保留数量
                         max_items_per_category = max(1, int(5 * weight))  # 1-4个
@@ -1095,6 +1132,15 @@ class BrainInspiredCoordinator:
                 'amygdala': False,        # Skip emotional tagging in basic retrieval
                 'basal_ganglia': False    # Skip procedural patterns in basic retrieval
             }
+
+        # 🔥 2026-01-20 ABL-001: 消融检查 - 禁用的组件不参与检索
+        # 设计原则: 从 activation_plan 动态获取脑区，避免硬编码（符合人脑模块化设计）
+        if hasattr(self, '_ablation_state') and activation_plan:
+            for region in activation_plan.keys():
+                if not self._ablation_state.get(region, True):
+                    activation_plan[region] = False
+                    logger.debug(f"🔬 ABLATION: {region} disabled in smart_retrieve")
+
         return await self.memory_coordinator.smart_retrieve(query, k, strategy, context, activation_plan)
 
     async def brain_retrieve(
@@ -1146,6 +1192,14 @@ class BrainInspiredCoordinator:
                 activation_plan = thalamus_plan.get('regions', {})
             except Exception as e:
                 logger.debug(f"Thalamus activation plan failed: {e}")
+
+        # 🔥 2026-01-20 ABL-001: 消融检查 - 禁用的组件不参与检索
+        # 设计原则: 从 activation_plan 动态获取脑区，避免硬编码
+        if hasattr(self, '_ablation_state') and activation_plan:
+            for region in activation_plan.keys():
+                if not self._ablation_state.get(region, True):
+                    activation_plan[region] = False
+                    logger.debug(f"🔬 ABLATION: {region} disabled in brain_retrieve")
 
         # 执行脑仿生检索
         result = await self.brain_inspired_retrieval.retrieve(
@@ -1797,6 +1851,87 @@ Output ONLY the extracted answer:"""
         return initial_path
 
     # ============================================================================
+    # Feedback Interface (Simplified - environment agent placeholder)
+    # ============================================================================
+
+    async def apply_feedback(
+        self,
+        query_type: str,
+        reward_signal: float,
+        query: str = None,
+        response: str = None,
+        context: Dict[str, Any] = None
+    ) -> Dict[str, Any]:
+        """
+        简化版反馈接口 - 预留给环境智能体后期集成
+
+        设计原则（符合人脑学习机制）:
+        1. 多巴胺信号: reward_signal 模拟强化学习的奖励信号
+        2. 神经可塑性: 根据反馈调整路由权重
+        3. 记忆巩固: 成功的模式被强化，失败的模式被抑制
+
+        Args:
+            query_type: 查询类型 ('temporal', 'preference', 'factual', 'identity')
+            reward_signal: 奖励信号 (0.0=错误, 1.0=正确, 0.5=部分正确)
+            query: 原始查询 (可选，用于记录)
+            response: 系统响应 (可选，用于记录)
+            context: 上下文信息 (可选)
+
+        Returns:
+            Dict with feedback application result
+
+        🔮 后期拓展 (环境智能体集成):
+            - 自动判断答案正确性
+            - 多模态反馈 (用户表情、点击行为等)
+            - 跨会话学习
+        """
+        context = context or {}
+
+        # 1. 记录到学习日志
+        feedback_record = {
+            'timestamp': datetime.now().isoformat(),
+            'query_type': query_type,
+            'reward': reward_signal,
+            'query': query[:200] if query else None,
+            'success': reward_signal >= 0.5
+        }
+
+        if hasattr(self, 'learning_logger') and self.learning_logger:
+            self.learning_logger.record('feedback', feedback_record)
+
+        # 2. 更新路由权重（简化版神经可塑性）
+        # 正向强化: 成功的查询类型权重增加
+        # 负向抑制: 失败的查询类型权重减少
+        weight_delta = (reward_signal - 0.5) * 0.05  # 小步长更新，避免过拟合
+
+        if hasattr(self, 'routing_manager') and self.routing_manager:
+            try:
+                # 更新对应类型的路由权重
+                self.routing_manager.update_type_weight(query_type, weight_delta)
+                logger.debug(f"🧠 Feedback applied: {query_type} weight += {weight_delta:.3f}")
+            except Exception as e:
+                logger.debug(f"Routing weight update skipped: {e}")
+
+        # 3. 如果有连续学习器，记录学习案例
+        if hasattr(self, 'continuous_learner') and self.continuous_learner:
+            try:
+                await self.continuous_learner.record_case(
+                    query=query,
+                    query_type=query_type,
+                    success=reward_signal >= 0.5,
+                    reward=reward_signal
+                )
+            except Exception as e:
+                logger.debug(f"Continuous learner record skipped: {e}")
+
+        return {
+            'status': 'applied',
+            'query_type': query_type,
+            'reward': reward_signal,
+            'weight_delta': weight_delta
+        }
+
+    # ============================================================================
     # Main Processing Pipeline (Simplified - delegates to modules)
     # ============================================================================
 
@@ -2038,10 +2173,9 @@ Output ONLY the extracted answer:"""
                             extra_k = int(10 * max(0, adaptive_weights.persona_weight - 0.5) * 2)
                             retrieval_k = min(25, retrieval_k + extra_k)
 
-                        # 🔥 QADW: 用户隔离阈值降低到 0.4，确保更多场景启用
-                        eval_user_id = None
-                        if adaptive_weights.identity_reasoning_weight > 0.4:  # 降低阈值
-                            eval_user_id = context.get('user_id') or context.get('persona_user_id')
+                        # 🔥 2026-01-20 FIX-002: 始终传递 user_id，不再受阈值限制
+                        # 原因: 阈值导致 PersonaMem 多用户场景下记忆混淆
+                        eval_user_id = context.get('user_id') or context.get('persona_user_id')
 
                         # 🔥 2025-12-27 FIX: 传入 preference_boost 实现端到端软权重
                         # preference_boost 由 AdaptiveConfigManager 动态计算

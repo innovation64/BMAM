@@ -72,6 +72,10 @@ class AdaptiveWeights:
     temporal_reasoning_weight: float = 0.7         # 时间推理权重
     identity_reasoning_weight: float = 0.5         # 身份推理权重
 
+    # 🔥 2026-01-20: 权重下限配置（避免硬编码，符合神经可塑性原则）
+    # 模拟基底神经节的基线活动 - 即使被抑制也保持最小活跃度
+    min_preference_weight: float = 0.15            # 偏好提取最低权重（防止完全跳过）
+
     # 动态检索参数 - 扩大范围
     persona_retrieval_k: int = 10                  # persona检索top-k (5-20)
     episodic_retrieval_k: int = 10                 # episodic检索top-k (5-20)
