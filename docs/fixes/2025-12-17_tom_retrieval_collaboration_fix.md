@@ -129,7 +129,7 @@ PrefrontalFeedback 质量评估
 
 运行小规模回归测试:
 ```bash
-cd /Users/liyang/Desktop/testversion/BMAM
+cd .
 python3 experiments/benchmarks/locomo/test_sequential.py --groups 1 --questions 30
 ```
 

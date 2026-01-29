@@ -360,8 +360,8 @@ rm -rf data/agent_buffers/*.json
 ## 相关文件
 
 - **测试脚本**: `tests/test_locomo_bmam_full.py`
-- **原始数据**: `/Users/liyang/Desktop/testversion/archived/MemOS/evaluation/data/locomo/locomo10.json`
-- **MemOS评分脚本**: `/Users/liyang/Desktop/testversion/archived/MemOS/evaluation/scripts/locomo/locomo_eval.py`
+- **原始数据**: `MemOS/evaluation/data/locomo/locomo10.json`
+- **MemOS评分脚本**: `MemOS/evaluation/scripts/locomo/locomo_eval.py`
 - **结果目录**: `metrics/locomo_bmam_full/`
 
 ## 联系与反馈

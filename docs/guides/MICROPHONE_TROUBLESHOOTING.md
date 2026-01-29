@@ -4,7 +4,7 @@
 
 ### 1. 启动服务器
 ```bash
-cd /Users/liyang/Desktop/testversion/BMAM
+cd .
 python3 run_voice_ui.py
 ```
 

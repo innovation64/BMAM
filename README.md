@@ -8,6 +8,8 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![arXiv](https://img.shields.io/badge/arXiv-2601.20465-b31b1b.svg)](https://arxiv.org/abs/2601.20465)
 
+**English | [中文](README_CN.md)**
+
 > **The first brain-inspired multi-agent memory framework for long-term conversational AI**
 
 > [!NOTE]

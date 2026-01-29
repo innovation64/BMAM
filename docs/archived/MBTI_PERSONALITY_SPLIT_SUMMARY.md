@@ -2,8 +2,8 @@
 # MBTI人格模块拆分总结
 
 **Date**: 2025-11-10
-**Original File**: /Users/liyang/Desktop/testversion/BMAM/src/agents/core/mbti_personality.py (902 lines)
-**New Location**: /Users/liyang/Desktop/testversion/BMAM/src/agents/core/mbti_personality/ (package)
+**Original File**: src/agents/core/mbti_personality.py (902 lines)
+**New Location**: src/agents/core/mbti_personality/ (package)
 
 ## Overview
 ## 概览

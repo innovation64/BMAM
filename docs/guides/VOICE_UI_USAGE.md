@@ -32,7 +32,7 @@
 
 ### 1. 启动服务
 ```bash
-cd /Users/liyang/Desktop/testversion/BMAM
+cd .
 python3 run_voice_ui.py
 ```
 

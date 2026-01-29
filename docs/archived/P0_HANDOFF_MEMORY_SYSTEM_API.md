@@ -553,7 +553,7 @@ python3 test_multi_brain_region_observability.py
 ## 联系方式
 
 **前置任务完成者**: 你（刚修复 TemporalLobe 长期存储）
-**文档位置**: `/Users/liyang/Desktop/testversion/BMAM/P0_HANDOFF_MEMORY_SYSTEM_API.md`
+**文档位置**: `P0_HANDOFF_MEMORY_SYSTEM_API.md`
 
 **如有问题，参考**:
 - TemporalLobe 实现 (已验证工作)

@@ -321,7 +321,7 @@ await f.write(json.dumps(data, ensure_ascii=False))  # 移除indent=2
 **第一步**: 搜索所有使用buffer的位置
 
 ```bash
-cd /Users/liyang/Desktop/testversion/BMAM
+cd .
 grep -r "agent_buffer_system" --include="*.py" src/
 grep -r "write_buffer" --include="*.py" src/
 grep -r "read_buffer" --include="*.py" src/

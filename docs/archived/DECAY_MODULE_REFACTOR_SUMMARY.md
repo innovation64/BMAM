@@ -2,7 +2,7 @@
 # 衰减模块重构总结
 
 **Date**: 2025-11-10
-**File**: `/Users/liyang/Desktop/testversion/BMAM/src/agents/core/forgetting/decay.py` (859 lines)
+**File**: `src/agents/core/forgetting/decay.py` (859 lines)
 **Objective**: Split into ELEGANT, ART-LEVEL modules following best practices
 
 ---
@@ -236,19 +236,19 @@ ForgettingAgent methods with 'decay' or 'ebbinghaus':
 ## File Locations | 文件位置
 
 ```
-/Users/liyang/Desktop/testversion/BMAM/src/agents/core/forgetting/decay/
+src/agents/core/forgetting/decay/
 ├── __init__.py (33 lines)
 ├── passive_decay.py (128 lines)
 └── ebbinghaus.py (139 lines)
 ```
 
 **Updated**:
-- `/Users/liyang/Desktop/testversion/BMAM/src/agents/core/forgetting/__init__.py`
+- `src/agents/core/forgetting/__init__.py`
   - Updated docstring to reflect new structure
   - Import from `decay/` subdirectory
 
 **Removed**:
-- `/Users/liyang/Desktop/testversion/BMAM/src/agents/core/forgetting/decay.py` (old monolithic file)
+- `src/agents/core/forgetting/decay.py` (old monolithic file)
 
 ---
 

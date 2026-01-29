@@ -19,13 +19,10 @@ class LoCoMoLLMJudge:
         import os
         api_key = os.getenv('OPENAI_API_KEY')
         if not api_key:
-            # Try to load from config
             try:
-                import sys
-                sys.path.insert(0, '/Users/liyang/Desktop/testversion/BMAM')
                 from src.config import OPENAI_API_KEY
                 api_key = OPENAI_API_KEY
-            except:
+            except ImportError:
                 pass
         self.client = AsyncOpenAI(api_key=api_key)
 

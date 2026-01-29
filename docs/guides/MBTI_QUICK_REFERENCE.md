@@ -27,7 +27,7 @@ profile = MBTIPersonalityFactory.create_profile(MBTIType.ENFP)
 ## 文件位置
 
 ```
-/Users/liyang/Desktop/testversion/BMAM/src/agents/core/mbti_personality/
+src/agents/core/mbti_personality/
 ├── Core Modules
 │   ├── __init__.py                  (49 lines)
 │   ├── types.py                     (59 lines)
@@ -185,4 +185,4 @@ profiles = {
 - MBTI_ARCHITECTURE_DIAGRAM.txt - Visual architecture
 - MBTI_QUICK_REFERENCE.md - This file
 
-Location: /Users/liyang/Desktop/testversion/BMAM/
+Location: 

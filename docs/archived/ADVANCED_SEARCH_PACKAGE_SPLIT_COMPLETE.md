@@ -310,7 +310,7 @@ This is our **BEST split yet** and marks the completion of BMAM's code art trans
 - `advanced_search.py` → `advanced_search.py.bak`
 
 **Package Location**:
-- `/Users/liyang/Desktop/testversion/BMAM/src/agents/brain_regions/hippocampus_agent/advanced_search/`
+- `src/agents/brain_regions/hippocampus_agent/advanced_search/`
 
 **Documentation**:
 - This file: `ADVANCED_SEARCH_PACKAGE_SPLIT_COMPLETE.md`

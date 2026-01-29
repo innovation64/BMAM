@@ -189,7 +189,7 @@ process_user_input:
 
 运行 PersonaMem 和 PrefEval 测试：
 ```bash
-cd /Users/liyang/Desktop/testversion/BMAM
+cd .
 python3 experiments/benchmarks/personamem/test_personamem.py
 python3 experiments/benchmarks/prefeval/test_prefeval.py
 ```

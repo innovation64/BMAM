@@ -137,7 +137,7 @@
 
 **使用方法**:
 ```bash
-cd /Users/liyang/Desktop/testversion/BMAM
+cd .
 ./scripts/cleanup_project.sh
 ```
 
