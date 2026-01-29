@@ -6,9 +6,12 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![arXiv](https://img.shields.io/badge/arXiv-2025.xxxxx-b31b1b.svg)](https://arxiv.org/)
+[![arXiv](https://img.shields.io/badge/arXiv-2601.20465-b31b1b.svg)](https://arxiv.org/abs/2601.20465)
 
 > **The first brain-inspired multi-agent memory framework for long-term conversational AI**
+
+> [!NOTE]
+> This project is a **preliminary exploration** of applying brain-inspired mechanisms to LLM memory systems. We are actively improving the framework — contributions, feedback, and discussions are welcome! Please open an issue if you have suggestions or find bugs.
 
 BMAM implements a multi-agent memory system inspired by human brain memory mechanisms. It addresses the **Soul Erosion** problem—the gradual degradation of an AI agent's identity and behavioral consistency due to memory failures—through coordinated brain-region agents.
 
@@ -93,8 +96,8 @@ We introduce **Soul Erosion** as a framework for understanding AI memory failure
 
 ```bash
 # Clone repository
-git clone https://github.com/your-repo/bmam.git
-cd bmam
+git clone https://github.com/innovation64/BMAM.git
+cd BMAM
 
 # Create virtual environment
 python3 -m venv .venv
@@ -334,11 +337,11 @@ python3 -c "from src.coordination.brain_coordinator_refactored import BrainInspi
 ## Citation
 
 ```bibtex
-@inproceedings{bmam2025,
-  title={BMAM: Brain-inspired Multi-Agent Memory for Long-term Conversational AI},
-  author={...},
-  booktitle={ACL 2025},
-  year={2025}
+@article{li2026bmam,
+  title={BMAM: Brain-inspired Multi-Agent Memory Framework for LLM-Based Agents},
+  author={Li, Yang and Liu, Jiaxiang and Wang, Yusong and Wu, Yujie and Xu, Mingkun},
+  journal={arXiv preprint arXiv:2601.20465},
+  year={2026}
 }
 ```
 
@@ -349,4 +352,4 @@ MIT License - see [LICENSE](LICENSE) for details.
 ---
 
 **Version**: 2.1
-**Last Updated**: December 2025
+**Last Updated**: January 2026
