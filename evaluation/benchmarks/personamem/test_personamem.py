@@ -341,6 +341,22 @@ async def test_questions(coord, questions, client, question_type=None, user_ids:
             correct += 1
             type_correct[qtype] += 1
 
+        # 🔥 FIX-001: 反馈循环 - 让系统从错误中学习
+        # 映射 PersonaMem 问题类型到反馈 query_type
+        qtype_map = {
+            'preference': 'preference',
+            'biographical': 'factual',
+            'temporal': 'temporal',
+            'relational': 'factual'
+        }
+        feedback_qtype = qtype_map.get(qtype, 'factual')
+        await coord.apply_feedback(
+            query_type=feedback_qtype,
+            reward_signal=1.0 if ok else 0.0,
+            query=qtext,
+            response=gen
+        )
+
         type_stats[qtype] += 1
         results.append({
             'question': qtext[:100],

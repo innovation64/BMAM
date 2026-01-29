@@ -146,6 +146,24 @@ async def test_single_conversation(sample_id: str, conversation_dict: dict, qa_p
         if is_correct != string_match:
             print(f"  ⚠️  LLM Judge disagrees with string matching!")
 
+        # 🔥 FIX-001: 反馈循环 - 让系统从错误中学习
+        # 根据问题类别映射到反馈 query_type
+        category_map = {
+            'temporal': 'temporal',
+            'preference': 'preference',
+            'factual': 'factual',
+            'multi-hop': 'factual',
+            'single-hop': 'factual',
+            'unknown': 'factual'
+        }
+        feedback_qtype = category_map.get(category, 'factual')
+        await coordinator.apply_feedback(
+            query_type=feedback_qtype,
+            reward_signal=1.0 if is_correct else 0.0,
+            query=question,
+            response=generated_answer
+        )
+
         results.append({
             'question': question,
             'gold_answer': str(gold_answer),
@@ -192,7 +210,7 @@ async def main():
 
         sample_results = await test_single_conversation(
             sample_id=sample_id,
-            conversation=conversation,
+            conversation_dict=conversation,
             qa_pairs=qa_pairs,
             coordinator=coordinator,
             judge=judge

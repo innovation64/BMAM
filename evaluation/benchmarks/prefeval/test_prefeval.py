@@ -328,6 +328,15 @@ async def test_sample(coord, sample, client, idx, total):
     # 评估
     error_type = await evaluate_response(client, preference, question, response)
 
+    # 🔥 FIX-001: 反馈循环 - 让系统从错误中学习
+    is_correct = (error_type == 'correct')
+    await coord.apply_feedback(
+        query_type='preference',
+        reward_signal=1.0 if is_correct else 0.0,
+        query=question,
+        response=response
+    )
+
     print(f" → {error_type}")
 
     return {

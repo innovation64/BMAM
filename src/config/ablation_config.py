@@ -258,6 +258,17 @@ def get_active_ablation() -> AblationConfig:
     return _active_ablation
 
 
+def clear_ablation():
+    """清除消融配置，恢复完整系统"""
+    global _active_ablation
+    _active_ablation = None
+    # 清除环境变量
+    import os
+    for key in list(os.environ.keys()):
+        if key.startswith('BMAM_DISABLE_') or key.startswith('BMAM_ENABLE_'):
+            del os.environ[key]
+
+
 def is_component_enabled(component: str) -> bool:
     """检查组件是否启用"""
     config = get_active_ablation()

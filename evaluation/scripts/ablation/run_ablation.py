@@ -296,7 +296,7 @@ async def run_locomo_ablation(
             question_total += len(sample['qa'])
 
             acc = sample_correct / len(sample['qa']) * 100 if sample['qa'] else 0
-            print(f" → {sample_correct}/{len(sample['qa'])} ({acc:.1f}%)")
+            print(f" → {sample_correct}/{len(sample['qa'])} ({acc:.1f}%)", flush=True)
 
             results.append({
                 'sample_id': sample['sample_id'],

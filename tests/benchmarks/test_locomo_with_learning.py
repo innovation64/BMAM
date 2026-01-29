@@ -320,6 +320,15 @@ async def main():
 
         print(f"  Got: {result.response}")
         print(f"  {status} ({elapsed:.2f}s)")
+
+        # 🔥 FIX-001: 反馈循环 - 让系统从错误中学习
+        await coordinator.apply_feedback(
+            query_type=question.get('type', 'factual'),
+            reward_signal=1.0 if is_correct else 0.0,
+            query=question['question'],
+            response=result.response
+        )
+
         print()
 
         initial_results.append({
