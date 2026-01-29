@@ -85,6 +85,8 @@ credentials/
 tmp/
 temp/
 *.tmp
+*.pid
+test_pid.txt
 
 # =====================
 # Model Checkpoints
@@ -110,8 +112,20 @@ temp/
 # Evaluation results (keep structure, ignore data)
 /evaluation/results/**/*.json
 /evaluation/results/**/*.log
+/evaluation/results/**/*.txt
+/evaluation/results/**/*.zip
+/evaluation/results/**/*.py
+/evaluation/results/**/*.md
+/evaluation/results/.test_checkpoint
+/evaluation/results/sequential_*/
+/evaluation/results/full_eval_*/
+/evaluation/results/ablation_*/
 /evaluation/benchmarks/*/data/
 !evaluation/results/.gitkeep
+!evaluation/results/ablation/.gitkeep
+!evaluation/results/full_eval/.gitkeep
+!evaluation/results/sequential/.gitkeep
+!evaluation/results/single/.gitkeep
 !evaluation/benchmarks/.gitkeep
 
 # =====================
@@ -154,9 +168,14 @@ src/ui/web_ui_server/static/models/
 *.sqlite3
 
 # =====================
-# Archived Documentation (optional - remove if too large)
+# Internal Development Docs (not for open-source)
 # =====================
-# docs/archived/
+docs/archived/
+docs/fixes/
+docs/reports/
+docs/refactoring_history/
+docs/analysis/
+docs/tech_debt/
 
 backups/
 evaluation/checkpoints/
