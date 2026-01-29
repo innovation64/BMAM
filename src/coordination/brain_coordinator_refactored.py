@@ -76,11 +76,17 @@ from .confidence_calibrator import get_confidence_calibrator  # 🔥 2025-12-16:
 from ..agents.core.learnable_router import LearnableAgentRouter  # 🔥 2025-12-15: 可学习路由集成
 from ..agents.brain_regions.amygdala_hrm_extension import AmygdalaHRMExtension  # 🔥 2025-12-15: HRM扩展
 from ..agents.brain_regions.basal_ganglia_hrm_extension import BasalGangliaHRMExtension  # 🔥 2025-12-15: HRM扩展
+from .distributed_retrieval import (  # 🔥 2026-01-27 FIX-016: 五脑区分布式检索
+    DistributedRetrievalCoordinator,
+    init_distributed_coordinator
+)
 from .brain_retrieval_integration import (  # 🔥 2025-12-15: 高级脑仿生检索
     BrainInspiredRetrieval,
     BrainRetrievalResult,
     PrefrontalFeedbackSystem
 )
+from ..learning.feedback_loop import FeedbackLoop  # 🔥 2026-01-26 FIX-012: 反馈闭环激活
+from ..memory.forgetting_coordinator import ForgettingCoordinator  # 🔥 2026-01-26 FIX-013: 遗忘协调器
 
 # 🔥 2025-12-20 FIX: 恢复 HippocampalPrefrontalLoop 迭代检索
 from ..brain.hippocampal_loop import HippocampalPrefrontalLoop
@@ -590,6 +596,29 @@ class BrainInspiredCoordinator:
         self.archive_manager = MemoryArchiveManager(self)
         logger.debug("  ✅ MemoryArchiveManager initialized")
 
+        # 🔥 2026-01-26 FIX-012: Initialize FeedbackLoop (反馈闭环，环境Agent基础)
+        key_optimizer = None
+        metamemory_monitor = None
+        if self.preference_aware_retrieval:
+            key_optimizer = getattr(self.preference_aware_retrieval, 'key_optimizer', None)
+            metamemory_monitor = getattr(self.preference_aware_retrieval, 'metamemory_monitor', None)
+
+        self.feedback_loop = FeedbackLoop(
+            key_optimizer=key_optimizer,
+            metamemory_monitor=metamemory_monitor,
+            confidence_threshold=0.6,
+            learning_enabled=True
+        )
+        logger.info("✅ [17/17] FeedbackLoop initialized (环境Agent基础)")
+
+        # 🔥 2026-01-26 FIX-013: Initialize ForgettingCoordinator (统一遗忘策略)
+        self.forgetting_coordinator = ForgettingCoordinator(
+            memory_system=self.memory_system,
+            hippocampus_agent=self.hippocampus,
+            basal_ganglia_agent=self.basal_ganglia
+        )
+        logger.info("✅ [18/18] ForgettingCoordinator initialized (统一遗忘策略)")
+
         # 🔥 2025-12-19: Initialize SoulState with insights log (P0)
         self.soul_state = get_soul_state()
         self.soul_state.set_insights_log_path(BMAMPaths.DATA_DIR / 'insights.log')
@@ -752,7 +781,8 @@ class BrainInspiredCoordinator:
             kg_builder=self.knowledge_graph_builder,
             memory_system=self.kv_memory_store,  # 🔥 使用KV分离存储代替碎片化存储
             use_global_storage=True,  # 🔥 FIX: Enable global storage delegation
-            global_vector_db=vec  # 🔥 2025-12-20 FIX: 传递全局FAISS用于MemoryRetrievalAgent同步
+            global_vector_db=vec,  # 🔥 2025-12-20 FIX: 传递全局FAISS用于MemoryRetrievalAgent同步
+            global_db_manager=db   # 🔥 2026-01-27 FIX-011: 传递全局DBManager确保检索一致性
         )
 
         # 🔥 2025-12-15: 使用HRM增强版Agent (带快速情绪标记)
@@ -835,6 +865,18 @@ class BrainInspiredCoordinator:
             self.brain_network = BrainNetwork(agents=self.agents)
         else:
             self.brain_network = None
+
+        # 🔥 2026-01-27 FIX-016: 五脑区分布式检索协调器
+        # 设计原则: 每个脑区维护独立存储，检索时并行查询并融合结果
+        self.distributed_retrieval = init_distributed_coordinator(
+            hippocampus=self.hippocampus,
+            temporal_lobe=self.temporal_lobe,
+            amygdala=self.amygdala,
+            prefrontal=self.prefrontal_storage,
+            basal_ganglia=self.basal_ganglia,
+            knowledge_graph=self.unified_kg
+        )
+        logger.info(f"🧠 FIX-016: DistributedRetrievalCoordinator initialized")
 
         # ExternalMemorySystem
         self.use_external_memory = os.getenv('USE_EXTERNAL_MEMORY', 'false').lower() == 'true'
@@ -989,9 +1031,29 @@ class BrainInspiredCoordinator:
             return {'status': 'skipped', 'reason': 'ablation_disabled'}
         return await self.memory_coordinator.consolidate_memories(evaluation_mode=evaluation_mode)
 
-    async def trigger_forgetting(self, region: str) -> Dict[str, Any]:
-        """Delegate to MemoryCoordinator"""
-        return await self.memory_coordinator.trigger_forgetting(region)
+    async def trigger_forgetting(self, region: str = None, capacity_threshold: float = 0.8) -> Dict[str, Any]:
+        """
+        Trigger forgetting process using ForgettingCoordinator (FIX-013)
+
+        Args:
+            region: Brain region name (legacy, for compatibility)
+            capacity_threshold: Capacity ratio to trigger forgetting (0.0-1.0)
+        """
+        # 🔥 2026-01-26 FIX-013: 使用统一的 ForgettingCoordinator
+        if hasattr(self, 'forgetting_coordinator') and self.forgetting_coordinator:
+            try:
+                result = await self.forgetting_coordinator.trigger_forgetting(
+                    capacity_threshold=capacity_threshold
+                )
+                logger.info(f"📊 ForgettingCoordinator: forgotten={result.get('memories_forgotten', 0)}")
+                return result
+            except Exception as e:
+                logger.warning(f"⚠️ ForgettingCoordinator failed: {e}, falling back to MemoryCoordinator")
+
+        # Fallback to legacy MemoryCoordinator
+        if region:
+            return await self.memory_coordinator.trigger_forgetting(region)
+        return {'status': 'skipped', 'reason': 'no_coordinator'}
 
     async def store_memory_with_timestamp(
         self,
@@ -1115,13 +1177,16 @@ class BrainInspiredCoordinator:
         k: int = 10,
         strategy: str = 'auto',
         context: Dict[str, Any] = None,
-        activation_plan: Optional[Dict[str, bool]] = None
+        activation_plan: Optional[Dict[str, bool]] = None,
+        use_distributed: bool = False  # 🔥 FIX-016: 启用五脑区分布式检索
     ) -> List[Dict[str, Any]]:
         """
         Delegate to MemoryCoordinator with activation_plan support.
 
         If activation_plan is None, uses a sensible default that prioritizes
         episodic and semantic regions (hippocampus + temporal_lobe).
+
+        🔥 FIX-016: 新增 use_distributed 参数，启用五脑区并行检索
         """
         # Default activation: focus on core memory regions for retrieval
         if activation_plan is None:
@@ -1140,6 +1205,23 @@ class BrainInspiredCoordinator:
                 if not self._ablation_state.get(region, True):
                     activation_plan[region] = False
                     logger.debug(f"🔬 ABLATION: {region} disabled in smart_retrieve")
+
+        # 🔥 2026-01-27 FIX-016: 五脑区分布式检索模式
+        if use_distributed and hasattr(self, 'distributed_retrieval') and self.distributed_retrieval:
+            from .distributed_retrieval import BrainRegion
+            # 将 activation_plan 转换为 enabled_regions
+            enabled_regions = [
+                BrainRegion(name) for name, enabled in activation_plan.items()
+                if enabled and name in [r.value for r in BrainRegion]
+            ]
+            distributed_memories = await self.distributed_retrieval.retrieve(
+                query=query,
+                k=k,
+                context=context,
+                enabled_regions=enabled_regions if enabled_regions else None
+            )
+            # 转换为标准格式
+            return [mem.to_dict() for mem in distributed_memories]
 
         return await self.memory_coordinator.smart_retrieve(query, k, strategy, context, activation_plan)
 
@@ -2098,7 +2180,9 @@ Output ONLY the extracted answer:"""
                     use_reasoning_chain = False
 
             # 3. KG enhancement via KGMergeHandler (if needed)
-            if self.kg_handler.should_trigger_kg_search(user_input, memories):
+            # 🔥 FIX: 消融检查 - 禁用 kg 时跳过知识图谱增强
+            kg_enabled = self._ablation_state.get('kg', True) if hasattr(self, '_ablation_state') else True
+            if kg_enabled and self.kg_handler.should_trigger_kg_search(user_input, memories):
                 kg_facts = await self.kg_handler.query_kg_for_facts(
                     user_input,
                     entities=query_features.get('entities', [])
@@ -2132,7 +2216,9 @@ Output ONLY the extracted answer:"""
                     is_non_temporal = any(query_lower.startswith(p) for p in non_temporal_prefixes)
                     is_temporal_query = any(kw in query_lower for kw in temporal_keywords) and not is_non_temporal
 
-                    if is_temporal_query:
+                    # 🔥 FIX: 消融检查 - 禁用 temporal_reasoning 时跳过
+                    temporal_reasoning_enabled = self._ablation_state.get('temporal_reasoning', True) if hasattr(self, '_ablation_state') else True
+                    if is_temporal_query and temporal_reasoning_enabled:
                         logger.info("⏰ Activating Temporal Reasoning...")
 
                         # 🔥 2025-12-13: 提取查询中的实体用于过滤
@@ -2419,6 +2505,21 @@ Output ONLY the extracted answer:"""
             )
             if should_refine:
                 response = await self._refine_answer_for_qa(user_input, response)
+
+            # 🔥 2026-01-26 FIX-012: Record retrieval outcome for FeedbackLoop (环境Agent基础)
+            if hasattr(self, 'feedback_loop') and self.feedback_loop and memories:
+                try:
+                    # 提取查询中的实体 (简单实现: 用分词)
+                    query_entities = [w for w in user_input.split() if len(w) > 2]
+                    self.feedback_loop.evaluate_retrieval(
+                        query=user_input,
+                        query_vector=None,  # 可后续从embedding服务获取
+                        query_entities=query_entities,
+                        memories=memories
+                    )
+                    logger.debug(f"📊 FeedbackLoop: recorded {len(memories)} retrieval outcomes")
+                except Exception as e:
+                    logger.warning(f"⚠️ FeedbackLoop recording failed: {e}")
 
             # 5. Store memory if needed
             memory_stored = await self.memory_coordinator.store_memory_if_needed(

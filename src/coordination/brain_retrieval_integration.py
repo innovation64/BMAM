@@ -33,6 +33,8 @@ from ..agents.core.multi_round_retrieval import (
     MultiRoundRetrievalScheduler,
     retrieve_with_multi_round
 )
+from ..brain.emotion_modulator import EmotionModulator  # FIX-007: 情绪调节器
+from ..config.ablation_config import is_component_enabled  # 🔥 FIX: 消融实验支持
 
 logger = logging.getLogger(__name__)
 
@@ -288,6 +290,7 @@ class BrainRegionCollaboration:
         self.llm_client = llm_client
         self.prefrontal = PrefrontalFeedbackSystem()
         self.gap_detector = GapDetector()
+        self.emotion_modulator = EmotionModulator()  # FIX-007: 情绪调节器
 
         # 杏仁核情绪权重映射
         self.amygdala_emotion_weights = {
@@ -384,8 +387,11 @@ class BrainRegionCollaboration:
             loop_info['hippocampus_count'] = len(hippocampus_memories)
 
             # ===== Step 2: 杏仁核情绪注意力调节 =====
-            adjusted_memories = self._amygdala_attention_boost(hippocampus_memories)
+            # FIX-007: 从query推断用户当前情绪，应用情绪一致性效应
+            current_mood = self._infer_user_mood(current_query)
+            adjusted_memories = self._amygdala_attention_boost(hippocampus_memories, current_mood=current_mood)
             loop_info['amygdala_boosts'] = sum(1 for m in adjusted_memories if m.get('_amygdala_boosted'))
+            loop_info['inferred_mood'] = current_mood
 
             # ===== Step 3: 颞叶语义补充 =====
             semantic_supplement = await self._temporal_lobe_supplement(current_query, adjusted_memories)
@@ -399,11 +405,16 @@ class BrainRegionCollaboration:
                     seen_ids.add(mem_id)
 
             # ===== Step 4: 前额叶质量评估 =====
-            quality = self.prefrontal.evaluate_retrieval_quality(
-                query=query,  # 原始query，不是current_query
-                memories=all_memories,
-                query_type=strategy['query_type']
-            )
+            # 🔥 FIX: 消融检查 - 禁用 prefrontal 时跳过反馈评估
+            if is_component_enabled('prefrontal'):
+                quality = self.prefrontal.evaluate_retrieval_quality(
+                    query=query,  # 原始query，不是current_query
+                    memories=all_memories,
+                    query_type=strategy['query_type']
+                )
+            else:
+                # 消融模式：使用默认质量分数，不进行反馈调整
+                quality = {'quality_score': 0.7, 'issues': [], 'reward_signal': 0.5}
             loop_info['quality'] = quality
 
             collaboration_trace.append(loop_info)
@@ -433,7 +444,9 @@ class BrainRegionCollaboration:
                 logger.info(f"   🔄 Query expanded: '{current_query[:50]}...'")
 
             # 应用反馈调整策略权重
-            self.prefrontal.apply_feedback(strategy['query_type'], quality['reward_signal'])
+            # 🔥 FIX: 消融检查 - 禁用 prefrontal 时跳过反馈
+            if is_component_enabled('prefrontal'):
+                self.prefrontal.apply_feedback(strategy['query_type'], quality['reward_signal'])
 
         # 更新统计
         n = self.stats['total_collaborations']
@@ -466,12 +479,13 @@ class BrainRegionCollaboration:
             logger.warning(f"Hippocampus retrieval failed: {e}")
             return []
 
-    def _amygdala_attention_boost(self, memories: List[Dict]) -> List[Dict]:
+    def _amygdala_attention_boost(self, memories: List[Dict], current_mood: Optional[str] = None) -> List[Dict]:
         """
         杏仁核情绪注意力调节
 
         根据记忆的情绪标签调整其权重
         🔥 2025-12-16 修复: 如果没有 emotion_tags，从内容中动态检测情绪
+        🔥 FIX-007: 增加情绪一致性效应 (Mood Congruency Effect)
         """
         for mem in memories:
             emotion_tags = mem.get('emotion_tags', [])
@@ -487,18 +501,39 @@ class BrainRegionCollaboration:
                         emotion_tags = detected_emotions
                         mem['_detected_emotions'] = detected_emotions  # 标记为动态检测
 
+            # 固定情绪权重
             max_boost = 1.0
+            primary_memory_emotion = None  # FIX-007: 记忆的主要情绪
             for tag in emotion_tags:
                 tag_lower = tag.lower() if isinstance(tag, str) else str(tag).lower()
                 boost = self.amygdala_emotion_weights.get(tag_lower, 1.0)
-                max_boost = max(max_boost, boost)
+                if boost > max_boost:
+                    max_boost = boost
+                    primary_memory_emotion = tag_lower
 
-            if max_boost > 1.0:
+            # FIX-007: 情绪一致性效应 (Mood Congruency Effect)
+            congruency_boost = 0.0
+            if current_mood and primary_memory_emotion:
+                emotion_intensity = mem.get('emotion_intensity', 0.5)
+                modulated_score = self.emotion_modulator.modulate_retrieval_score(
+                    base_score=1.0,  # 只计算boost比例
+                    emotion_intensity=emotion_intensity,
+                    current_mood=current_mood,
+                    memory_emotion=primary_memory_emotion
+                )
+                congruency_boost = modulated_score - 1.0  # 提取额外boost
+                if congruency_boost > 0:
+                    mem['_mood_congruency_boost'] = congruency_boost
+                    logger.debug(f"FIX-007: Mood congruency {current_mood}↔{primary_memory_emotion} = +{congruency_boost:.2f}")
+
+            # 应用总boost (固定权重 + 情绪一致性)
+            total_boost = max_boost + congruency_boost
+            if total_boost > 1.0:
                 original_score = mem.get('relevance', mem.get('score', 0.5))
                 mem['_original_score'] = original_score
-                mem['relevance'] = min(1.0, original_score * max_boost)
+                mem['relevance'] = min(1.0, original_score * total_boost)
                 mem['_amygdala_boosted'] = True
-                mem['_amygdala_boost'] = max_boost
+                mem['_amygdala_boost'] = total_boost
                 self.stats['amygdala_boosts'] += 1
 
         return memories
@@ -519,6 +554,30 @@ class BrainRegionCollaboration:
                     break  # 每种情绪只检测一次
 
         return detected if detected else ['neutral']
+
+    def _infer_user_mood(self, query: str) -> Optional[str]:
+        """
+        FIX-007: 从查询文本推断用户当前情绪
+
+        基于情绪关键词匹配推断用户可能的情绪状态
+        用于情绪一致性效应 (Mood Congruency Effect) 计算
+
+        Returns:
+            推断的情绪标签 (如 'sadness', 'joy') 或 None
+        """
+        query_lower = query.lower()
+
+        # 按情绪强度排序检测（高valence情绪优先）
+        mood_priority = ['fear', 'sadness', 'anger', 'joy', 'love', 'anxiety', 'excitement', 'surprise']
+
+        for mood in mood_priority:
+            keywords = self.emotion_keywords.get(mood, [])
+            for keyword in keywords:
+                if keyword in query_lower:
+                    logger.debug(f"FIX-007: Inferred user mood '{mood}' from query")
+                    return mood
+
+        return None  # 无法推断时返回None
 
     async def _temporal_lobe_supplement(
         self,

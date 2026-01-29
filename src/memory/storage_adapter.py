@@ -60,7 +60,8 @@ class MemoryStorageAdapter:
         memory_system=None,
         agent_id: str = "hippocampus",
         config: Optional[StorageConfig] = None,
-        global_vector_db=None  # 🔥 2025-12-20 FIX: 全局FAISS用于MemoryRetrievalAgent
+        global_vector_db=None,  # 🔥 2025-12-20 FIX: 全局FAISS用于MemoryRetrievalAgent
+        global_db_manager=None  # 🔥 2026-01-27 FIX-011: 全局DBManager用于检索一致性
     ):
         """
         Initialize Storage Adapter
@@ -70,11 +71,13 @@ class MemoryStorageAdapter:
             agent_id: Agent identifier for filtering
             config: Storage configuration
             global_vector_db: 🔥 Global VectorDB (FAISS) used by MemoryRetrievalAgent
+            global_db_manager: 🔥 Global DBManager for retrieval consistency
         """
         self.memory_system = memory_system
         self.agent_id = agent_id
         self.config = config or StorageConfig()
         self.global_vector_db = global_vector_db  # 🔥 2025-12-20 FIX: 存储FAISS引用
+        self.global_db_manager = global_db_manager  # 🔥 2026-01-27 FIX-011
 
         # Local cache (for fast access even in delegation mode)
         self._local_cache: Dict[str, Any] = {}  # {memory_id: memory_dict}
@@ -88,14 +91,16 @@ class MemoryStorageAdapter:
             'cache_hits': 0,
             'cache_misses': 0,
             'delegation_calls': 0,
-            'faiss_syncs': 0  # 🔥 2025-12-20 FIX: FAISS同步次数
+            'faiss_syncs': 0,  # 🔥 2025-12-20 FIX: FAISS同步次数
+            'db_syncs': 0      # 🔥 2026-01-27 FIX-011: DB同步次数
         }
 
         logger.info(
             f"MemoryStorageAdapter initialized "
             f"(mode={'delegated' if self.config.use_global_storage else 'local'}, "
             f"cache={'enabled' if self.config.enable_local_cache else 'disabled'}, "
-            f"global_faiss={'enabled' if global_vector_db else 'disabled'})"  # 🔥 FIX
+            f"global_faiss={'enabled' if global_vector_db else 'disabled'}, "
+            f"global_db={'enabled' if global_db_manager else 'disabled'})"  # 🔥 FIX-011
         )
 
     async def store_memory(
@@ -137,8 +142,12 @@ class MemoryStorageAdapter:
                 # Convert hippocampus memory format to global system format
                 global_memory_id = await self._store_to_global(memory_dict)
 
-                # 🔥 2025-12-20 FIX: 同步到全局FAISS (MemoryRetrievalAgent使用)
-                await self._sync_to_global_faiss(memory_dict)
+                # 🔥 2026-01-27 FIX-011: 使用 global_memory_id 同步到 FAISS
+                # 确保 FAISS 中的 ID 与 DB 中的 ID 一致
+                faiss_memory_dict = memory_dict.copy()
+                if global_memory_id:
+                    faiss_memory_dict['id'] = global_memory_id  # 使用 DB 返回的 ID
+                await self._sync_to_global_faiss(faiss_memory_dict)
 
                 # Update local cache if enabled
                 if self.config.enable_local_cache:
@@ -215,11 +224,12 @@ class MemoryStorageAdapter:
     async def _sync_to_global_faiss(self, memory_dict: Dict[str, Any]) -> bool:
         """
         🔥 2025-12-20 FIX: 同步记忆到全局FAISS向量库
+        🔥 2026-01-27 FIX-011: 同时同步到 DBManager 确保检索一致性
 
-        解决问题: Hippocampus存储到KV后，MemoryRetrievalAgent无法通过FAISS检索到新记忆，
-        因为它们使用不同的存储系统 (KV vs FAISS)。
+        解决问题: Hippocampus存储到KV后，MemoryRetrievalAgent无法检索到新记忆，
+        因为 MemoryRetrievalAgent 使用 db_manager，而非 KV store。
 
-        此方法在存储到KV后，同时索引到全局FAISS，确保检索一致性。
+        此方法在存储到KV后，同时同步到 FAISS 和 DBManager，确保检索一致性。
 
         Args:
             memory_dict: 包含 'id', 'content', 'embedding' 的记忆字典
@@ -227,58 +237,67 @@ class MemoryStorageAdapter:
         Returns:
             True if synced successfully, False otherwise
         """
-        if not self.global_vector_db:
-            return False  # 无FAISS，跳过同步
+        import numpy as np
+        from .memory_item import MemoryItem
 
-        try:
-            import numpy as np
+        memory_id = memory_dict.get('id')
+        content = memory_dict.get('content', '')
+        embedding = memory_dict.get('embedding')
 
-            memory_id = memory_dict.get('id')
-            content = memory_dict.get('content', '')
-            embedding = memory_dict.get('embedding')
+        faiss_ok = False
+        db_ok = False
 
-            if not embedding:
-                logger.debug(f"No embedding for memory {memory_id}, skipping FAISS sync")
-                return False
+        # 1. 同步到 FAISS
+        if self.global_vector_db and embedding:
+            try:
+                embedding_np = np.array(embedding).astype('float32')
+                if len(embedding_np.shape) == 2:
+                    embedding_np = embedding_np.flatten()
 
-            # 检查是否已存在于FAISS中
-            if hasattr(self.global_vector_db, 'reverse_mapping'):
-                if memory_id in self.global_vector_db.reverse_mapping:
-                    logger.debug(f"Memory {memory_id} already in FAISS, skipping")
-                    return True
+                faiss_id = self.global_vector_db.add_vector(memory_id, embedding_np)
+                self.stats['faiss_syncs'] += 1
+                faiss_ok = True
 
-            # 添加到FAISS索引
-            embedding_np = np.array(embedding).astype('float32')
-            if len(embedding_np.shape) == 1:
-                embedding_np = embedding_np.reshape(1, -1)
+                if self.stats['faiss_syncs'] % 100 == 0:
+                    self.global_vector_db.save_index()
+                    logger.info(f"📊 FAISS sync checkpoint: {self.stats['faiss_syncs']} synced")
 
-            # 获取当前索引位置
-            current_idx = self.global_vector_db.index.ntotal
+                logger.debug(f"✅ FAISS sync: {memory_id} → idx={faiss_id}")
 
-            # 添加到索引
-            self.global_vector_db.index.add(embedding_np)
+            except Exception as e:
+                logger.warning(f"FAISS sync failed for {memory_id}: {e}")
 
-            # 更新映射
-            if hasattr(self.global_vector_db, 'id_mapping'):
-                self.global_vector_db.id_mapping[current_idx] = memory_id
-            if hasattr(self.global_vector_db, 'reverse_mapping'):
-                self.global_vector_db.reverse_mapping[memory_id] = current_idx
-            if hasattr(self.global_vector_db, 'content_cache'):
-                self.global_vector_db.content_cache[memory_id] = content
+        # 2. 🔥 FIX-011: 同步到 DBManager (MemoryRetrievalAgent 使用)
+        if self.global_db_manager:
+            try:
+                # 创建 MemoryItem
+                memory_item = MemoryItem(
+                    id=memory_id,
+                    content=content,
+                    memory_type=memory_dict.get('metadata', {}).get('memory_type', 'episodic'),
+                    importance=memory_dict.get('importance', 0.5),
+                    emotion_tags=memory_dict.get('emotion_tags', []),
+                    context_tags=[self.agent_id],
+                    metadata=memory_dict.get('metadata', {})
+                )
 
-            self.stats['faiss_syncs'] += 1
+                # 设置 embedding
+                if embedding:
+                    memory_item.embedding = np.array(embedding)
 
-            # 每100次同步保存一次索引
-            if self.stats['faiss_syncs'] % 100 == 0:
-                self.global_vector_db.save_index()
-                logger.info(f"📊 FAISS sync checkpoint: {self.stats['faiss_syncs']} memories synced, total={self.global_vector_db.index.ntotal}")
+                # 保存到 DB
+                success = self.global_db_manager.save_memory(memory_item)
+                if success:
+                    self.stats['db_syncs'] += 1
+                    db_ok = True
+                    logger.debug(f"✅ DB sync: {memory_id}")
+                else:
+                    logger.warning(f"DB sync returned False for {memory_id}")
 
-            logger.debug(f"✅ Synced memory {memory_id} to global FAISS (total={self.global_vector_db.index.ntotal})")
-            return True
+            except Exception as e:
+                logger.warning(f"DB sync failed for {memory_id}: {e}")
 
-        except Exception as e:
-            logger.warning(f"Failed to sync memory to FAISS: {e}")
-            return False
+        return faiss_ok or db_ok
 
     async def _store_local(self, memory_dict: Dict[str, Any]) -> Dict[str, Any]:
         """

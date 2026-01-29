@@ -57,7 +57,8 @@ class HippocampusAgentCore(BrainAgent):
         kg_builder: Optional[KnowledgeGraphBuilder] = None,
         memory_system=None,  # ✅ NEW: Global memory system for delegation
         use_global_storage: bool = False,  # ✅ NEW: Enable storage delegation
-        global_vector_db=None  # 🔥 2025-12-20 FIX: 全局FAISS向量库用于检索Agent
+        global_vector_db=None,  # 🔥 2025-12-20 FIX: 全局FAISS向量库用于检索Agent
+        global_db_manager=None  # 🔥 2026-01-27 FIX-011: 全局DBManager确保检索一致性
     ):
         super().__init__(
             agent_id="hippocampus",
@@ -78,7 +79,8 @@ class HippocampusAgentCore(BrainAgent):
                 enable_local_cache=True,  # Keep cache for fast access
                 sync_on_store=True
             ),
-            global_vector_db=global_vector_db  # 🔥 2025-12-20 FIX: 传递全局FAISS
+            global_vector_db=global_vector_db,  # 🔥 2025-12-20 FIX: 传递全局FAISS
+            global_db_manager=global_db_manager  # 🔥 2026-01-27 FIX-011: 传递全局DBManager
         )
 
         # 🧠 Key-Value Memory Store Integration

@@ -16,6 +16,7 @@ from ..utils.model_selector import select_model_for_task  # 🔥 P1-5: Smart mod
 from .confidence_calibrator import get_confidence_calibrator, ConfidenceCalibrator  # 🔥 Phase 3: 置信度校准
 from .brain_retrieval_integration import get_brain_retrieval, BrainInspiredRetrieval  # 🔥 Phase 4: 脑仿生检索整合
 from ..memory.story_arc import get_story_arc_manager, StoryArcManager  # 🔥 2025-12-20: 时间线索引
+from ..config.ablation_config import is_component_enabled  # 🔥 FIX: 消融实验支持
 
 logger = get_logger(__name__)
 
@@ -1514,7 +1515,8 @@ Briefly summarize the core themes and key information of the document."""
                 augmented = False
 
                 # 1. StoryArc 实体上下文增强
-                if self.story_arc:
+                # 🔥 FIX: 消融检查 - 禁用 story_arc 时跳过
+                if self.story_arc and is_component_enabled('story_arc'):
                     # 提取查询中的实体
                     query_words = query.split()
                     query_entities = [w for w in query_words if len(w) > 1 and w[0].isupper()]

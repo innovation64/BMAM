@@ -134,8 +134,12 @@ class KGMergeHandler:
         # Deduplicate by content similarity
         deduped = self._deduplicate_memories(all_memories)
 
-        # Sort by score
-        deduped.sort(key=lambda x: x.get('score', 0), reverse=True)
+        # FIX-006 (2026-01-23): 优先使用plasticity_score排序，确保KG记忆不被挤出top-K
+        # 之前的问题: 只用'score'排序，KG记忆的plasticity_score=2.0被忽略
+        deduped.sort(key=lambda x: (
+            x.get('plasticity_score', x.get('score', 0)),  # 主排序: plasticity_score
+            x.get('score', 0)                               # 次排序: score
+        ), reverse=True)
 
 
         return deduped

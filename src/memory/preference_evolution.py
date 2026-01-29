@@ -453,14 +453,63 @@ class PreferenceEvolutionTracker:
         }
 
     async def _sync_with_story_arc(self):
-        """与故事弧同步偏好变化事件"""
+        """
+        与故事弧同步偏好变化事件
+
+        🔥 FIX-009: 实现偏好演变时间线追踪
+        将偏好变化事件（如"停止喜欢X"）作为时间线事件记录，
+        支持回答"用户什么时候改变了对X的看法"类问题
+        """
         if not self.story_arc:
             return
 
+        synced_count = 0
+
         # 将偏好变化事件添加到故事弧
         for event in self.change_events:
-            # 转换为 story arc 事件格式
-            pass  # TODO: 实现与 story_arc 的同步
+            pref = self.preferences.get(event.preference_id)
+            if not pref:
+                continue
+
+            # 构建偏好变化描述（添加 "User" 前缀以便 StoryArc 能提取到实体）
+            change_descriptions = {
+                PreferenceChangeType.ADDED: f"User started liking {pref.content}",
+                PreferenceChangeType.REMOVED: f"User stopped liking {pref.content}",
+                PreferenceChangeType.STRENGTHENED: f"User developed stronger interest in {pref.content}",
+                PreferenceChangeType.WEAKENED: f"User lost interest in {pref.content}",
+                PreferenceChangeType.REVERSED: f"User changed opinion on {pref.content}",
+            }
+
+            description = change_descriptions.get(
+                event.change_type,
+                f"User preference change: {pref.content}"
+            )
+
+            if event.reason:
+                description += f" because {event.reason}"
+
+            # 添加到故事弧
+            try:
+                await self.story_arc.add_event_from_memory(
+                    memory_id=f"pref_change_{event.event_id}",
+                    content=description,
+                    event_time=event.timestamp,
+                    metadata={
+                        'event_type': 'preference_change',
+                        'preference_id': event.preference_id,
+                        'change_type': event.change_type.value,
+                        'from_state': event.from_state,
+                        'to_state': event.to_state,
+                        'preference_content': pref.content,
+                        'entities': [pref.content]  # 将偏好内容作为实体
+                    }
+                )
+                synced_count += 1
+            except Exception as e:
+                logger.warning(f"Failed to sync preference change to story arc: {e}")
+
+        if synced_count > 0:
+            logger.info(f"Synced {synced_count} preference changes to story arc")
 
     async def _sync_with_persona_memory(self):
         """与 persona memory 同步偏好"""
