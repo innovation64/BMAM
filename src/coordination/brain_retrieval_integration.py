@@ -93,16 +93,23 @@ class PrefrontalFeedbackSystem:
     1. 评估检索质量 (Quality Assessment)
     2. 奖励/惩罚信号 (Reward Signal)
     3. 策略调整 (Strategy Adaptation)
+    4. 权重持久化 (跨会话保留学习成果)
     """
+
+    _WEIGHTS_PATH = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        '..', 'data', 'state', 'prefrontal_weights.json'
+    )
 
     def __init__(self):
         # 策略权重 (会根据反馈动态调整)
-        self.strategy_weights = {
+        default_weights = {
             'bm25_weight': 0.35,      # BM25关键词权重
             'vector_weight': 0.35,    # 向量检索权重
             'entity_weight': 0.20,    # 实体检索权重
             'temporal_weight': 0.10,  # 时间过滤权重
         }
+        self.strategy_weights = self._load_weights(default_weights)
 
         # 学习率
         self.learning_rate = get_config().retrieval.learning_rate
@@ -118,6 +125,32 @@ class PrefrontalFeedbackSystem:
             'semantic': {'vector_weight': 0.5, 'bm25_weight': 0.25},
             'factual': {'bm25_weight': 0.5, 'entity_weight': 0.3}
         }
+
+    def _load_weights(self, defaults: dict) -> dict:
+        """Load persisted strategy weights from disk, fallback to defaults."""
+        import json as _json
+        try:
+            path = os.path.normpath(self._WEIGHTS_PATH)
+            if os.path.exists(path):
+                with open(path, 'r') as f:
+                    loaded = _json.load(f)
+                if set(loaded.keys()) == set(defaults.keys()):
+                    logger.debug(f"Loaded prefrontal weights from {path}")
+                    return loaded
+        except Exception as e:
+            logger.debug(f"Could not load prefrontal weights: {e}")
+        return defaults.copy()
+
+    def _save_weights(self):
+        """Persist current strategy weights to disk."""
+        import json as _json
+        try:
+            path = os.path.normpath(self._WEIGHTS_PATH)
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, 'w') as f:
+                _json.dump(self.strategy_weights, f, indent=2)
+        except Exception as e:
+            logger.debug(f"Could not save prefrontal weights: {e}")
 
     def evaluate_retrieval_quality(
         self,
@@ -245,6 +278,10 @@ class PrefrontalFeedbackSystem:
             self.strategy_weights = {k: v/total for k, v in self.strategy_weights.items()}
 
         logger.debug(f"🧠 Prefrontal feedback applied: reward={reward_signal:.2f}, new_weights={self.strategy_weights}")
+
+        # Persist every 10 feedback cycles to avoid excessive I/O
+        if len(self.feedback_history) % 10 == 0:
+            self._save_weights()
 
     def get_recommended_strategy(self, query: str) -> Dict[str, float]:
         """
@@ -422,15 +459,15 @@ class BrainRegionCollaboration:
             # This prevents the -1.01% regression caused by indiscriminate
             # emotion modulation on all queries (FIX-007).
             emotion_modulation_enabled = os.getenv(
-                "BMAM_ENABLE_EMOTION_MODULATION", "false"
-            ).lower() == "true"
+                "BMAM_ENABLE_EMOTION_MODULATION", "true"
+            ).lower() != "false"
 
             current_mood = None
             if emotion_modulation_enabled:
                 is_emotional, emotion_confidence = self._detect_emotion_in_query(
                     current_query
                 )
-                if is_emotional and emotion_confidence > 0.8:
+                if is_emotional and emotion_confidence > 0.5:
                     current_mood = self._infer_user_mood(current_query)
                     logger.debug(
                         f"Task 3.2: Emotion detected in query "
@@ -660,8 +697,8 @@ class BrainRegionCollaboration:
 
         if match_count == 0:
             return False, 0.0
-        confidence = min(1.0, match_count / 3.0)  # 3+ matches = full confidence
-        return confidence > 0.8, confidence
+        confidence = min(1.0, match_count / 2.0)  # 2+ matches = full confidence
+        return confidence > 0.5, confidence
 
     async def _temporal_lobe_supplement(
         self,

@@ -215,6 +215,7 @@ class ConsolidationMixin:
             ))
 
             self.total_consolidated += 1
+            memory._consolidated = True
 
         except (Exception) as e:
             logger.error(f"Failed to consolidate memory {memory.id}: {e}")
@@ -233,13 +234,12 @@ class ConsolidationMixin:
                 'message': 'TemporalLobe not connected'
             }
 
-        # 找到重要但访问较少的记忆 (候选巩固对象)
-        # ✅ 移除硬编码 consolidation_threshold,使用动态筛选
-        # 🔧 P1 FIX: 降低阈值以支持LoCoMo等真实场景 (0.5→0.3, 0.6→0.4)
+        # 找到重要但未巩固的记忆 (候选巩固对象)
+        # 使用 _consolidated 标记代替 access_count，避免活跃记忆被排除
         consolidation_candidates = [
             mem for mem in self.memories
-            if (mem.importance > 0.3 or mem.emotion_intensity > 0.4)  # 动态标准 (降低阈值)
-            and mem.access_count < 5  # 避免重复巩固 (放宽限制)
+            if (mem.importance > 0.3 or mem.emotion_intensity > 0.4)
+            and not getattr(mem, '_consolidated', False)
         ]
 
         consolidated_count = 0

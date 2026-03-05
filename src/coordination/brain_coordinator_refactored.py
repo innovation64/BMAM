@@ -1179,7 +1179,16 @@ class BrainInspiredCoordinator:
         # Fallback to legacy MemoryCoordinator
         if region:
             return await self.memory_coordinator.trigger_forgetting(region)
-        return {'status': 'skipped', 'reason': 'no_coordinator'}
+        # No region specified — try forgetting on all core regions
+        results = {}
+        for r in ['hippocampus', 'temporal_lobe']:
+            try:
+                results[r] = await self.memory_coordinator.trigger_forgetting(r)
+            except Exception as e:
+                logger.warning(f"Forgetting fallback for {r} failed: {e}")
+                results[r] = {'status': 'error', 'reason': str(e)}
+        total_forgotten = sum(r.get('memories_forgotten', 0) for r in results.values() if isinstance(r, dict))
+        return {'status': 'ok', 'memories_forgotten': total_forgotten, 'details': results}
 
     async def store_memory_with_timestamp(
         self,
@@ -1314,14 +1323,14 @@ class BrainInspiredCoordinator:
 
         🔥 FIX-016: 新增 use_distributed 参数，启用五脑区并行检索
         """
-        # Default activation: focus on core memory regions for retrieval
+        # Default activation: enable all 5 brain regions for full retrieval
         if activation_plan is None:
             activation_plan = {
-                'hippocampus': True,      # Episodic memory (essential)
-                'temporal_lobe': True,    # Semantic memory (essential)
-                'prefrontal': False,      # Skip working memory in basic retrieval
-                'amygdala': False,        # Skip emotional tagging in basic retrieval
-                'basal_ganglia': False    # Skip procedural patterns in basic retrieval
+                'hippocampus': True,      # Episodic memory
+                'temporal_lobe': True,    # Semantic memory + KG
+                'prefrontal': True,       # Working memory context
+                'amygdala': True,         # Emotional salience
+                'basal_ganglia': True     # Procedural patterns
             }
 
         # 🔥 2026-01-20 ABL-001: 消融检查 - 禁用的组件不参与检索
@@ -2318,13 +2327,14 @@ Output ONLY the extracted answer:"""
             # Brain mechanism: 海马-前额叶反馈环路，在初始检索不足时扩展搜索
             initial_memory_count = len(memories) if memories else 0
             if hasattr(self, 'hippocampal_prefrontal_loop') and self.hippocampal_prefrontal_loop and memories:
+                original_memories = memories  # Preserve for error recovery
                 try:
                     enhanced_result = await self.hippocampal_prefrontal_loop.iterative_retrieval(
                         query=user_input,
                         initial_memories=memories,
                         max_iterations=2  # 最多2轮扩展
                     )
-                    memories = enhanced_result.get('memories', memories)
+                    memories = enhanced_result.get('memories') or original_memories
                     iterations_used = enhanced_result.get('iterations', 0)
                     if len(memories) > initial_memory_count:
                         logger.info(
@@ -2332,6 +2342,7 @@ Output ONLY the extracted answer:"""
                             f"(+{len(memories) - initial_memory_count} after {iterations_used} iterations)"
                         )
                 except Exception as e:
+                    memories = original_memories  # Restore on failure
                     logger.warning(f"⚠️ HippocampalPrefrontalLoop failed: {e}, using original memories")
 
             # 2.5. Enhanced reasoning chain retrieval (for complex inference questions)

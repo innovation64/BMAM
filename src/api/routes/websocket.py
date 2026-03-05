@@ -46,8 +46,8 @@ async def _send_json_safe(ws: WebSocket, data: dict) -> bool:
         if ws.client_state == WebSocketState.CONNECTED:
             await ws.send_json(data)
             return True
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("send_json failed: %s", e)
     return False
 
 
@@ -57,8 +57,8 @@ async def _send_bytes_safe(ws: WebSocket, data: bytes) -> bool:
         if ws.client_state == WebSocketState.CONNECTED:
             await ws.send_bytes(data)
             return True
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("send_bytes failed: %s", e)
     return False
 
 
@@ -141,6 +141,14 @@ async def websocket_endpoint(ws: WebSocket):
         logger.debug("WebSocket client disconnected")
     except Exception as exc:
         logger.error("WebSocket handler error: %s", exc, exc_info=True)
+    finally:
+        # Cleanup voice session to prevent memory leak
+        if voice_session is not None:
+            try:
+                voice_session.cancel_tts()
+            except Exception:
+                logger.debug("Voice session cleanup: cancel_tts failed (ignored)")
+            voice_session = None
 
 
 # ─── Text handlers ───────────────────────────────────────────────────────────
@@ -166,6 +174,9 @@ async def _handle_text_input(
         user_id = data.get("user_id", "default")
         context = data.get("context") or {}
         context["user_id"] = user_id
+        # Pass conversation turn count so coordinator can do context-aware K allocation
+        if "conversation_turns" not in context:
+            context["conversation_turns"] = data.get("conversation_turns", 0)
 
         result = await adapter.coordinator.process_user_input(
             user_input=text,
