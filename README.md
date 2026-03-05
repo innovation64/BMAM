@@ -250,6 +250,12 @@ python evaluation/benchmarks/soul_portability/test_soul_portability.py --questio
 ```
 BMAM/
 ├── src/
+│   ├── api/                         # FastAPI REST API middleware
+│   │   ├── app.py                   # Application factory
+│   │   ├── routes/                  # memories, search, brain, archives, system, websocket
+│   │   ├── models/                  # Pydantic request/response models
+│   │   └── middleware_adapter.py    # Coordinator-to-API bridge
+│   ├── ui/web_ui_server/frontend/   # React + Vite chat UI
 │   ├── agents/
 │   │   ├── brain_regions/           # 5 brain-region agents
 │   │   │   ├── hippocampus_agent/   # Episodic memory
@@ -265,18 +271,27 @@ BMAM/
 │   ├── coordination/
 │   │   ├── brain_coordinator_refactored.py
 │   │   ├── hrm_coordinator_wrapper.py
+│   │   ├── learning_manager.py      # Continuous learning
+│   │   ├── proactive_inquiry.py     # Active questioning
 │   │   └── memory_archive_manager.py
+│   ├── services/
+│   │   ├── voice_service.py         # Voice orchestration
+│   │   ├── voice_config.py          # STT/TTS/VAD config
+│   │   ├── streaming_stt.py         # Real-time speech-to-text
+│   │   └── tts_backends/            # Edge, OpenAI, CosyVoice
 │   ├── config/
 │   │   └── ablation_config.py       # Ablation configurations
 │   └── reasoning/
 │       └── memory_reasoning_chain.py
+├── run_api.py                       # API entry point (port 8100)
+├── Dockerfile                       # Container support
 ├── evaluation/
 │   ├── benchmarks/
 │   │   ├── locomo/
 │   │   ├── longmemeval/
 │   │   ├── prefeval/
 │   │   ├── personamem/
-│   │   └── soul_portability/        # Soul portability test
+│   │   └── soul_portability/
 │   ├── scripts/
 │   │   └── ablation/                # Ablation experiments
 │   └── results/
@@ -313,6 +328,93 @@ result = archive_manager.load_archive(Path("archives/my_memory.bma"))
 - Knowledge graph
 - StoryArc timeline
 - Manifest with checksums
+
+## What's New (v3.0 — March 2026)
+
+### Added
+
+- **FastAPI REST API Middleware** (`src/api/`, `run_api.py`)
+  - Mem0-compatible REST endpoints (memories, search, brain, archives, system)
+  - WebSocket support for real-time text & voice streaming
+  - API key authentication (optional via `BMAM_API_KEY`)
+  - CORS configurable, Docker-ready (port 8100)
+
+- **React Chat UI** (`src/ui/web_ui_server/frontend/`)
+  - OpenAI-style chat interface built with React 19 + Vite + Tailwind
+  - Brain region visualization, memory explorer, conversation history
+  - Voice page with real-time STT/TTS
+  - Proxies to BMAM API at `localhost:8100`
+
+- **Voice Service** (`src/services/voice_service.py`)
+  - 3 TTS backends: Edge TTS (free), OpenAI TTS, CosyVoice
+  - Whisper large-v3 STT with CUDA acceleration
+  - Silero VAD (Voice Activity Detection)
+  - Per-connection voice sessions
+
+- **Learning Manager** (`src/coordination/learning_manager.py`)
+  - Continuous learning loop with retrieval history tracking
+  - Plasticity management and routing weight optimization
+
+- **Proactive Inquiry** (`src/coordination/proactive_inquiry.py`)
+  - Contradiction detection, knowledge gap identification
+  - ACC-inspired conflict monitoring with confidence thresholds
+
+- **Docker Support** (`Dockerfile`)
+  - Python 3.11-slim, port 8100, health check ready
+
+### Removed
+
+- Legacy Voice Anime UI (Live2D, static HTML/CSS/JS, old WebSocket backend)
+
+### Running the System
+
+```bash
+# 1. Start API backend
+cd BMAM && .venv/bin/python run_api.py   # http://localhost:8100
+
+# 2. Start React frontend
+cd src/ui/web_ui_server/frontend && npm run dev  # http://localhost:5173
+```
+
+---
+
+## Known Issues
+
+| # | Issue | Severity | Detail |
+|---|-------|----------|--------|
+| 1 | **PersonaMem accuracy low** | High | 48.9% — multi-brain coordination runs after reasoning, missing temporal lobe + amygdala context |
+| 2 | **Emotion congruency disabled** | High | `src/brain/emotion_modulator.py` — emotion-aware retrieval not functional |
+| 3 | **Prefrontal routing empty** | High | `src/agents/brain_regions/prefrontal_agent/` — query routing logic is placeholder |
+| 4 | **HRM coordination timing** | Medium | Multi-brain-region fusion happens post-reasoning instead of pre-reasoning |
+| 5 | **Hardcoded model names/thresholds** | Medium | 100+ hardcoded values scattered across codebase (REPAIR_TRACKER FIX-014, FIX-015) |
+| 6 | **KG unification incomplete** | Medium | Mixed usage of `LightweightKnowledgeGraph` vs `SimpleKnowledgeGraph` |
+
+## TODO / Optimization Roadmap
+
+### High Priority
+
+- [ ] **Fix HRM coordination timing** — move multi-brain fusion before reasoning to improve PersonaMem/PrefEval
+- [ ] **Enable emotion congruency** — wire emotion modulator into retrieval pipeline
+- [ ] **Implement prefrontal routing** — replace placeholder with real query routing logic
+- [ ] **Improve PersonaMem accuracy** — target ≥55% through better user preference extraction
+
+### Medium Priority
+
+- [ ] **Extract hardcoded values to config** — model names, thresholds, paths → centralized config
+- [ ] **Unify Knowledge Graph** — standardize on single KG implementation
+- [ ] **Complete Learning Manager** — implement `reflect()` and `suggest()` methods
+- [ ] **Integrate Proactive Inquiry** — wire into conversation pipeline
+- [ ] **Add API tests** — WebSocket protocol, auth enforcement, voice session lifecycle
+
+### Low Priority
+
+- [ ] **Implement Remote Brain Service** — `download_file()` / `upload_file()` stubs
+- [ ] **Wikidata integration** — real search in `data_sources.py`
+- [ ] **Frontend unit tests** — React component testing
+- [ ] **Theory of Mind redesign** — improve intent understanding (noted in coordinator)
+- [ ] **Ablation enforcement** — ensure ablation configs are properly enforced in code path
+
+---
 
 ## Troubleshooting
 
@@ -353,5 +455,5 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ---
 
-**Version**: 2.1
-**Last Updated**: January 2026
+**Version**: 3.0
+**Last Updated**: March 2026
