@@ -1,0 +1,162 @@
+# =====================
+# Python
+# =====================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv*/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# =====================
+# Testing & Coverage
+# =====================
+.tox/
+.coverage
+.coverage.*
+.cache
+.pytest_cache/
+nosetests.xml
+coverage.xml
+htmlcov/
+*.cover
+.hypothesis/
+
+# =====================
+# IDE & Editor
+# =====================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# =====================
+# Environment & Secrets (NEVER commit)
+# =====================
+.env
+.env.local
+.env.*.local
+*.log
+secrets/
+credentials/
+
+# =====================
+# Claude Code Configuration (local only)
+# =====================
+.claude/
+
+# =====================
+# Logs
+# =====================
+/logs/
+*.log
+
+# =====================
+# Archives and Backups
+# =====================
+/archives/
+*.tar.gz
+*.bak
+*.backup
+
+# =====================
+# Temporary Files
+# =====================
+tmp/
+temp/
+*.tmp
+
+# =====================
+# Model Checkpoints
+# =====================
+*.ckpt
+*.pth
+*.h5
+*.pkl
+
+# =====================
+# Runtime Data (Do not commit - generated at runtime)
+# =====================
+/data/
+
+# =====================
+# Experiment & Evaluation Data
+# =====================
+/experiments/
+/locomo_archives/
+/locomo_checkpoints/
+/metrics/
+
+# Evaluation results (keep structure, ignore data)
+/evaluation/results/**/*.json
+/evaluation/results/**/*.log
+/evaluation/benchmarks/*/data/
+!evaluation/results/.gitkeep
+!evaluation/benchmarks/.gitkeep
+
+# =====================
+# Project Management (internal)
+# =====================
+/project_management/
+
+# =====================
+# Large Binary Files
+# =====================
+*.moc3
+*.png
+!README*.png
+!docs/**/*.png
+!docs/figures/*.png
+
+# Live2D models
+src/ui/static/models/
+src/ui/web_ui_server/static/models/
+
+# =====================
+# Legacy Files (do not commit)
+# =====================
+/archived/
+/test_*.py
+/process_locomo_*.py
+/diagnose_*.py
+/verify_*.py
+/KG_COVERAGE_*.md
+/MBTI_*.txt
+/*.sh
+!/scripts/*.sh
+**/broken_code_backup*/
+
+# =====================
+# Database Files (runtime generated)
+# =====================
+*.db
+*.sqlite
+*.sqlite3
+
+# =====================
+# Archived Documentation (optional - remove if too large)
+# =====================
+# docs/archived/
+
+backups/
+evaluation/checkpoints/

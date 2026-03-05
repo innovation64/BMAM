@@ -1,0 +1,97 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+@import 'highlight.js/styles/github-dark.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-background text-foreground antialiased overflow-hidden selection:bg-white/20;
+    font-family: 'Inter', sans-serif;
+  }
+}
+
+@layer utilities {
+  .glass-panel {
+    @apply bg-surface/50 backdrop-blur-xl border border-border rounded-xl;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 4px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+  }
+
+  .text-glow {
+    text-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+  }
+}
+
+/* Markdown prose styles for chat messages */
+.prose-chat {
+  @apply text-sm leading-7 text-gray-200;
+}
+.prose-chat p {
+  @apply mb-3 last:mb-0;
+}
+.prose-chat pre {
+  @apply bg-black/40 rounded-lg p-4 my-3 overflow-x-auto text-[13px] border border-white/5;
+}
+.prose-chat pre code {
+  @apply bg-transparent p-0 text-[13px] font-mono;
+}
+.prose-chat code {
+  @apply bg-white/10 text-emerald-300 px-1.5 py-0.5 rounded text-[13px] font-mono;
+}
+.prose-chat a {
+  @apply text-blue-400 hover:text-blue-300 underline underline-offset-2;
+}
+.prose-chat table {
+  @apply w-full my-3 border-collapse;
+}
+.prose-chat th {
+  @apply border border-white/10 px-3 py-1.5 text-left text-xs font-semibold text-gray-300 bg-white/5;
+}
+.prose-chat td {
+  @apply border border-white/10 px-3 py-1.5 text-xs;
+}
+.prose-chat ul {
+  @apply list-disc pl-5 mb-3 space-y-1;
+}
+.prose-chat ol {
+  @apply list-decimal pl-5 mb-3 space-y-1;
+}
+.prose-chat blockquote {
+  @apply border-l-2 border-white/20 pl-4 italic text-gray-400 my-3;
+}
+.prose-chat h1, .prose-chat h2, .prose-chat h3 {
+  @apply font-semibold text-white mt-4 mb-2;
+}
+.prose-chat h1 { @apply text-lg; }
+.prose-chat h2 { @apply text-base; }
+.prose-chat h3 { @apply text-sm; }
+.prose-chat hr {
+  @apply border-white/10 my-4;
+}
