@@ -117,12 +117,15 @@ Respond in JSON format:
 
         # Step 4: 执行遗忘
         forgotten_ids = {mem.id for mem in to_forget}
-        async with self._memory_write_lock:
-            self.memories = [m for m in self.memories if m.id not in forgotten_ids]
-            for mem in to_forget:
-                if mem.id in self.memory_dict:
-                    del self.memory_dict[mem.id]
-            self._rebuild_index()
+        self.memories = [m for m in self.memories if m.id not in forgotten_ids]
+
+        # 更新memory_dict
+        for mem in to_forget:
+            if mem.id in self.memory_dict:
+                del self.memory_dict[mem.id]
+
+        # 重建索引
+        self._rebuild_index()
 
         self.total_forgotten += len(to_forget)
 

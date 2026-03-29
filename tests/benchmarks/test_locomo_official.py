@@ -122,7 +122,8 @@ async def test_single_conversation(sample_id: str, conversation_dict: dict, qa_p
 
         # 从记忆系统检索并回答
         start_time = datetime.now()
-        result = await coordinator.process_user_input(question)
+        context = {'skip_memory_store': True, 'evaluation_mode': True}
+        result = await coordinator.process_user_input(question, context=context)
         elapsed = (datetime.now() - start_time).total_seconds()
 
         generated_answer = result.response

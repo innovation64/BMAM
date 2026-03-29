@@ -342,10 +342,11 @@ class StorageMixin:
             )
 
         # 存储到本地列表/缓存 (for backward compatibility)
-        async with self._memory_write_lock:
-            self.memories.append(memory)
-            self.memory_dict[memory.id] = memory
-            self._update_indexes(memory)
+        self.memories.append(memory)
+        self.memory_dict[memory.id] = memory
+
+        # 更新索引
+        self._update_indexes(memory)
 
         # 🔥 V2.0: StoryArc 时间线集成 - 解决 Temporal 准确率问题
         await self._add_to_story_arc(memory, event_time, extraction_method)
@@ -819,10 +820,11 @@ class StorageMixin:
         storage_result = await self.storage_adapter.store_memory(memory_dict)
 
         # 存储到本地列表/缓存 (for backward compatibility)
-        async with self._memory_write_lock:
-            self.memories.append(memory)
-            self.memory_dict[memory.id] = memory
-            self._update_indexes(memory)
+        self.memories.append(memory)
+        self.memory_dict[memory.id] = memory
+
+        # 更新所有索引 (包括event_index)
+        self._update_indexes(memory)
 
         # 🔥 V2.0: StoryArc 时间线集成 - 解决 Temporal 准确率问题
         await self._add_to_story_arc(memory, event_time, extraction_method)

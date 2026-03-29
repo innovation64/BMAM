@@ -46,16 +46,20 @@ class CoreOperationsMixin:
             metadata=metadata or {}
         )
 
-        # 容量满时驱逐最低优先级项（不是 FIFO）
+        # 检查是否会挤出旧项
         evicted_id = None
-        async with self._memory_write_lock:
-            if len(self.working_memory) >= self.capacity:
-                evicted = self._evict_lowest_priority()
-                if evicted:
-                    evicted_id = evicted.id
+        if len(self.working_memory) >= self.capacity:
+            # deque会自动挤出最旧的项
+            old_item = self.working_memory[0] if self.working_memory else None
+            if old_item:
+                evicted_id = old_item.id
+                if evicted_id in self.memory_dict:
+                    del self.memory_dict[evicted_id]
+                self.total_evicted += 1
 
-            self.working_memory.append(item)
-            self.memory_dict[item.id] = item
+        # 存储 (FIFO append)
+        self.working_memory.append(item)
+        self.memory_dict[item.id] = item
 
         self.total_stored += 1
 

@@ -59,14 +59,6 @@ class BackgroundProcessConfig:
     max_negative_feedback_for_consolidation: int = 3  # Skip if too much negative feedback
     emotion_protection_threshold: float = 0.7   # Don't forget highly emotional memories
 
-    # Reflection settings (pattern discovery from accumulated memories)
-    reflection_interval_seconds: float = 3600.0    # 1 hour default
-    reflection_min_memories: int = 10              # Min memories since last reflection
-
-    # Distortion detection settings (verify memory authenticity)
-    distortion_interval_seconds: float = 7200.0    # 2 hours default
-    distortion_sample_size: int = 20               # Memories to check per cycle
-
     # 🔥 NEW Phase 3: Load-aware scheduling thresholds
     load_aware_enabled: bool = True             # Enable load-aware scheduling
     cpu_high_threshold: float = 70.0            # CPU% above which to throttle
@@ -218,14 +210,11 @@ class BackgroundMemoryProcessManager:
 
         self.running = True
 
-        # Start periodic tasks — complete memory lifecycle:
-        # Consolidate → Reconsolidate → Reflect → Detect Distortion → Forget
+        # Start periodic tasks
         self.tasks = [
             asyncio.create_task(self._consolidation_loop()),
             asyncio.create_task(self._forgetting_loop()),
-            asyncio.create_task(self._reconsolidation_loop()),
-            asyncio.create_task(self._reflection_loop()),
-            asyncio.create_task(self._distortion_detection_loop()),
+            asyncio.create_task(self._reconsolidation_loop())
         ]
 
 
@@ -419,138 +408,10 @@ class BackgroundMemoryProcessManager:
                        f"{skipped_low_coverage} skipped (low coverage), "
                        f"{skipped_conflicts} skipped (conflicts)")
 
-            # 🔥 2026-03-29: 全脑区巩固分发
-            # 巩固不只是 hippocampus→temporal_lobe，还要回放到其他脑区
-            if successful > 0:
-                consolidated_mems = [
-                    mem for mem in episodic_memories
-                    if mem.get('id') in candidates
-                ]
-                await self._distribute_to_brain_regions(consolidated_mems)
-                self._notify_cache_mutation()
-
         except Exception as e:
             logger.error(f"Batch consolidation failed: {e}")
             import traceback
             traceback.print_exc()
-
-    async def _distribute_to_brain_regions(self, memories: list):
-        """
-        全脑区巩固分发 — 在巩固阶段将情节记忆回放到其他脑区。
-
-        神经科学依据: 睡眠时海马体回放记忆，重新分配到新皮层各区域。
-        - 杏仁核: 提取情绪标签 + 强度，回写到原始海马记忆
-        - 基底节: 提取行为模式/技能
-        - 前额叶: 评估推理价值，存入工作记忆摘要
-        """
-        coord = self.coordinator
-        amygdala = getattr(coord, 'amygdala', None)
-        basal_ganglia = getattr(coord, 'basal_ganglia', None)
-        prefrontal = getattr(coord, 'prefrontal_agent', None)
-        hippocampus = getattr(coord, 'hippocampus', None)
-
-        amygdala_tagged = 0
-        basal_ganglia_learned = 0
-        prefrontal_stored = 0
-
-        for mem in memories:
-            content = mem.get('content', '')
-            mem_id = mem.get('id', '')
-            importance = mem.get('importance', 0.5)
-            if not content:
-                continue
-
-            # ── 杏仁核: 情绪标签提取 + 回写海马体 ──
-            if amygdala:
-                try:
-                    existing_tags = mem.get('emotion_tags') or mem.get('metadata', {}).get('emotion_tags', [])
-                    if not existing_tags:
-                        # 用杏仁核的情绪检测（从 SoulConfig 或默认 Ekman 关键词）
-                        from ..coordination.brain_retrieval_integration import BrainRegionCollaboration
-                        detector = BrainRegionCollaboration.__new__(BrainRegionCollaboration)
-                        detector.emotion_keywords = detector._load_emotion_keywords()
-                        detected = detector._detect_emotions_from_content(content)
-
-                        if detected and detected != ['neutral']:
-                            intensity = min(1.0, 0.3 + 0.1 * len(detected))
-                            await amygdala.tag_emotion(
-                                reference_id=mem_id,
-                                content_summary=content[:100],
-                                emotion_tags=detected,
-                                emotion_intensity=intensity,
-                                metadata={'source': 'consolidation_replay', 'auto_tagged': True}
-                            )
-                            # 回写到海马体原始记忆的 metadata
-                            if hippocampus and mem_id in hippocampus.memory_dict:
-                                hm = hippocampus.memory_dict[mem_id]
-                                hm.emotion_tags = detected
-                                hm.emotion_intensity = intensity
-                                if hm.metadata is None:
-                                    hm.metadata = {}
-                                hm.metadata['emotion_tags'] = detected
-                                hm.metadata['emotion_intensity'] = intensity
-                            amygdala_tagged += 1
-                except Exception as e:
-                    logger.debug(f"Amygdala consolidation tagging failed for {mem_id[:8]}: {e}")
-
-            # ── 基底节: 行为模式检测 ──
-            if basal_ganglia:
-                try:
-                    content_lower = content.lower()
-                    # 用基底节自己的技能检测，而不是 coordinator 的硬编码
-                    action_patterns = {
-                        'planning': ['plan', 'schedule', 'organize', 'arrange', 'prepare'],
-                        'learning': ['learn', 'study', 'practice', 'course', 'training'],
-                        'creating': ['create', 'build', 'make', 'design', 'write', 'develop'],
-                        'communicating': ['talk', 'discuss', 'meet', 'call', 'email', 'message'],
-                        'problem_solving': ['fix', 'solve', 'debug', 'troubleshoot', 'resolve'],
-                    }
-                    for pattern_name, keywords in action_patterns.items():
-                        if any(kw in content_lower for kw in keywords):
-                            skill_name = f"{pattern_name}_pattern"
-                            if skill_name in basal_ganglia.skills:
-                                await basal_ganglia.practice_skill(skill_name)
-                            else:
-                                await basal_ganglia.store_skill(
-                                    skill_name=skill_name,
-                                    content=f"Pattern: {pattern_name} detected during consolidation",
-                                    steps=[content[:200]],
-                                    metadata={'source': 'consolidation_replay'}
-                                )
-                            basal_ganglia_learned += 1
-                            break  # 每条记忆只取最强模式
-                except Exception as e:
-                    logger.debug(f"BasalGanglia consolidation failed for {mem_id[:8]}: {e}")
-
-            # ── 前额叶: 高价值记忆摘要存入工作记忆 ──
-            if prefrontal and importance > 0.7:
-                try:
-                    await prefrontal.store_item(
-                        content=f"[Consolidated] {content[:150]}",
-                        task_type='consolidation_insight',
-                        priority=int(importance * 10),
-                        metadata={'source': 'consolidation_replay', 'original_id': mem_id}
-                    )
-                    prefrontal_stored += 1
-                except Exception as e:
-                    logger.debug(f"Prefrontal consolidation failed for {mem_id[:8]}: {e}")
-
-        if amygdala_tagged + basal_ganglia_learned + prefrontal_stored > 0:
-            logger.info(
-                f"🧠 Brain-region consolidation: "
-                f"amygdala={amygdala_tagged} tagged, "
-                f"basal_ganglia={basal_ganglia_learned} patterns, "
-                f"prefrontal={prefrontal_stored} insights"
-            )
-
-    def _notify_cache_mutation(self):
-        """Bump the query cache mutation epoch so stale entries are discarded on next lookup."""
-        try:
-            from ..optimization.query_cache import get_query_cache
-            cache = get_query_cache()
-            cache.notify_mutation()
-        except Exception:
-            pass  # Cache not initialized yet — safe to ignore
 
     async def _get_episodic_memories(self) -> List[Dict]:
         """Get all episodic memories from hippocampus"""
@@ -688,10 +549,6 @@ class BackgroundMemoryProcessManager:
                    f"{preserved_conflicts} preserved (conflicts), "
                    f"{preserved_emotional} preserved (emotional)")
 
-        # Invalidate query cache so stale memories aren't returned
-        if forgotten_count > 0:
-            self._notify_cache_mutation()
-
     async def _delete_memory(self, memory_id: str):
         """Delete a memory from hippocampus"""
         if hasattr(self.coordinator.hippocampus, 'delete_memory'):
@@ -805,128 +662,6 @@ class BackgroundMemoryProcessManager:
                 except (asyncio.CancelledError, asyncio.TimeoutError) as e:
                     logger.error(f"❌ Failed to reconsolidate {mem_id[:8]}: {e}")
 
-
-    # ============================================================================
-    # Reflection Loop: Pattern Discovery & Insight Generation
-    # ============================================================================
-
-    async def _reflection_loop(self):
-        """
-        Periodic reflection — discover patterns and generate insights from
-        accumulated episodic memories. Neuroscience basis: offline replay
-        during quiet wakefulness enables schema formation.
-        """
-        base_interval = self.config.reflection_interval_seconds
-
-        while True:
-            try:
-                await asyncio.sleep(base_interval)
-                if not self.running:
-                    break
-                if self._should_skip_due_to_load('reflection'):
-                    continue
-
-                reflection_agent = getattr(self.coordinator, 'reflection', None)
-                hippocampus = getattr(self.coordinator, 'hippocampus', None)
-                if not reflection_agent or not hippocampus:
-                    continue
-
-                recent = hippocampus.memories[-self.config.reflection_min_memories:]
-                if len(recent) < self.config.reflection_min_memories:
-                    continue
-
-                from ..coordination.clean_agent_system import AgentMessage
-                msg = AgentMessage(
-                    sender='background_processes',
-                    receiver='reflection',
-                    message_type='request',
-                    content={
-                        'action': 'analyze_recent_patterns',
-                        'recent_memories': recent,
-                        'context': {'trigger': 'background_loop'}
-                    }
-                )
-                result = await self.coordinator._activate_agent('reflection', msg)
-                insights = result.get('insights_generated', 0) if result else 0
-                if insights > 0:
-                    logger.info(f"🔍 Reflection loop: {insights} insights generated")
-
-            except asyncio.CancelledError:
-                break
-            except Exception as e:
-                logger.warning(f"⚠️ Reflection loop error: {e}")
-
-    # ============================================================================
-    # Distortion Detection Loop: Memory Authenticity Verification
-    # ============================================================================
-
-    async def _distortion_detection_loop(self):
-        """
-        Periodic distortion detection — verify memory authenticity by checking
-        for reconstruction errors, source confusion, and false memories.
-        Neuroscience basis: reconsolidation can introduce distortions; the
-        prefrontal cortex monitors and corrects these during offline periods.
-        """
-        base_interval = self.config.distortion_interval_seconds
-
-        while True:
-            try:
-                await asyncio.sleep(base_interval)
-                if not self.running:
-                    break
-                if self._should_skip_due_to_load('distortion_detection'):
-                    continue
-
-                distortion_agent = getattr(self.coordinator, 'memory_distortion', None)
-                hippocampus = getattr(self.coordinator, 'hippocampus', None)
-                if not distortion_agent or not hippocampus:
-                    continue
-
-                # Sample recently reconsolidated or frequently accessed memories
-                sample_size = self.config.distortion_sample_size
-                candidates = [
-                    m for m in hippocampus.memories
-                    if getattr(m, 'access_count', 0) >= 2
-                    or (m.metadata and m.metadata.get('last_reconsolidation'))
-                ]
-                if not candidates:
-                    continue
-
-                # Check a sample (not all, to avoid overload)
-                sample = candidates[-sample_size:]
-                distortions_found = 0
-
-                from ..coordination.clean_agent_system import AgentMessage
-                for mem in sample:
-                    msg = AgentMessage(
-                        sender='background_processes',
-                        receiver='memory_distortion',
-                        message_type='request',
-                        content={'action': 'detect_distortion', 'memory_id': mem.id}
-                    )
-                    try:
-                        result = await self.coordinator._activate_agent('memory_distortion', msg)
-                        if result and result.get('distortion_detected'):
-                            distortions_found += 1
-                            # Flag the memory
-                            if mem.metadata is None:
-                                mem.metadata = {}
-                            mem.metadata['distortion_flagged'] = True
-                            mem.metadata['distortion_type'] = result.get('distortion_type', 'unknown')
-                            logger.info(
-                                f"⚠️ Distortion detected in {mem.id[:8]}: "
-                                f"{result.get('distortion_type', 'unknown')}"
-                            )
-                    except Exception as e:
-                        logger.debug(f"Distortion check failed for {mem.id[:8]}: {e}")
-
-                if distortions_found > 0:
-                    logger.info(f"🔍 Distortion detection: {distortions_found}/{len(sample)} memories flagged")
-
-            except asyncio.CancelledError:
-                break
-            except Exception as e:
-                logger.warning(f"⚠️ Distortion detection loop error: {e}")
 
     async def _update_memory_metadata(self, memory_id: str, updates: Dict):
         """Update memory metadata"""

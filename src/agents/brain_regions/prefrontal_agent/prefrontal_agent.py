@@ -256,7 +256,7 @@ class PrefrontalAgent(
         # Find lowest priority item
         lowest = min(self.working_memory, key=lambda x: (x.priority, x.timestamp))
 
-        # Remove it (sync method, called from within locked async contexts)
+        # Remove it
         self.working_memory.remove(lowest)
         if lowest.id in self.memory_dict:
             del self.memory_dict[lowest.id]
