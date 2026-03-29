@@ -33,6 +33,7 @@ class CachedQuery:
     timestamp: datetime = field(default_factory=datetime.now)
     access_count: int = 0
     last_accessed: datetime = field(default_factory=datetime.now)
+    mutation_epoch: int = 0  # epoch at cache time; stale if < cache._mutation_epoch
 
 
 class QueryCache:
@@ -64,6 +65,10 @@ class QueryCache:
         # Semantic cache (similarity match)
         self.semantic_cache: List[CachedQuery] = []
 
+        # Mutation epoch — incremented when memories change (forget/consolidate).
+        # Entries cached before the current epoch are treated as stale.
+        self._mutation_epoch: int = 0
+
         # Statistics
         self.stats = {
             'hits': 0,
@@ -94,7 +99,10 @@ class QueryCache:
             # Check TTL
             age = (datetime.now() - cached.timestamp).total_seconds()
             if age > self.ttl_seconds:
-                # Expired
+                del self.hash_cache[query_hash]
+                self.stats['expirations'] += 1
+            elif cached.mutation_epoch < self._mutation_epoch:
+                # Stale — memories changed since this was cached
                 del self.hash_cache[query_hash]
                 self.stats['expirations'] += 1
             else:
@@ -113,6 +121,9 @@ class QueryCache:
                 # Check TTL
                 age = (datetime.now() - best_match.timestamp).total_seconds()
                 if age > self.ttl_seconds:
+                    self.semantic_cache.remove(best_match)
+                    self.stats['expirations'] += 1
+                elif best_match.mutation_epoch < self._mutation_epoch:
                     self.semantic_cache.remove(best_match)
                     self.stats['expirations'] += 1
                 else:
@@ -185,7 +196,8 @@ class QueryCache:
             query_hash=query_hash,
             response=response,
             confidence=confidence,
-            embedding=query_embedding
+            embedding=query_embedding,
+            mutation_epoch=self._mutation_epoch,
         )
 
         # Store in hash cache
@@ -203,6 +215,11 @@ class QueryCache:
                 self.semantic_cache.remove(evicted_cached)
             self.stats['evictions'] += 1
 
+
+    def notify_mutation(self):
+        """Called when memories are forgotten/consolidated. Marks all existing cache entries as stale."""
+        self._mutation_epoch += 1
+        logger.debug(f"Cache mutation epoch bumped to {self._mutation_epoch}")
 
     def clear(self):
         """清空缓存"""

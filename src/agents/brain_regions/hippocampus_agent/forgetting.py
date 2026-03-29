@@ -158,14 +158,14 @@ class ForgettingMixin:
             silenced_count += 1
 
             # 从活跃存储中移除
-            if mem.id in self.memory_dict:
-                del self.memory_dict[mem.id]
+            async with self._memory_write_lock:
+                if mem.id in self.memory_dict:
+                    del self.memory_dict[mem.id]
 
         # 更新memories列表
-        self.memories = protected + kept_forgettable
-
-        # 重建索引
-        self._rebuild_indexes()
+        async with self._memory_write_lock:
+            self.memories = protected + kept_forgettable
+            self._rebuild_indexes()
 
         self.total_forgotten += silenced_count
 
@@ -304,16 +304,13 @@ class ForgettingMixin:
             )
             silenced_count += 1
 
-        # 从列表中移除
-        self.memories = [m for m in self.memories if m.id not in forgotten_ids]
-
-        # 从字典中移除
-        for mem_id in memory_ids:
-            if mem_id in self.memory_dict:
-                del self.memory_dict[mem_id]
-
-        # 重建索引
-        self._rebuild_indexes()
+        # 从列表和字典中移除 + 重建索引
+        async with self._memory_write_lock:
+            self.memories = [m for m in self.memories if m.id not in forgotten_ids]
+            for mem_id in memory_ids:
+                if mem_id in self.memory_dict:
+                    del self.memory_dict[mem_id]
+            self._rebuild_indexes()
 
         self.total_forgotten += silenced_count
 
@@ -433,14 +430,13 @@ class ForgettingMixin:
             restored_memory.embedding = embedding
 
         # 添加到活跃存储
-        self.memories.append(restored_memory)
-        self.memory_dict[memory_id] = restored_memory
+        async with self._memory_write_lock:
+            self.memories.append(restored_memory)
+            self.memory_dict[memory_id] = restored_memory
+            self._rebuild_indexes()
 
         # 从沉默印迹存储中移除
         self.silent_engram_store.mark_reactivated(memory_id)
-
-        # 重建索引
-        self._rebuild_indexes()
 
         logger.info(f"Silent memory fully restored: {memory_id}")
 

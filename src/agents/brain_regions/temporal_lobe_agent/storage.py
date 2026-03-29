@@ -258,8 +258,9 @@ class StorageMixin:
                    f"content_len={len(content)}")
 
         # 存储到列表
-        self.memories.append(memory)
-        self.memory_dict[memory.id] = memory
+        async with self._memory_write_lock:
+            self.memories.append(memory)
+            self.memory_dict[memory.id] = memory
 
         logger.debug(f"📥 [TemporalLobe] Added to self.memories, total count={len(self.memories)}")
 

@@ -175,14 +175,13 @@ class AmygdalaAgent(BrainAgent):
         )
 
         # 存储
-        self.memories.append(memory)
-        self.memory_dict[memory.id] = memory
-
-        # 更新情绪索引
-        for tag in emotion_tags:
-            if tag not in self.emotion_index:
-                self.emotion_index[tag] = []
-            self.emotion_index[tag].append(memory.id)
+        async with self._memory_write_lock:
+            self.memories.append(memory)
+            self.memory_dict[memory.id] = memory
+            for tag in emotion_tags:
+                if tag not in self.emotion_index:
+                    self.emotion_index[tag] = []
+                self.emotion_index[tag].append(memory.id)
 
         # 容量控制
         if len(self.memories) > self.capacity:
@@ -269,15 +268,12 @@ class AmygdalaAgent(BrainAgent):
         # 删除后20%
         forget_count = len(self.memories) // 5
         forgotten = self.memories[-forget_count:]
-        self.memories = self.memories[:-forget_count]
-
-        # 更新memory_dict
-        for mem in forgotten:
-            if mem.id in self.memory_dict:
-                del self.memory_dict[mem.id]
-
-        # 重建情绪索引
-        self._rebuild_index()
+        async with self._memory_write_lock:
+            self.memories = self.memories[:-forget_count]
+            for mem in forgotten:
+                if mem.id in self.memory_dict:
+                    del self.memory_dict[mem.id]
+            self._rebuild_index()
 
         self.total_forgotten += forget_count
 
@@ -568,7 +564,7 @@ class AmygdalaAgent(BrainAgent):
                 logger.error(f"❌ Invalid brain region: {state.get('brain_region')}")
                 return False
 
-            # Clear current state
+            # Clear current state (load_state runs at init, no concurrent access)
             self.memories.clear()
             self.memory_dict.clear()
             self.emotion_index.clear()

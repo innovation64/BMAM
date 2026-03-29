@@ -111,8 +111,10 @@ async def test_single_conversation(sample_id: str, conversation_dict: dict, qa_p
     results = []
 
     for i, qa in enumerate(qa_pairs, 1):
-        question = qa['question']
-        gold_answer = qa['answer']
+        question = qa.get('question', '')
+        gold_answer = qa.get('answer') or qa.get('gold_answer', '')
+        if not question or not gold_answer:
+            continue
         evidence = qa.get('evidence', [])
         category = qa.get('category', 'unknown')
 
@@ -190,7 +192,7 @@ async def main():
     print()
 
     # 配置
-    NUM_SAMPLES = None  # None=全部10个, 或设置为1, 5, 10等
+    NUM_SAMPLES = 1  # None=全部10个, 或设置为1, 5, 10等
 
     # 加载数据集
     dataset = load_locomo_dataset(num_samples=NUM_SAMPLES)
