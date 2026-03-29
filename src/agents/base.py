@@ -76,6 +76,7 @@ class BrainAgent(ABC):
         self.response_cache: OrderedDict[str, str] = OrderedDict()
         self._fallback_cache_size = self.settings.fallback_cache_size
         self.lock = asyncio.Lock()
+        self._memory_write_lock = asyncio.Lock()  # 保护 self.memories / self.memory_dict 的写操作
         self.execution_log = []  # 统一执行日志
         
         # Brain-inspired properties

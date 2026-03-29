@@ -183,20 +183,20 @@ class HippocampusAgentCore(BrainAgent):
         Rebuild local memory structures from storage adapter cache
         从存储适配器缓存重建本地记忆结构
         """
-        # Clear existing local structures
-        self.memories.clear()
-        self.memory_dict.clear()
-        self.entity_index.clear()
-        self.time_index.clear()
-        self.event_index.clear()
-        self.entity_action_index.clear()
+        # Clear existing local structures and rebuild atomically
+        async with self._memory_write_lock:
+            self.memories.clear()
+            self.memory_dict.clear()
+            self.entity_index.clear()
+            self.time_index.clear()
+            self.event_index.clear()
+            self.entity_action_index.clear()
 
-        # Rebuild from cache
-        for memory_id, memory_dict in self.storage_adapter._local_cache.items():
-            memory = self._dict_to_memory(memory_dict)
-            self.memories.append(memory)
-            self.memory_dict[memory.id] = memory
-            self._update_indexes(memory)
+            for memory_id, memory_dict in self.storage_adapter._local_cache.items():
+                memory = self._dict_to_memory(memory_dict)
+                self.memories.append(memory)
+                self.memory_dict[memory.id] = memory
+                self._update_indexes(memory)
 
         logger.info(f"✅ Rebuilt {len(self.memories)} memories from global cache")
 
@@ -410,7 +410,7 @@ class HippocampusAgentCore(BrainAgent):
                 logger.error(f"❌ Invalid brain region: {state.get('brain_region')}")
                 return False
 
-            # Clear current state
+            # Clear current state (load_state runs at init, no concurrent access)
             self.memories.clear()
             self.memory_dict.clear()
             self.entity_index.clear()
@@ -439,7 +439,6 @@ class HippocampusAgentCore(BrainAgent):
                     event_id=mem_data.get('event_id'),
                     speaker=mem_data.get('speaker')
                 )
-
                 self.memories.append(memory)
                 self.memory_dict[memory.id] = memory
 

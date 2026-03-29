@@ -1410,13 +1410,19 @@ class BrainInspiredCoordinator:
             except Exception as e:
                 logger.debug(f"Thalamus activation plan failed: {e}")
 
-        # 🔥 2026-01-20 ABL-001: 消融检查 - 禁用的组件不参与检索
-        # 设计原则: 从 activation_plan 动态获取脑区，避免硬编码
-        if hasattr(self, '_ablation_state') and activation_plan:
-            for region in activation_plan.keys():
-                if not self._ablation_state.get(region, True):
+        # 🔥 2026-03-26 FIX: 消融检查 - activation_plan 为 None 时也需要检查
+        if hasattr(self, '_ablation_state'):
+            if activation_plan is None:
+                activation_plan = {}
+            # 确保被消融禁用的脑区不参与检索
+            for region, enabled in self._ablation_state.items():
+                if not enabled:
                     activation_plan[region] = False
                     logger.debug(f"🔬 ABLATION: {region} disabled in brain_retrieve")
+        if activation_plan is not None:
+            for region in list(activation_plan.keys()):
+                if hasattr(self, '_ablation_state') and not self._ablation_state.get(region, True):
+                    activation_plan[region] = False
 
         # 执行脑仿生检索
         result = await self.brain_inspired_retrieval.retrieve(
@@ -2130,6 +2136,21 @@ Output ONLY the extracted answer:"""
         elif 'hippocampus' in high_score_agents:
             initial_path = 'temporal'
 
+        # 🔥 2026-03-29: HabitLearner 策略推荐（基底节程序性记忆）
+        # 如果 Q-learning 有历史数据，用它微调路径选择
+        if hasattr(self, 'basal_ganglia') and self.basal_ganglia:
+            available_paths = ['temporal', 'reasoning_chain', 'orchestrator', 'conversation']
+            habit_rec = self.basal_ganglia.recommend_strategy(
+                context=top_agent, available_strategies=available_paths
+            )
+            recommended = habit_rec.get('recommended_strategy')
+            if recommended and recommended != initial_path:
+                logger.info(f"🧭 HabitLearner suggests '{recommended}' over '{initial_path}' for context={top_agent}")
+                # 只在 learnable router 置信度不高时采纳习惯建议
+                if top_score < 0.7:
+                    initial_path = recommended
+                    logger.info(f"🧭 Adopted habit recommendation (low router confidence {top_score:.2f})")
+
         logger.info(f"🧭 Dynamic routing: top_agent={top_agent}({top_score:.2f}) → path={initial_path}")
 
         return initial_path
@@ -2243,6 +2264,69 @@ Output ONLY the extracted answer:"""
                 error=f"Request timeout after {timeout}s"
             )
 
+    async def _retrieve_persona_preferences(
+        self, user_input: str, context: Dict[str, Any], adaptive_weights
+    ) -> Optional[list]:
+        """Retrieve persona/preference memories. Extracted for parallel execution."""
+        if not self.persona_memory:
+            return None
+        try:
+            is_evaluation_mode = context.get('evaluation_mode', False)
+            query_category = self.persona_memory._detect_query_category(user_input)
+            needs_persona = is_evaluation_mode or bool(query_category)
+
+            if not needs_persona:
+                return None
+
+            context_k = context.get('_context_aware_k')
+            if context_k and 'persona' in context_k:
+                persona_k = context_k['persona']
+            else:
+                persona_k = adaptive_weights.persona_retrieval_k
+
+            if is_evaluation_mode:
+                extra_k = int(10 * max(0, adaptive_weights.persona_weight - 0.5) * 2)
+                persona_k = min(25, persona_k + extra_k)
+
+            eval_user_id = context.get('user_id') or context.get('persona_user_id')
+
+            persona_result = await self.persona_memory.retrieve_persona(
+                user_input,
+                k=persona_k,
+                user_id=eval_user_id,
+                preference_boost=adaptive_weights.preference_retrieval_boost
+            )
+            persona_memories = persona_result.get('memories', [])
+
+            if adaptive_weights.persona_weight > 0.6 and is_evaluation_mode:
+                recent_result = await self.persona_memory.recent_persona(
+                    limit=10, user_id=eval_user_id
+                )
+                recent_mems = recent_result.get('memories', [])
+                existing_ids = {pm.get('memory', {}).get('id') for pm in persona_memories if isinstance(pm, dict)}
+                for rm in recent_mems:
+                    rm_id = rm.get('id') if isinstance(rm, dict) else None
+                    if rm_id not in existing_ids:
+                        persona_memories.append({'memory': rm, 'retrieval_confidence': 0.5})
+
+            if persona_memories:
+                prefs = []
+                for pm in persona_memories:
+                    if isinstance(pm, dict):
+                        content = pm.get('content', '') or pm.get('memory', {}).get('content', '')
+                        if content and len(content) > 5:
+                            prefs.append(content)
+                if prefs:
+                    prefs = prefs[:8]
+                    context['user_preferences'] = prefs
+                    context['persona_query_category'] = query_category
+                    logger.info(f"🎯 PersonaMemory: found {len(prefs)} preferences/facts (category={query_category})")
+                    return prefs
+            return None
+        except Exception as e:
+            logger.debug(f"Preference retrieval skipped: {e}")
+            return None
+
     async def _process_user_input_impl(self, user_input: str, context: Dict[str, Any] = None) -> ProcessingResult:
         """
         Main processing pipeline - orchestrates all modules
@@ -2300,28 +2384,55 @@ Output ONLY the extracted answer:"""
                 # 回退到基于查询特征的 K 值
                 retrieval_k = adaptive_weights.episodic_retrieval_k
 
+            # 🔥 2026-03-28 OPT: 并行执行 brain_retrieve + persona_retrieval
+            # brain_retrieve 和 persona 检索互不依赖，可以同时运行
+            async def _do_brain_retrieve():
+                if self.brain_inspired_retrieval:
+                    try:
+                        result = await self.brain_retrieve(
+                            query=user_input,
+                            k=retrieval_k,
+                            context=context,
+                            force_slow_path=False,
+                        )
+                        logger.info(
+                            f"🧠 BrainRetrieval: {len(result.memories)} memories (k={retrieval_k}), "
+                            f"path={result.path_type}, "
+                            f"iterations={result.iterations}, "
+                            f"confidence={result.confidence:.2f}"
+                        )
+                        return result
+                    except Exception as e:
+                        logger.warning(f"⚠️ BrainInspiredRetrieval failed, using fallback: {e}")
+                        mems = await self.smart_retrieve(user_input, k=retrieval_k, context=context)
+                        return mems  # list fallback
+                else:
+                    return await self.smart_retrieve(user_input, k=retrieval_k, context=context)
+
+            brain_task = asyncio.ensure_future(_do_brain_retrieve())
+            persona_task = asyncio.ensure_future(
+                self._retrieve_persona_preferences(user_input, context, adaptive_weights)
+            )
+
+            brain_result_raw, preference_context = await asyncio.gather(
+                brain_task, persona_task, return_exceptions=True
+            )
+
+            # Unpack brain retrieval result
             brain_retrieval_result = None
-            if self.brain_inspired_retrieval:
-                try:
-                    brain_retrieval_result = await self.brain_retrieve(
-                        query=user_input,
-                        k=retrieval_k,  # 🔥 使用动态K值
-                        context=context,
-                        force_slow_path=False  # 让系统自动判断快慢路径
-                    )
-                    memories = brain_retrieval_result.memories
-                    logger.info(
-                        f"🧠 BrainRetrieval: {len(memories)} memories (k={retrieval_k}), "
-                        f"path={brain_retrieval_result.path_type}, "
-                        f"iterations={brain_retrieval_result.iterations}, "
-                        f"confidence={brain_retrieval_result.confidence:.2f}"
-                    )
-                except Exception as e:
-                    logger.warning(f"⚠️ BrainInspiredRetrieval failed, using fallback: {e}")
-                    memories = await self.smart_retrieve(user_input, k=retrieval_k, context=context)
-            else:
-                # Fallback to simple retrieval
+            if isinstance(brain_result_raw, Exception):
+                logger.warning(f"⚠️ Brain retrieval exception: {brain_result_raw}")
                 memories = await self.smart_retrieve(user_input, k=retrieval_k, context=context)
+            elif isinstance(brain_result_raw, list):
+                memories = brain_result_raw
+            else:
+                brain_retrieval_result = brain_result_raw
+                memories = brain_retrieval_result.memories
+
+            # Unpack persona result (may be Exception from gather)
+            if isinstance(preference_context, Exception):
+                logger.debug(f"Preference retrieval failed: {preference_context}")
+                preference_context = None
 
             # 🔥 2025-12-20 FIX: 恢复 HippocampalPrefrontalLoop 迭代检索
             # Brain mechanism: 海马-前额叶反馈环路，在初始检索不足时扩展搜索
@@ -2501,81 +2612,35 @@ Output ONLY the extracted answer:"""
                 except Exception as e:
                     logger.warning(f"⚠️ Temporal reasoning failed: {e}")
 
-            # 🎯 3.6 Preference-Aware Enhancement (2025-12-22 全面重新设计)
-            # 🔥 2025-12-26 QADW: 无硬阈值，始终检索，K值动态调整
-            # PersonaMemory 检索 - 用于偏好、事实、身份相关查询
-            preference_context = None
-            if self.persona_memory:  # 🔥 QADW: 移除 > 0.3 硬阈值，始终尝试检索
-                try:
-                    # 🔥 评估模式下始终检索偏好（PersonaMem/PrefEval 需要）
-                    # 非评估模式下使用 PersonaMemory 的 _detect_query_category 判断
-                    is_evaluation_mode = context.get('evaluation_mode', False)
+            # 🎯 3.6 persona preference_context 已在上方 asyncio.gather 并行获取
 
-                    # 使用 PersonaMemory 的分类检测来决定是否需要检索
-                    query_category = self.persona_memory._detect_query_category(user_input)
-                    needs_persona = is_evaluation_mode or bool(query_category)
-
-                    if needs_persona:
-                        # 🔥 2025-12-27 FIX: 优先使用 context-aware K 值（解决LoCoMo长对话退化）
-                        context_k = context.get('_context_aware_k')
-                        if context_k and 'persona' in context_k:
-                            retrieval_k = context_k['persona']
-                        else:
-                            # 回退到 QADW: K值范围扩大到 5-20，由 identity_score 线性决定
-                            retrieval_k = adaptive_weights.persona_retrieval_k
-
-                        # 🔥 QADW: 评估模式下线性boost K值，无硬阈值
-                        # persona_weight 越高，K值越大
-                        if is_evaluation_mode:
-                            # 线性映射: persona_weight 0.5-1.0 → extra_k 0-10
-                            extra_k = int(10 * max(0, adaptive_weights.persona_weight - 0.5) * 2)
-                            retrieval_k = min(25, retrieval_k + extra_k)
-
-                        # 🔥 2026-01-20 FIX-002: 始终传递 user_id，不再受阈值限制
-                        # 原因: 阈值导致 PersonaMem 多用户场景下记忆混淆
-                        eval_user_id = context.get('user_id') or context.get('persona_user_id')
-
-                        # 🔥 2025-12-27 FIX: 传入 preference_boost 实现端到端软权重
-                        # preference_boost 由 AdaptiveConfigManager 动态计算
-                        # 范围 0.0-0.5，影响 PersonaMem 检索时的分类匹配加权
-                        persona_result = await self.persona_memory.retrieve_persona(
-                            user_input,
-                            k=retrieval_k,
-                            user_id=eval_user_id,
-                            preference_boost=adaptive_weights.preference_retrieval_boost
+            # 🔥 2026-03-26 FIX: 注入 cached user_portrait 到 QA 上下文
+            # 解决 PersonaMem 48.9% 瓶颈：合成的用户肖像未被用于问答
+            eval_user_id = context.get('user_id') or context.get('persona_user_id')
+            if eval_user_id and self.persona_memory:
+                cached_portraits = getattr(self, '_cached_user_portraits', {})
+                portrait = cached_portraits.get(eval_user_id)
+                if portrait:
+                    portrait_facts = []
+                    if portrait.get('portrait'):
+                        portrait_facts.append(f"User profile: {portrait['portrait']}")
+                    for key in ['likes', 'interests', 'dislikes', 'habits', 'facts', 'goals']:
+                        for item in portrait.get(key, [])[:3]:
+                            portrait_facts.append(f"User {key}: {item}")
+                    if portrait_facts:
+                        existing = preference_context or []
+                        preference_context = portrait_facts + [
+                            p for p in existing if p not in portrait_facts
+                        ]
+                        preference_context = preference_context[:12]
+                        context['user_preferences'] = preference_context
+                        context['persona_query_category'] = context.get(
+                            'persona_query_category', ''
+                        ) or 'identity'
+                        logger.info(
+                            f"🎯 Portrait injected: {len(portrait_facts)} facts "
+                            f"for user={eval_user_id}"
                         )
-                        persona_memories = persona_result.get('memories', [])
-
-                        # 🔥 QADW: recent fallback 阈值降低到 0.6，更容易触发
-                        if adaptive_weights.persona_weight > 0.6 and is_evaluation_mode:
-                            recent_result = await self.persona_memory.recent_persona(
-                                limit=10, user_id=eval_user_id
-                            )
-                            recent_mems = recent_result.get('memories', [])
-                            # 合并，去重
-                            existing_ids = {pm.get('memory', {}).get('id') for pm in persona_memories if isinstance(pm, dict)}
-                            for rm in recent_mems:
-                                rm_id = rm.get('id') if isinstance(rm, dict) else None
-                                if rm_id not in existing_ids:
-                                    # 包装成与语义检索一致的格式
-                                    persona_memories.append({'memory': rm, 'retrieval_confidence': 0.5})
-
-                        if persona_memories:
-                            prefs = []
-                            for pm in persona_memories:
-                                if isinstance(pm, dict):
-                                    content = pm.get('content', '') or pm.get('memory', {}).get('content', '')
-                                    if content and len(content) > 5:
-                                        prefs.append(content)
-
-                            if prefs:
-                                preference_context = prefs[:8]  # 最多8条偏好/事实
-                                context['user_preferences'] = preference_context
-                                # 🔥 2025-12-27: 传递query_category用于回答策略分化
-                                context['persona_query_category'] = query_category
-                                logger.info(f"🎯 PersonaMemory: found {len(preference_context)} preferences/facts (category={query_category})")
-                except Exception as e:
-                    logger.debug(f"Preference retrieval skipped: {e}")
 
             # 4. Generate response
             # 🎭 优先使用ToM对抗性检测结果（如果检测到欺骗性问题）- 安全优先
@@ -2960,6 +3025,24 @@ Output ONLY the extracted answer:"""
                     )
                 except Exception as e:
                     logger.debug(f"Failed to record retrieval outcome: {e}")
+
+            # 🔥 2026-03-29: HabitLearner 反馈 — 将回答路径的实际效果反馈给基底节
+            if hasattr(self, 'basal_ganglia') and self.basal_ganglia:
+                try:
+                    # answer_path 来自 _determine_answer_path，confidence 已在上方计算
+                    # reward: confidence 映射到 [-1, 1]，0.5 为中性
+                    habit_reward = (confidence - 0.5) * 2  # 0→-1, 0.5→0, 1→1
+                    # context: 用 learnable_routing 的 top_agent 或 fallback
+                    habit_context = 'default'
+                    if learnable_routing_result and learnable_routing_result.get('selected_agents'):
+                        habit_context = learnable_routing_result['selected_agents'][0]
+                    self.basal_ganglia.update_policy(
+                        context=habit_context,
+                        strategy_id=answer_path,
+                        reward=habit_reward
+                    )
+                except Exception as e:
+                    logger.debug(f"HabitLearner feedback failed: {e}")
 
             # 🔥 2025-12-14: Active Learning - 低置信度时考虑提问
             # 🔥 2025-12-16: 增强不确定性验证机制 (P0)
