@@ -1,0 +1,10 @@
+{
+  "fear": ["afraid", "scared", "terrified", "worry", "worried", "anxious", "panic", "horror", "nervous"],
+  "joy": ["happy", "glad", "delighted", "pleased", "joyful", "excited", "thrilled", "wonderful", "great", "amazing"],
+  "sadness": ["sad", "unhappy", "depressed", "disappointed", "upset", "crying", "tears", "grief", "heartbroken", "lonely"],
+  "anger": ["angry", "mad", "furious", "annoyed", "frustrated", "irritated", "rage"],
+  "surprise": ["surprised", "amazed", "astonished", "shocked", "unexpected", "stunning"],
+  "love": ["love", "beloved", "adore", "affection", "romantic", "relationship", "partner"],
+  "anxiety": ["nervous", "stressed", "tense", "uneasy", "concern", "pressure", "overwhelming", "busy", "deadline"],
+  "excitement": ["excited", "thrilled", "eager", "enthusiastic", "lottery", "win", "celebration"]
+}
