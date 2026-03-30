@@ -10,20 +10,25 @@
 
 **English | [中文](README_CN.md)**
 
-> **The first brain-inspired multi-agent memory framework for long-term conversational AI**
+> **A pluggable soul substrate for AI agents — brain-inspired memory that IS the soul, not just stores it**
 
 > [!NOTE]
 > This project is a **preliminary exploration** of applying brain-inspired mechanisms to LLM memory systems. We are actively improving the framework — contributions, feedback, and discussions are welcome! Please open an issue if you have suggestions or find bugs.
 
-BMAM implements a multi-agent memory system inspired by human brain memory mechanisms. It addresses the **Soul Erosion** problem—the gradual degradation of an AI agent's identity and behavioral consistency due to memory failures—through coordinated brain-region agents.
+Memory is not a tool the soul uses — **memory is the soul itself**. A person who loses their memories loses who they are. BMAM is a pluggable, LLM-agnostic memory system that gives any AI agent a persistent identity: experiences, emotional imprints, values, habits, and preferences that survive across sessions, across LLM engines, and across host systems.
+
+BMAM addresses the **Soul Erosion** problem — the gradual degradation of an AI agent's identity and behavioral consistency due to memory failures — through 5 coordinated brain-region agents implementing the complete biological memory lifecycle: **encode → consolidate → retrieve → reflect → detect distortion → forget → reconsolidate**.
 
 ## Key Features
 
-- **Brain-Region Specialization**: 5 specialized agents (Hippocampus, Temporal Lobe, Amygdala, Prefrontal Cortex, Basal Ganglia)
-- **StoryArc Timeline**: Explicit temporal indexing for "when/how long/before-after" queries
-- **Hybrid Retrieval**: BM25 + Dense Vectors + Knowledge Graph + Timeline fusion
-- **Soul Portability**: Export/import memory archives (.bma format) for identity transfer
-- **HRM Integration**: Hierarchical Recurrent Memory for multi-timescale organization
+- **Brain-Region Specialization**: 5 specialized agents (Hippocampus, Temporal Lobe, Amygdala, Prefrontal Cortex, Basal Ganglia) with biologically-inspired coordination
+- **Complete Memory Lifecycle**: 5 background loops — consolidation (full brain-region replay), reconsolidation, reflection, distortion detection, and forgetting (silent engrams, not deletion)
+- **Hybrid Retrieval**: BM25 + Dense Vectors + Knowledge Graph + Entity Index — 4-signal "winner-take-all" fusion with collaborative boost
+- **Soul Portability**: Export/import memory archives (.bma format) for identity transfer across systems
+- **LLM-Agnostic**: Works with any LLM at GPT-4o-mini level or above — soul consistency guaranteed by structured storage, not prompt engineering
+- **Pluggable Architecture**: REST API service — any agent system (ARIA, AURA, NEXUS, or third-party) can plug in BMAM as its memory
+- **HRM Integration**: Hierarchical Recurrent Memory for multi-timescale organization (fast: Hippocampus τ=1, slow: Prefrontal τ=10)
+- **Online Learning**: Q-learning (BasalGanglia), strategy feedback (PrefrontalFeedback), continuous learning loop, adaptive memory shaping
 
 ## Performance
 
@@ -49,43 +54,53 @@ We introduce **Soul Erosion** as a framework for understanding AI memory failure
 
 | Erosion Type | Problem | BMAM Solution |
 |--------------|---------|---------------|
-| **Temporal** | Loses track of *when* events occurred | StoryArc timeline indexing |
-| **Semantic** | Facts become inconsistent | Hippocampus→Temporal Lobe consolidation |
-| **Identity** | User preferences forgotten | Amygdala salience tagging |
+| **Temporal** | Loses track of *when* events occurred | StoryArc timeline + relative date resolution |
+| **Semantic** | Facts become inconsistent | Hippocampus→Temporal Lobe consolidation + KG |
+| **Identity** | User preferences forgotten | Amygdala salience + ValueProfile + PersonaMemory |
+| **Behavioral** | Habits and patterns lost | Basal Ganglia procedural memory + Q-learning |
+| **Emotional** | Emotional context decays | Amygdala tagging during consolidation replay |
+| **Distortion** | Memories corrupted over time | MemoryDistortionAgent detection + flagging |
 
-**Key insight**: No single memory mechanism can prevent all erosion types. BMAM's multi-agent design provides complementary protections.
+**Key insight**: No single memory mechanism can prevent all erosion types. BMAM's multi-agent design provides complementary protections through the **complete biological memory lifecycle** — not just store-and-retrieve, but consolidate, reflect, detect distortion, and adaptively forget.
 
 ## Architecture
 
 ```
-                    BrainInspiredCoordinator
-    ┌─────────────────────────────────────────────────────┐
-    │                                                     │
-    │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐   │
-    │  │ Hippocampus │ │Temporal Lobe│ │   Amygdala  │   │
-    │  │ (Episodic)  │ │(Semantic+KG)│ │ (Salience)  │   │
-    │  └─────────────┘ └─────────────┘ └─────────────┘   │
-    │                                                     │
-    │  ┌─────────────────────────┐ ┌─────────────────┐   │
-    │  │  Prefrontal Cortex      │ │  Basal Ganglia  │   │
-    │  │  (Working Memory +      │ │  (Procedural +  │   │
-    │  │   Routing Control)      │ │   Patterns)     │   │
-    │  └─────────────────────────┘ └─────────────────┘   │
-    │                                                     │
-    │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐   │
-    │  │  StoryArc   │ │  Temporal   │ │   Hybrid    │   │
-    │  │ (Timeline)  │ │  Reasoning  │ │  Retrieval  │   │
-    │  └─────────────┘ └─────────────┘ └─────────────┘   │
-    └─────────────────────────────────────────────────────┘
+                         BrainInspiredCoordinator
+    ┌──────────────────────────────────────────────────────────┐
+    │                                                          │
+    │   ┌─────────────┐  ┌─────────────┐  ┌─────────────┐     │
+    │   │ Hippocampus │  │Temporal Lobe│  │   Amygdala  │     │
+    │   │ (Episodic)  │  │(Semantic+KG)│  │ (Emotion)   │     │
+    │   └──────┬──────┘  └──────┬──────┘  └──────┬──────┘     │
+    │          │                │                │             │
+    │   ┌──────┴────────────────┴────────────────┴──────┐     │
+    │   │           Consolidation Replay                │     │
+    │   │   (Sleep: Hippocampus → ALL brain regions)    │     │
+    │   └───────────────────────────────────────────────┘     │
+    │          │                │                │             │
+    │   ┌──────┴──────┐  ┌─────┴───────┐  ┌────┴────────┐   │
+    │   │ Prefrontal  │  │Basal Ganglia│  │  Thalamus   │   │
+    │   │ (Working    │  │(Procedural  │  │  (Gating +  │   │
+    │   │  Memory)    │  │ + Q-learn)  │  │   HRM)      │   │
+    │   └─────────────┘  └─────────────┘  └─────────────┘   │
+    │                                                          │
+    │   Background Loops:                                      │
+    │   Consolidate → Reconsolidate → Reflect → Distort → Forget
+    └──────────────────────────────────────────────────────────┘
+            │                                    │
+      REST API (:8100)                    .bma export/import
+      /v1/brain/*                         (Soul Transfer)
 ```
 
 | Brain Region | Function | Anti-Erosion Role |
 |--------------|----------|-------------------|
 | **Hippocampus** | Episodic memory encoding | Temporal anchoring with StoryArc |
 | **Temporal Lobe** | Semantic memory + KG | Fact stability via consolidation |
-| **Amygdala** | Salience tagging | Identity protection |
-| **Prefrontal** | Working memory + routing | Context coherence |
-| **Basal Ganglia** | Procedural patterns | Behavioral consistency |
+| **Amygdala** | Emotion tagging + consolidation replay | Identity & emotional imprint protection |
+| **Prefrontal** | Working memory + routing | Context coherence + task coordination |
+| **Basal Ganglia** | Procedural memory + Q-learning | Behavioral consistency + adaptive skill selection |
+| **Thalamus** | HRM gating + region activation | Multi-timescale coordination |
 
 ## Installation
 
