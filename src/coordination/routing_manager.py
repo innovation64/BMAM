@@ -55,6 +55,43 @@ class RoutingManager:
         # 🔥 NEW: Learning rate for weight updates
         self.learning_rate = 0.1
 
+        # 🔥 2026-03-30: 持久化权重
+        self._weights_path = None
+        try:
+            from ..utils.paths import BMAMPaths
+            self._weights_path = BMAMPaths.DATA_DIR / 'state' / 'routing_weights.json'
+            self._load_persisted_weights()
+        except Exception:
+            pass
+
+    def _load_persisted_weights(self):
+        """Load strategy weights from disk."""
+        import json
+        if self._weights_path and self._weights_path.exists():
+            try:
+                with open(self._weights_path, 'r') as f:
+                    saved = json.load(f)
+                self.strategy_weights.update(saved.get('weights', {}))
+                self.strategy_performance.update(saved.get('performance', {}))
+                logger.debug(f"Loaded routing weights from {self._weights_path}")
+            except Exception as e:
+                logger.debug(f"Could not load routing weights: {e}")
+
+    def _save_persisted_weights(self):
+        """Save strategy weights to disk."""
+        import json
+        if not self._weights_path:
+            return
+        try:
+            self._weights_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(self._weights_path, 'w') as f:
+                json.dump({
+                    'weights': self.strategy_weights,
+                    'performance': self.strategy_performance,
+                }, f, indent=2)
+        except Exception as e:
+            logger.debug(f"Could not save routing weights: {e}")
+
     def update_strategy_weight(self, strategy: str, delta: float) -> None:
         """
         Update a strategy's weight based on learning feedback
@@ -69,6 +106,7 @@ class RoutingManager:
             # Clamp weight between 0.5 and 2.0 to prevent extreme bias
             new_weight = max(0.5, min(2.0, old_weight + delta * self.learning_rate))
             self.strategy_weights[strategy] = new_weight
+            self._save_persisted_weights()
             logger.info(f"📊 Strategy weight updated: {strategy} {old_weight:.3f} → {new_weight:.3f}")
 
     def record_strategy_outcome(
@@ -95,6 +133,7 @@ class RoutingManager:
             self.strategy_performance[strategy]['failure'] += 1
         self.strategy_performance[strategy]['total_confidence'] += confidence
 
+        self._save_persisted_weights()
         logger.debug(f"📈 Strategy outcome recorded: {strategy} success={success} conf={confidence:.2f}")
 
     def get_strategy_success_rate(self, strategy: str) -> float:
