@@ -1,0 +1,30 @@
+{
+  "description": "Thalamus gating cues — maps query patterns to brain region activation",
+  "activation_cues": {
+    "hippocampus": [
+      "when", "how long", "date", "time", "yesterday", "ago",
+      "at what time", "which day", "which year", "what month",
+      "before", "after", "during", "last week", "last month",
+      "recently", "how old", "since when", "first time",
+      "most recently", "earliest", "latest", "order of"
+    ],
+    "amygdala": [
+      "feel", "emotion", "happy", "sad", "angry", "love",
+      "mood", "afraid", "scared", "excited", "worried",
+      "stressed", "anxious", "depressed", "joy", "fear",
+      "upset", "frustrated", "heartbroken", "grateful"
+    ],
+    "basal_ganglia": [
+      "how to", "steps", "procedure", "method", "tutorial",
+      "recipe", "instructions", "guide", "routine", "habit",
+      "workflow", "process", "technique"
+    ],
+    "prefrontal+temporal_lobe": [
+      "who is", "who are", "what is my", "what are my",
+      "prefer", "like", "favorite", "favourite", "hobby",
+      "interest", "enjoy", "dislike", "background",
+      "occupation", "job", "relationship", "personality",
+      "recommend", "suggest", "what kind"
+    ]
+  }
+}

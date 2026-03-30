@@ -452,21 +452,17 @@ class ThalamusAgent(IAgent):
             if steps_since_update >= state.timescale:
                 active.append(region_name)
 
-        # 🔥 基于查询类型的动态激活
+        # 🔥 基于查询类型的动态激活（从配置文件加载，不硬编码）
         if query:
             query_lower = query.lower()
-            # 时间相关问题 → 强制激活 hippocampus
-            if any(kw in query_lower for kw in ['when', 'how long', 'date', 'time', 'yesterday', 'ago']):
-                if 'hippocampus' not in active:
-                    active.append('hippocampus')
-            # 情感相关问题 → 强制激活 amygdala
-            if any(kw in query_lower for kw in ['feel', 'emotion', 'happy', 'sad', 'angry', 'love']):
-                if 'amygdala' not in active:
-                    active.append('amygdala')
-            # 程序/技能问题 → 强制激活 basal_ganglia
-            if any(kw in query_lower for kw in ['how to', 'steps', 'procedure', 'method']):
-                if 'basal_ganglia' not in active:
-                    active.append('basal_ganglia')
+            gating_cues = self._load_gating_cues()
+
+            for target_regions, cues in gating_cues.items():
+                if any(kw in query_lower for kw in cues):
+                    for region in target_regions.split('+'):
+                        region = region.strip()
+                        if region in self.region_states and region not in active:
+                            active.append(region)
 
         # 🔥 高复杂度任务激活所有脑区
         if task_complexity and task_complexity > 0.7:
@@ -476,6 +472,29 @@ class ThalamusAgent(IAgent):
 
         logger.debug(f"Active regions at step {self.global_step}: {active}")
         return active
+
+    def _load_gating_cues(self) -> Dict[str, List[str]]:
+        """Load gating cues from config/thalamus_gating.json. Cached after first load."""
+        if hasattr(self, '_gating_cues_cache') and self._gating_cues_cache:
+            return self._gating_cues_cache
+
+        import json
+        from pathlib import Path
+        config_path = Path(__file__).parent.parent.parent.parent / 'config' / 'thalamus_gating.json'
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            self._gating_cues_cache = data.get('activation_cues', {})
+            logger.debug(f"Loaded thalamus gating cues from {config_path}")
+        except Exception as e:
+            logger.warning(f"Failed to load thalamus gating config: {e}, using defaults")
+            self._gating_cues_cache = {
+                'hippocampus': ['when', 'how long', 'date', 'time', 'yesterday', 'ago'],
+                'amygdala': ['feel', 'emotion', 'happy', 'sad', 'angry', 'love'],
+                'basal_ganglia': ['how to', 'steps', 'procedure', 'method'],
+                'prefrontal+temporal_lobe': ['prefer', 'favorite', 'who is', 'hobby'],
+            }
+        return self._gating_cues_cache
 
     async def _update_region(
         self,
