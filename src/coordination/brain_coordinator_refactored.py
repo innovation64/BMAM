@@ -2308,10 +2308,9 @@ Output ONLY the extracted answer:"""
                             prefs.append(content)
                 if prefs:
                     prefs = prefs[:8]
-                    context['user_preferences'] = prefs
-                    context['persona_query_category'] = query_category
+                    # 不在并行 task 中写 context（竞态风险），返回值由主线程处理
                     logger.info(f"🎯 PersonaMemory: found {len(prefs)} preferences/facts (category={query_category})")
-                    return prefs
+                    return (prefs, query_category)
             return None
         except Exception as e:
             logger.debug(f"Preference retrieval skipped: {e}")
@@ -2431,6 +2430,13 @@ Output ONLY the extracted answer:"""
             if isinstance(preference_context, Exception):
                 logger.debug(f"Preference retrieval failed: {preference_context}")
                 preference_context = None
+            elif isinstance(preference_context, tuple):
+                # (prefs_list, query_category) — write to context from main thread
+                prefs_list, query_category = preference_context
+                preference_context = prefs_list
+                context['user_preferences'] = prefs_list
+                context['persona_query_category'] = query_category
+            # else: None (no preferences found)
 
             # 🔥 2025-12-20 FIX: 恢复 HippocampalPrefrontalLoop 迭代检索
             # Brain mechanism: 海马-前额叶反馈环路，在初始检索不足时扩展搜索
