@@ -10,6 +10,7 @@ Hippocampus Agent - 海马体智能体
 """
 
 import logging
+import re as _re
 from typing import Dict, List, Any, Optional
 from datetime import datetime, timedelta
 from collections import defaultdict
@@ -159,6 +160,16 @@ class StorageMixin:
             }
         """
 
+        # 🔥 2026-03-30: 先用原始 content 提取事件时间（需要 [Context:] 标记），
+        # 再剥离标记后存干净的文本，避免 embedding 被元数据污染
+        storage_time = datetime.now()
+        event_time, extraction_method = extract_event_time_from_content(
+            content=content,
+            metadata=metadata,
+            fallback_time=storage_time
+        )
+        content = _re.sub(r'\[Context:[^\]]*\]\s*', '', content).strip()
+
         # 🎯 P3优化: 自动提取实体和关系 (带降级机制)
         extracted_entities: List[str] = []
         extracted_relations: List[Dict[str, Any]] = []
@@ -238,13 +249,7 @@ class StorageMixin:
         # 合并手动传入的entities和自动提取的entities
         final_entities = list(set((entities or []) + extracted_entities))
 
-        # 🔥 2025-12-05: 提取事件发生时间 (解决 temporal 准确率问题)
-        storage_time = datetime.now()
-        event_time, extraction_method = extract_event_time_from_content(
-            content=content,
-            metadata=metadata,
-            fallback_time=storage_time
-        )
+        # event_time 和 extraction_method 已在方法开头从原始 content 提取
 
         # 更新 metadata 记录事件时间
         # 🔥 2025-12-14 FIX v2: 分层处理不同提取方法 (与 store_memory_with_event_segmentation 保持一致)
@@ -683,6 +688,9 @@ class StorageMixin:
         # 🔥 如果是新事件,创建新的event_id
         if is_new_event or self.current_event_id is None:
             self.current_event_id = f"event_{timestamp.strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
+
+        # 🔥 2026-03-30: 剥离 [Context:] 标记，保留干净内容
+        content = _re.sub(r'\[Context:[^\]]*\]\s*', '', content).strip()
 
         # 🔥 FIX: 自动提取实体和关系 (复用 store_memory 的逻辑)
         extracted_entities: List[str] = []
