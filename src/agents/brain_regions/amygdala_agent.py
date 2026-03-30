@@ -228,18 +228,28 @@ class AmygdalaAgent(BrainAgent):
         else:
             candidates = self.memories
 
-        # 过滤强度
+        # 过滤强度 + 应用 fading affect bias（情绪强度随时间衰减）
+        now = datetime.now()
         for mem in candidates:
-            if mem.emotion_intensity >= min_intensity:
+            # Fading affect bias: 负面情绪衰减快于正面
+            days_old = (now - mem.timestamp).days
+            negative_emotions = {'sad', 'sadness', 'anger', 'fear', 'stress', 'anxiety'}
+            is_negative = any(t.lower() in negative_emotions for t in mem.emotion_tags)
+            # 正面: 半衰期 90 天, 负面: 半衰期 30 天
+            half_life = 30.0 if is_negative else 90.0
+            decay = 0.5 ** (days_old / half_life) if days_old > 0 else 1.0
+            mem._effective_intensity = mem.emotion_intensity * decay
+
+            if mem._effective_intensity >= min_intensity:
                 results.append(mem)
 
         # 更新访问统计
         for mem in results:
             mem.access_count += 1
 
-        # 排序: emotion_intensity > timestamp
+        # 排序: effective_intensity > timestamp
         results.sort(
-            key=lambda m: (m.emotion_intensity, m.timestamp),
+            key=lambda m: (m._effective_intensity, m.timestamp),
             reverse=True
         )
 

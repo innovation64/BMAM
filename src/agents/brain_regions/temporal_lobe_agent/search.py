@@ -99,9 +99,24 @@ class SearchMixin:
                 # 使用原文和摘要中更高的overlap
                 overlap = max(overlap, original_content_overlap)
 
-            # 🔥 BM25分数
+            # 🔥 BM25 分数（含 IDF 加权）
+            import math
             if overlap > 0:
-                bm25_score = overlap / len(query_words)
+                content_words_list = content_clean.lower().split()
+                doc_len = len(content_words_list)
+                avg_doc_len = sum(len((m.content or '').split()) for m in candidates) / max(len(candidates), 1)
+                k1, b = 1.5, 0.75
+                bm25_score = 0.0
+                for word in query_words:
+                    if word not in content_clean.lower():
+                        continue
+                    tf = content_words_list.count(word)
+                    df = len(self.inverted_index.get(word, []))
+                    idf = math.log(1 + max(0, (len(self.memories) - df + 0.5) / (df + 0.5)))
+                    numerator = tf * (k1 + 1)
+                    denominator = tf + k1 * (1 - b + b * (doc_len / max(avg_doc_len, 1)))
+                    bm25_score += idf * (numerator / max(denominator, 0.001))
+                bm25_score = min(bm25_score / 10.0, 1.0)
             else:
                 # 保底分数：基于重要性
                 bm25_score = 0.1 * mem.importance
