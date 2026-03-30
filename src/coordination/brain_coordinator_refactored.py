@@ -2136,22 +2136,10 @@ Output ONLY the extracted answer:"""
         elif 'hippocampus' in high_score_agents:
             initial_path = 'temporal'
 
-        # 🔥 2026-03-29: HabitLearner 策略推荐（基底节程序性记忆）
-        # 冷启动保护：只在积累足够训练数据后才采纳建议
-        if hasattr(self, 'basal_ganglia') and self.basal_ganglia:
-            habit_stats = self.basal_ganglia.habit_learner.get_policy_stats()
-            min_training = 20  # 至少 20 次反馈后才信任 Q-learning
-            if habit_stats.get('total_updates', 0) >= min_training:
-                available_paths = ['temporal', 'reasoning_chain', 'orchestrator', 'conversation']
-                habit_rec = self.basal_ganglia.recommend_strategy(
-                    context=top_agent, available_strategies=available_paths
-                )
-                recommended = habit_rec.get('recommended_strategy')
-                if recommended and recommended != initial_path:
-                    logger.info(f"🧭 HabitLearner suggests '{recommended}' over '{initial_path}' for context={top_agent}")
-                    if top_score < 0.7:
-                        initial_path = recommended
-                        logger.info(f"🧭 Adopted habit recommendation (low router confidence {top_score:.2f})")
+        # 🔥 2026-03-30: HabitLearner 策略推荐暂时禁用
+        # 消融实验证明：冷启动时 Q-learning 推荐会干扰路由决策 (-7%)
+        # 需要更成熟的训练-推理分离机制后再启用
+        # TODO: 引入显式的训练阶段 vs 推理阶段切换
 
         logger.info(f"🧭 Dynamic routing: top_agent={top_agent}({top_score:.2f}) → path={initial_path}")
 
@@ -3031,23 +3019,9 @@ Output ONLY the extracted answer:"""
                 except Exception as e:
                     logger.debug(f"Failed to record retrieval outcome: {e}")
 
-            # 🔥 2026-03-29: HabitLearner 反馈 — 将回答路径的实际效果反馈给基底节
-            if hasattr(self, 'basal_ganglia') and self.basal_ganglia:
-                try:
-                    # answer_path 来自 _determine_answer_path，confidence 已在上方计算
-                    # reward: confidence 映射到 [-1, 1]，0.5 为中性
-                    habit_reward = (confidence - 0.5) * 2  # 0→-1, 0.5→0, 1→1
-                    # context: 用 learnable_routing 的 top_agent 或 fallback
-                    habit_context = 'default'
-                    if learnable_routing_result and learnable_routing_result.get('selected_agents'):
-                        habit_context = learnable_routing_result['selected_agents'][0]
-                    self.basal_ganglia.update_policy(
-                        context=habit_context,
-                        strategy_id=answer_path,
-                        reward=habit_reward
-                    )
-                except Exception as e:
-                    logger.debug(f"HabitLearner feedback failed: {e}")
+            # 🔥 2026-03-30: HabitLearner 反馈暂时禁用（与推荐一起）
+            # 消融实验证明冷启动 Q-learning 干扰路由 (-7%)
+            # TODO: 引入训练阶段 vs 推理阶段分离后再启用
 
             # 🔥 2025-12-14: Active Learning - 低置信度时考虑提问
             # 🔥 2025-12-16: 增强不确定性验证机制 (P0)
