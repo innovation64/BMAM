@@ -95,7 +95,7 @@ async def test_single_conversation(sample_id: str, conversation_dict: dict, qa_p
 
             # 将对话送入记忆系统（模拟真实对话）
             # 为了更好地模拟真实对话，可以包含时间信息
-            context_text = f"On {session_date}, {speaker} said: '{text}'"
+            context_text = f"[Context: This conversation is on {session_date}] {speaker} said: '{text}'"
             await coordinator.process_user_input(context_text)
 
             total_turns += 1
