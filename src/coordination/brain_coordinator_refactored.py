@@ -2338,6 +2338,14 @@ Output ONLY the extracted answer:"""
         if context is None:
             context = {}
 
+        # 🔥 2026-03-30: 保留原始输入给存储（含 [Context:] 日期标记），
+        # 用干净文本做检索/推理/反馈
+        import re as _re
+        raw_input_for_storage = user_input
+        user_input = _re.sub(r'\[Context:[^\]]*\]\s*', '', user_input).strip() or user_input
+        if raw_input_for_storage != user_input:
+            context['_raw_input_with_context'] = raw_input_for_storage
+
         # 🔥 2025-12-25: 应用数据集感知配置（根据任务特征动态调整系统行为）
         # 解决V1/V2/V3特性全局启用导致的跨数据集干扰问题
         context['user_input'] = user_input  # 确保用户输入在context中供检测使用
@@ -2813,9 +2821,10 @@ Output ONLY the extracted answer:"""
                 except Exception as e:
                     logger.warning(f"⚠️ FeedbackLoop recording failed: {e}")
 
-            # 5. Store memory if needed
+            # 5. Store memory if needed (use raw input with [Context:] for date extraction)
+            store_input = context.get('_raw_input_with_context', user_input)
             memory_stored = await self.memory_coordinator.store_memory_if_needed(
-                user_input, response, context
+                store_input, response, context
             )
 
             # 🔥 2025-12-21: 调用偏好提取 - 从用户输入中提取偏好并更新档案
