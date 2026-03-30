@@ -2137,19 +2137,21 @@ Output ONLY the extracted answer:"""
             initial_path = 'temporal'
 
         # 🔥 2026-03-29: HabitLearner 策略推荐（基底节程序性记忆）
-        # 如果 Q-learning 有历史数据，用它微调路径选择
+        # 冷启动保护：只在积累足够训练数据后才采纳建议
         if hasattr(self, 'basal_ganglia') and self.basal_ganglia:
-            available_paths = ['temporal', 'reasoning_chain', 'orchestrator', 'conversation']
-            habit_rec = self.basal_ganglia.recommend_strategy(
-                context=top_agent, available_strategies=available_paths
-            )
-            recommended = habit_rec.get('recommended_strategy')
-            if recommended and recommended != initial_path:
-                logger.info(f"🧭 HabitLearner suggests '{recommended}' over '{initial_path}' for context={top_agent}")
-                # 只在 learnable router 置信度不高时采纳习惯建议
-                if top_score < 0.7:
-                    initial_path = recommended
-                    logger.info(f"🧭 Adopted habit recommendation (low router confidence {top_score:.2f})")
+            habit_stats = self.basal_ganglia.habit_learner.get_policy_stats()
+            min_training = 20  # 至少 20 次反馈后才信任 Q-learning
+            if habit_stats.get('total_updates', 0) >= min_training:
+                available_paths = ['temporal', 'reasoning_chain', 'orchestrator', 'conversation']
+                habit_rec = self.basal_ganglia.recommend_strategy(
+                    context=top_agent, available_strategies=available_paths
+                )
+                recommended = habit_rec.get('recommended_strategy')
+                if recommended and recommended != initial_path:
+                    logger.info(f"🧭 HabitLearner suggests '{recommended}' over '{initial_path}' for context={top_agent}")
+                    if top_score < 0.7:
+                        initial_path = recommended
+                        logger.info(f"🧭 Adopted habit recommendation (low router confidence {top_score:.2f})")
 
         logger.info(f"🧭 Dynamic routing: top_agent={top_agent}({top_score:.2f}) → path={initial_path}")
 
@@ -2883,24 +2885,18 @@ Output ONLY the extracted answer:"""
             # Amygdala: Store emotional tags in emotional_buffer (使用正确API触发auto-persistence)
             if hasattr(self, 'amygdala') and memory_stored:
                 try:
-                    # Simple emotion detection based on keywords
-                    emotion_keywords = {
-                        'happy': ['happy', 'joy', 'excited', 'wonderful', 'great', 'love', 'lottery', 'win', 'celebration', 'amazing'],
-                        'sad': ['sad', 'heartbroken', 'cry', 'death', 'passed away', 'miss', 'depressed', 'lonely'],
-                        'stress': ['stress', 'worried', 'deadline', 'pressure', 'anxious', 'overwhelming', 'busy'],
-                        'anger': ['angry', 'frustrated', 'upset', 'mad', 'annoyed', 'irritated'],
-                        'fear': ['fear', 'scared', 'afraid', 'worried', 'nervous', 'anxious']
-                    }
+                    # 🔥 2026-03-30: 统一情绪检测 — 复用 BrainRegionCollaboration 的 SoulConfig 关键词
+                    from .brain_retrieval_integration import BrainRegionCollaboration
+                    _emotion_kw = BrainRegionCollaboration._load_emotion_keywords(None)
 
                     detected_emotions = []
                     emotion_intensity = 0.0
                     input_lower = user_input.lower()
 
-                    for emotion, keywords in emotion_keywords.items():
+                    for emotion, keywords in _emotion_kw.items():
                         matches = [kw for kw in keywords if kw in input_lower]
                         if matches:
                             detected_emotions.append(emotion)
-                            # 降低阈值,捕捉更多情绪
                             emotion_intensity = max(emotion_intensity, 0.3 + 0.05 * len(matches))
 
                     # 降低触发阈值从0.5到0.3,捕捉更多情绪
