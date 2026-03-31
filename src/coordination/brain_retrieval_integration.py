@@ -715,9 +715,16 @@ class BrainRegionCollaboration:
             return []
 
         try:
-            # 🔥 总是尝试获取语义记忆，作为情节记忆的补充
-            result = await self.memory_coordinator.temporal_lobe.search_memories(query, k=5)
-            semantic_memories = result.get('memories', [])
+            # 🔥 2026-03-31: 用 KG 联合检索替代纯语义搜索
+            # search_memories 只搜 self.memories 列表（巩固前为空），
+            # 但 KG 图谱在存储时已经有数据（通过 ingest_kg_relations）
+            tl = self.memory_coordinator.temporal_lobe
+            if hasattr(tl, 'search_kg_memory_joint') and tl.kg.graph.number_of_nodes() > 0:
+                result = await tl.search_kg_memory_joint(query, k=5)
+                semantic_memories = result.get('memories', [])
+            else:
+                result = await tl.search_memories(query, k=5)
+                semantic_memories = result.get('memories', [])
 
             # 去重：不要返回已经在 current_memories 中的记忆
             current_ids = {m.get('id') for m in current_memories if m.get('id')}
