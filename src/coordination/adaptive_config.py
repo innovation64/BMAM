@@ -123,7 +123,7 @@ class AdaptiveWeights:
         self.persona_retrieval_k = 5 + int(15 * chars.identity_score)  # 5-20
 
         # 时间查询需要更多情景记忆
-        self.episodic_retrieval_k = 5 + int(15 * chars.temporal_score)  # 5-20
+        self.episodic_retrieval_k = 10 + int(10 * chars.temporal_score)  # 10-20
 
         # 5. 事实性查询偏向语义记忆
         self.semantic_weight = 0.6 + 0.4 * chars.factual_score
