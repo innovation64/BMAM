@@ -516,13 +516,18 @@ class MemoryStorageHandler:
                 f"[Context: This conversation is on {date_str}] {content}"
             )
 
+            # [Event] 摘要不含相对时间词，直接继承对话 timestamp
+            effective_inherited = inherited_event_time
+            if content.startswith('[Event]') and not effective_inherited:
+                effective_inherited = timestamp
+
             result = (
                 await coord.hippocampus.store_memory_with_event_segmentation(
                     content=content_with_context,
                     timestamp=timestamp,
                     speaker=speaker,
                     importance=importance,
-                    inherited_event_time=inherited_event_time,
+                    inherited_event_time=effective_inherited,
                     user_id=user_id
                 )
             )
