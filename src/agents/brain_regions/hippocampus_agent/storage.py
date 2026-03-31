@@ -689,7 +689,9 @@ class StorageMixin:
         if is_new_event or self.current_event_id is None:
             self.current_event_id = f"event_{timestamp.strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
 
-        # 🔥 2026-03-30: 剥离 [Context:] 标记，保留干净内容
+        # 🔥 2026-03-31: 先从原始 content 提取事件时间（需要 [Context:] 标记）
+        _raw_content_for_date = content
+        # 然后剥离，保留干净内容用于存储和 embedding
         content = _re.sub(r'\[Context:[^\]]*\]\s*', '', content).strip()
 
         # 🔥 FIX: 自动提取实体和关系 (复用 store_memory 的逻辑)
@@ -744,9 +746,9 @@ class StorageMixin:
             # 但 event_time 应该从内容中提取 (处理 "yesterday", "last week" 等)
             reference_time = timestamp or storage_time
 
-            # 先尝试从内容中提取事件时间
+            # 先尝试从原始内容（含 [Context:]）中提取事件时间
             event_time, extraction_method = extract_event_time_from_content(
-                content=content,
+                content=_raw_content_for_date,
                 metadata=final_metadata,
                 fallback_time=reference_time  # 用会话时间作为参考和fallback
             )
