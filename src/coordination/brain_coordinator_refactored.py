@@ -2018,12 +2018,18 @@ class BrainInspiredCoordinator:
                 answer_type = "person/identity (e.g., 'Transgender woman', 'a teacher')"
             elif question_lower.startswith('where') or 'location' in question_lower:
                 answer_type = "location (e.g., 'New York', 'the park')"
+            elif 'how long' in question_lower or 'how many' in question_lower:
+                answer_type = "a number or duration (e.g., '4 years', '3', '10 years ago')"
             elif 'field' in question_lower or 'pursue' in question_lower or 'education' in question_lower:
                 answer_type = "academic field(s) (e.g., 'Psychology, counseling')"
             elif 'status' in question_lower:
                 answer_type = "status word (e.g., 'Single', 'Married', 'Employed')"
+            elif question_lower.startswith('what') and any(w in question_lower for w in ['like', 'enjoy', 'hobby', 'interest', 'favorite']):
+                answer_type = "a short list of items (e.g., 'dinosaurs, nature')"
+            elif question_lower.startswith('what') and any(w in question_lower for w in ['did', 'does', 'has', 'have', 'research', 'read', 'buy', 'bought']):
+                answer_type = "specific item(s) or action(s) (e.g., 'Adoption agencies', 'pottery class')"
             else:
-                answer_type = "the direct, concise answer"
+                answer_type = "the direct, concise answer (max 10 words, no explanation)"
 
             prompt = f"""Extract ONLY {answer_type} from this verbose answer.
 
@@ -2793,11 +2799,12 @@ Output ONLY the extracted answer:"""
             # 🔥 2025-12-20 FIX: 答案精炼（仅对特定问题类型，避免破坏multi_hop）
             # 只对temporal/status/identity问题精炼，multi_hop需要完整推理
             query_lower = user_input.lower()
+            # 精炼所有事实类和时间类问题的回答，确保简洁精确
+            factual_starters = ['what', 'who', 'where', 'when', 'which', 'how many', 'how long']
             should_refine = (
-                query_lower.startswith('when') or
+                any(query_lower.startswith(s) for s in factual_starters) or
                 'status' in query_lower or
-                'identity' in query_lower or
-                'what date' in query_lower
+                'identity' in query_lower
             )
             if should_refine:
                 response = await self._refine_answer_for_qa(user_input, response)
