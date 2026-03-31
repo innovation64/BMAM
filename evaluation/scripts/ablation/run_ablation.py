@@ -265,12 +265,9 @@ async def run_locomo_ablation(
                                 f"[Event] {spk}: {it[0]}", ts, spk, 0.8
                             )
 
-            # 🔥 2026-03-31: 显式触发巩固（而非等后台循环）
-            # 将海马体记忆巩固到颞叶（语义+KG），确保答题时颞叶有知识
-            try:
-                await coord.trigger_consolidation(strategy='batch', batch_size=100)
-            except Exception as e:
-                logging.getLogger(__name__).debug(f"Pre-QA consolidation: {e}")
+            # 巩固在后台渐进运行，不在评测时强行触发
+            # （强行全量巩固引入 LLM 摘要噪声，拉低 multi-hop -8%）
+            await asyncio.sleep(1)
 
             # 测试 QA
             sample_correct = 0
