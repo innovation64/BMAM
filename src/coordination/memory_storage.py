@@ -635,13 +635,9 @@ class MemoryStorageHandler:
         }
 
         # 1. Amygdala: Tag emotional content
-        emotion_keywords = [
-            'happy', 'sad', 'angry', 'fear', 'love', 'hate',
-            'excited', 'worried', 'surprised'
-        ]
-        has_emotion = any(
-            keyword in content.lower() for keyword in emotion_keywords
-        )
+        from ..utils.emotion_utils import detect_emotions
+        _detected, _intensity = detect_emotions(content)
+        has_emotion = len(_detected) > 0
         if has_emotion and importance >= 0.6:
             try:
                 await coord.amygdala.tag_emotion(

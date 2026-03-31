@@ -372,9 +372,9 @@ class BrainRegionCollaboration:
             'neutral': 1.0    # 中性
         }
 
-        # 🔥 2025-12-16: 情绪关键词映射 (用于动态检测)
-        # 优先从配置加载，fallback 到默认值
-        self.emotion_keywords = self._load_emotion_keywords()
+        # 🔥 2026-03-31: 情绪关键词从共享 emotion_utils 加载
+        from ..utils.emotion_utils import get_emotion_keywords
+        self.emotion_keywords = get_emotion_keywords()
 
         # 协作统计
         self.stats = {

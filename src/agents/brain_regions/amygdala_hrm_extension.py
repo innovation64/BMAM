@@ -270,16 +270,8 @@ class AmygdalaHRMExtension:
         # Simple keyword-based emotion detection
         content_lower = content.lower()
 
-        emotion_keywords = {
-            'joy': ['happy', 'excited', 'delighted', 'joyful', 'pleased'],
-            'sadness': ['sad', 'unhappy', 'depressed', 'gloomy', 'melancholy'],
-            'anger': ['angry', 'furious', 'annoyed', 'irritated', 'mad'],
-            'fear': ['afraid', 'scared', 'fearful', 'anxious', 'worried'],
-            'surprise': ['surprised', 'amazed', 'astonished', 'shocked'],
-            'disgust': ['disgusted', 'revolted', 'repulsed'],
-            'acceptance': ['calm', 'peaceful', 'content', 'satisfied'],
-            'anticipation': ['anticipate', 'expect', 'hopeful', 'eager']
-        }
+        from ...utils.emotion_utils import get_emotion_keywords
+        emotion_keywords = get_emotion_keywords()
 
         detected_emotions = []
         max_intensity = 0.0

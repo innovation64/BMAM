@@ -465,11 +465,8 @@ class BackgroundMemoryProcessManager:
                 try:
                     existing_tags = mem.get('emotion_tags') or mem.get('metadata', {}).get('emotion_tags', [])
                     if not existing_tags:
-                        # 用杏仁核的情绪检测（从 SoulConfig 或默认 Ekman 关键词）
-                        from ..coordination.brain_retrieval_integration import BrainRegionCollaboration
-                        detector = BrainRegionCollaboration.__new__(BrainRegionCollaboration)
-                        detector.emotion_keywords = detector._load_emotion_keywords()
-                        detected = detector._detect_emotions_from_content(content)
+                        from ..utils.emotion_utils import detect_emotions
+                        detected, intensity = detect_emotions(content)
 
                         if detected and detected != ['neutral']:
                             intensity = min(1.0, 0.3 + 0.1 * len(detected))

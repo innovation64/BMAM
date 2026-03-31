@@ -2879,19 +2879,9 @@ Output ONLY the extracted answer:"""
             # Amygdala: Store emotional tags in emotional_buffer (使用正确API触发auto-persistence)
             if hasattr(self, 'amygdala') and memory_stored:
                 try:
-                    # 🔥 2026-03-30: 统一情绪检测 — 复用 BrainRegionCollaboration 的 SoulConfig 关键词
-                    from .brain_retrieval_integration import BrainRegionCollaboration
-                    _emotion_kw = BrainRegionCollaboration._load_emotion_keywords(None)
-
-                    detected_emotions = []
-                    emotion_intensity = 0.0
-                    input_lower = user_input.lower()
-
-                    for emotion, keywords in _emotion_kw.items():
-                        matches = [kw for kw in keywords if kw in input_lower]
-                        if matches:
-                            detected_emotions.append(emotion)
-                            emotion_intensity = max(emotion_intensity, 0.3 + 0.05 * len(matches))
+                    # 🔥 2026-03-31: 统一情绪检测 — 使用共享 emotion_utils
+                    from ..utils.emotion_utils import detect_emotions
+                    detected_emotions, emotion_intensity = detect_emotions(user_input)
 
                     # 降低触发阈值从0.5到0.3,捕捉更多情绪
                     if detected_emotions and emotion_intensity > 0.3:

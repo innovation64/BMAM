@@ -162,17 +162,8 @@ class EmotionModulator:
 
     def _fuzzy_match_emotion(self, emotion: str) -> Optional[tuple]:
         """模糊匹配情绪到最接近的已知类别"""
-        # 简单的关键词匹配
-        emotion_keywords = {
-            'happy': ['happy', 'joy', 'glad', 'pleased', 'delighted'],
-            'sad': ['sad', 'unhappy', 'sorrowful', 'melancholy', 'down'],
-            'angry': ['angry', 'mad', 'furious', 'irritated', 'annoyed'],
-            'anxious': ['anxious', 'worried', 'nervous', 'uneasy'],
-            'excited': ['excited', 'thrilled', 'enthusiastic', 'eager'],
-            'calm': ['calm', 'serene', 'tranquil', 'composed'],
-            'fearful': ['fear', 'afraid', 'scared', 'terrified'],
-            'surprised': ['surprised', 'shocked', 'amazed', 'astonished'],
-        }
+        from ..utils.emotion_utils import get_emotion_keywords
+        emotion_keywords = get_emotion_keywords()
 
         for base_emotion, keywords in emotion_keywords.items():
             if any(kw in emotion for kw in keywords):

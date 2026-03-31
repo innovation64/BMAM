@@ -62,14 +62,9 @@ class StorageRouter:
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         self.config = config or {}
 
-        # 情感关键词 (中英文)
-        self.emotion_keywords = {
-            'positive': ['happy', 'love', 'excited', 'glad', 'joy', 'wonderful',
-                        '开心', '高兴', '爱', '喜欢', '兴奋', '快乐', '幸福'],
-            'negative': ['sad', 'angry', 'upset', 'hate', 'fear', 'worry', 'anxious',
-                        '难过', '伤心', '生气', '愤怒', '害怕', '担心', '焦虑', '讨厌'],
-            'neutral': ['feel', 'emotion', 'mood', '感觉', '情绪', '心情']
-        }
+        # 情感关键词 — 从配置加载
+        from ..utils.emotion_utils import get_emotion_keywords
+        self.emotion_keywords = get_emotion_keywords()
 
         # 事实/知识关键词
         self.fact_keywords = [

@@ -374,9 +374,9 @@ class PrefrontalAgent(
             reasoning_parts.append("时间相关查询 → 海马体 (episodic memory)")
 
         # 2. 情感相关查询 → 杏仁核优先
-        emotion_keywords = ['feel', 'emotion', 'happy', 'sad', 'angry', 'love', 'hate',
-                           '感觉', '情绪', '高兴', '难过', '生气', '喜欢', '讨厌']
-        if any(kw in query_lower for kw in emotion_keywords) or emotion_state != 'neutral':
+        from ...utils.emotion_utils import get_emotion_keywords
+        _emo_kws = [kw for kws in get_emotion_keywords().values() for kw in kws]
+        if any(kw in query_lower for kw in _emo_kws) or emotion_state != 'neutral':
             recommended_regions.append('amygdala')
             priority_weights['amygdala'] = 0.8
             reasoning_parts.append("情感相关查询 → 杏仁核 (emotional memory)")
