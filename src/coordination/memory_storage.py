@@ -643,16 +643,13 @@ class MemoryStorageHandler:
         from ..utils.emotion_utils import detect_emotions
         _detected, _intensity = detect_emotions(content)
         has_emotion = len(_detected) > 0
-        if has_emotion and importance >= 0.6:
+        if has_emotion and importance >= 0.4:
             try:
                 await coord.amygdala.tag_emotion(
                     reference_id=memory_id,
                     content_summary=content[:100],
-                    emotion_tags=[
-                        kw for kw in emotion_keywords
-                        if kw in content.lower()
-                    ],
-                    emotion_intensity=importance,
+                    emotion_tags=_detected,
+                    emotion_intensity=_intensity,
                     metadata={'timestamp': timestamp.isoformat()}
                 )
                 dispatched_regions['amygdala'].append(memory_id)
