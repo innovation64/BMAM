@@ -611,6 +611,21 @@ class MemoryStorageHandler:
                 )
                 result['async_summary_triggered'] = True
 
+            # 事件驱动巩固——存够 N 条就触发，不等后台 30 分钟循环
+            if hasattr(coord, 'adaptive_shaping') and coord.adaptive_shaping:
+                try:
+                    memory_data = {
+                        'memory_id': result.get('memory_id', ''),
+                        'importance': importance,
+                        'emotion_tags': [],
+                        'entities': [],
+                    }
+                    await coord.adaptive_shaping.on_new_memory_stored(
+                        result.get('memory_id', ''), memory_data
+                    )
+                except Exception as e:
+                    _logger.debug(f"Adaptive shaping callback: {e}")
+
             return result
 
     async def _dispatch_to_other_brain_regions(
@@ -710,6 +725,33 @@ class MemoryStorageHandler:
                 )
             except Exception as e:
                 logger.warning(f"   BasalGanglia storage failed: {e}")
+
+        # 4. Temporal Lobe: 同步存储语义记忆（不等巩固）
+        # 只存高重要度记忆，避免噪声
+        if importance >= 0.6 and hasattr(coord, 'temporal_lobe'):
+            try:
+                from ..coordination.clean_agent_system import AgentMessage
+                await coord.temporal_lobe.process_message(AgentMessage(
+                    sender='storage_dispatch',
+                    receiver='temporal_lobe',
+                    message_type='request',
+                    content={
+                        'action': 'store_semantic',
+                        'content': content[:300],
+                        'memory_subtype': 'semantic',
+                        'entities': _detected if has_emotion else [],
+                        'relations': [],
+                        'importance': importance,
+                        'metadata': {
+                            'source_memory_id': memory_id,
+                            'dispatch_source': 'realtime',
+                            'timestamp': timestamp.isoformat()
+                        }
+                    }
+                ))
+                dispatched_regions['temporal_lobe'] = [memory_id]
+            except Exception as e:
+                logger.debug(f"   Temporal lobe dispatch: {e}")
 
         return dispatched_regions
 

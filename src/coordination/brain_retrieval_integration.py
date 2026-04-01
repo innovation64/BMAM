@@ -489,8 +489,17 @@ class BrainRegionCollaboration:
             )
             loop_info['inferred_mood'] = current_mood
 
-            # ===== Step 3: 颞叶语义补充 =====
-            semantic_supplement = await self._temporal_lobe_supplement(current_query, adjusted_memories)
+            # ===== Step 3: 颞叶语义补充（查询类型门控） =====
+            # 只对事实/身份/活动类查询补充语义记忆，避免 adversarial 被噪声干扰
+            query_lower_for_gate = current_query.lower()
+            needs_semantic = any(kw in query_lower_for_gate for kw in [
+                'what', 'who', 'identity', 'activity', 'hobby', 'like', 'prefer',
+                'book', 'read', 'research', 'career', 'job', 'field',
+            ])
+            if needs_semantic:
+                semantic_supplement = await self._temporal_lobe_supplement(current_query, adjusted_memories)
+            else:
+                semantic_supplement = []
             loop_info['temporal_supplement'] = len(semantic_supplement)
 
             # 合并结果（去重）
