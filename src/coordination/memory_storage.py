@@ -643,7 +643,7 @@ class MemoryStorageHandler:
         from ..utils.emotion_utils import detect_emotions
         _detected, _intensity = detect_emotions(content)
         has_emotion = len(_detected) > 0
-        if has_emotion and importance >= 0.4:
+        if has_emotion and _intensity >= 0.5 and importance >= 0.6:
             try:
                 await coord.amygdala.tag_emotion(
                     reference_id=memory_id,
@@ -692,7 +692,7 @@ class MemoryStorageHandler:
         has_action = any(
             keyword in content.lower() for keyword in action_keywords
         )
-        if has_action:
+        if has_action and importance >= 0.7:
             try:
                 skill_name = f"skill_{memory_id[:8]}"
                 await coord.basal_ganglia.store_skill(
