@@ -309,10 +309,20 @@ class StorageMixin:
                 for e in kg_entity_payload
             ]
 
-        # 🔥 计算embedding (混合检索)
+        # 🔥 计算embedding (混合检索) — 关键词注入提升向量质量
         if self.embedding_service:
             try:
-                embedding = await self.embedding_service.encode_text(content)
+                # 借鉴 MAGMA: 把实体和关键词拼在内容后面再做 embedding
+                # 这让向量对关键实体更敏感，不依赖模型能力
+                enriched = content
+                kw_parts = []
+                if final_entities:
+                    kw_parts.extend(e.lower() for e in final_entities[:8])
+                if final_metadata.get('event_time'):
+                    kw_parts.append(str(final_metadata['event_time'])[:10])
+                if kw_parts:
+                    enriched = f"{content} [KEYWORDS: {' '.join(kw_parts)}]"
+                embedding = await self.embedding_service.encode_text(enriched)
                 memory.embedding = embedding.tolist() if hasattr(embedding, 'tolist') else embedding
             except (RuntimeError, ValueError) as e:
                 logger.warning(f"Failed to compute embedding: {e}")
@@ -815,10 +825,18 @@ class StorageMixin:
                 for e in kg_entity_payload
             ]
 
-        # 🔥 计算embedding
+        # 🔥 计算embedding — 关键词注入
         if self.embedding_service:
             try:
-                embedding = await self.embedding_service.encode_text(content)
+                enriched = content
+                kw_parts = []
+                if final_entities:
+                    kw_parts.extend(e.lower() for e in final_entities[:8])
+                if final_metadata.get('event_time'):
+                    kw_parts.append(str(final_metadata['event_time'])[:10])
+                if kw_parts:
+                    enriched = f"{content} [KEYWORDS: {' '.join(kw_parts)}]"
+                embedding = await self.embedding_service.encode_text(enriched)
                 memory.embedding = embedding.tolist() if hasattr(embedding, 'tolist') else embedding
             except (RuntimeError, ValueError) as e:
                 logger.warning(f"Failed to compute embedding: {e}")

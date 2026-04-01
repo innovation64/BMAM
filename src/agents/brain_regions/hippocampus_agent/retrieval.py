@@ -502,7 +502,11 @@ class RetrievalMixin:
             query_embedding = None
             if self.embedding_service:
                 try:
-                    query_embedding = await self.embedding_service.encode_text(query)
+                    # 关键词注入查询 embedding（与存储时一致）
+                    enriched_query = query
+                    if query_entities:
+                        enriched_query = f"{query} [KEYWORDS: {' '.join(e.lower() for e in query_entities[:8])}]"
+                    query_embedding = await self.embedding_service.encode_text(enriched_query)
                     query_embedding = query_embedding.tolist() if hasattr(query_embedding, 'tolist') else query_embedding
                 except (RuntimeError, ValueError) as e:
                     logger.warning(f"Failed to compute query embedding: {e}")
