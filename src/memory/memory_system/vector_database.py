@@ -74,6 +74,7 @@ class FAISSVectorDatabase:
         self.index = faiss.IndexFlatIP(self.dimension)
         self.id_mapping: Dict[int, str] = {}
         self.reverse_mapping: Dict[str, int] = {}
+        self.user_id_mapping: Dict[str, str] = {}  # memory_id -> user_id
         self.lock = threading.Lock()
 
         logger.info(
@@ -82,7 +83,9 @@ class FAISSVectorDatabase:
         )
         self.load_index()
 
-    def add_vector(self, memory_id: str, vector: np.ndarray) -> int:
+    def add_vector(
+        self, memory_id: str, vector: np.ndarray, user_id: str = 'default'
+    ) -> int:
         """
         Add Vector to FAISS Index with Memory ID Mapping
         添加向量到FAISS索引（带记忆ID映射）
@@ -90,12 +93,15 @@ class FAISSVectorDatabase:
         Args:
             memory_id: Unique memory identifier
             vector: Embedding vector (will be normalized)
+            user_id: Owner user ID for isolation filtering
 
         Returns:
             FAISS index ID for the added vector
         """
         with self.lock:
             if memory_id in self.reverse_mapping:
+                # Update user_id even for existing vectors
+                self.user_id_mapping[memory_id] = user_id
                 return self.reverse_mapping[memory_id]
 
             # Normalize vector for cosine similarity
@@ -109,6 +115,7 @@ class FAISSVectorDatabase:
             # Update mappings
             self.id_mapping[faiss_id] = memory_id
             self.reverse_mapping[memory_id] = faiss_id
+            self.user_id_mapping[memory_id] = user_id
 
             logger.debug(
                 f"Added vector for memory {memory_id} "
@@ -120,7 +127,8 @@ class FAISSVectorDatabase:
         self,
         query_vector: np.ndarray,
         k: int = 10,
-        threshold: float = 0.3
+        threshold: float = 0.3,
+        user_id: str = None
     ) -> List[Tuple[str, float]]:
         """
         Search for Similar Vectors using FAISS
@@ -130,6 +138,7 @@ class FAISSVectorDatabase:
             query_vector: Query embedding vector
             k: Number of results to return
             threshold: Minimum similarity threshold
+            user_id: Filter results to this user (and 'default')
 
         Returns:
             List of (memory_id, similarity_score) tuples
@@ -142,17 +151,27 @@ class FAISSVectorDatabase:
             query_vector = query_vector / np.linalg.norm(query_vector)
             query_vector = query_vector.reshape(1, -1).astype(np.float32)
 
+            # Over-fetch when filtering by user_id to compensate for filtering
+            fetch_k = min(k * 3, self.index.ntotal) if user_id else min(k, self.index.ntotal)
+
             # Search with FAISS
             similarities, indices = self.index.search(
                 query_vector,
-                min(k, self.index.ntotal)
+                fetch_k
             )
 
             results = []
             for sim, idx in zip(similarities[0], indices[0]):
                 if sim >= threshold and idx in self.id_mapping:
                     memory_id = self.id_mapping[idx]
+                    # Filter by user_id if specified
+                    if user_id:
+                        mem_uid = self.user_id_mapping.get(memory_id, 'default')
+                        if mem_uid != user_id and mem_uid != 'default':
+                            continue
                     results.append((memory_id, float(sim)))
+                    if len(results) >= k:
+                        break
 
             logger.debug(
                 f"Vector search found {len(results)} results "
@@ -184,6 +203,7 @@ class FAISSVectorDatabase:
             self.index = faiss.IndexFlatIP(self.dimension)
             self.id_mapping.clear()
             self.reverse_mapping.clear()
+            self.user_id_mapping.clear()
             logger.info("FAISS index reset; mappings cleared")
 
     def save_index(self) -> None:
@@ -200,7 +220,8 @@ class FAISSVectorDatabase:
                 with open(mapping_path, 'w') as f:
                     json.dump({
                         'id_mapping': self.id_mapping,
-                        'reverse_mapping': self.reverse_mapping
+                        'reverse_mapping': self.reverse_mapping,
+                        'user_id_mapping': self.user_id_mapping
                     }, f, indent=2)
 
                 logger.info(
@@ -240,6 +261,7 @@ class FAISSVectorDatabase:
                         int(k): v for k, v in mappings['id_mapping'].items()
                     }
                     self.reverse_mapping = mappings['reverse_mapping']
+                    self.user_id_mapping = mappings.get('user_id_mapping', {})
 
             logger.info(
                 f"Loaded FAISS index with {self.index.ntotal} vectors "

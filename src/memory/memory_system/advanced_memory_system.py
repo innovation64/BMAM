@@ -122,11 +122,19 @@ class AdvancedMemorySystem(
             ... )
         """
         try:
+            # Extract user_id for all search paths
+            user_id = filters.pop('user_id', None)
             if search_type == "semantic":
-                return await self.semantic_search(query, k, threshold)
+                return await self.semantic_search(
+                    query, k, threshold, user_id=user_id
+                )
             elif search_type == "hybrid":
+                if user_id:
+                    filters['user_id'] = user_id
                 return await self.hybrid_search(query, k, threshold, **filters)
             else:
+                if user_id:
+                    filters['user_id'] = user_id
                 return self.keyword_search(query, **filters)
 
         except Exception as e:

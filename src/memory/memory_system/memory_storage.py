@@ -113,7 +113,10 @@ class MemoryStorageMixin:
 
             # 2. DB成功后再添加到向量数据库 (FAISS)
             try:
-                faiss_id = self.vector_db.add_vector(memory.id, memory.embedding)
+                user_id = metadata.get('user_id', 'default')
+                faiss_id = self.vector_db.add_vector(
+                    memory.id, memory.embedding, user_id=user_id
+                )
                 memory.embedding_id = str(faiss_id)
 
                 # 3. 持久化向量索引 (skip during batch sync for performance)

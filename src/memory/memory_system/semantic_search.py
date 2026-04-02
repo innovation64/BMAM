@@ -33,7 +33,8 @@ class SemanticSearchMixin:
         self,
         query: str,
         k: int = 10,
-        threshold: float = 0.1
+        threshold: float = 0.1,
+        user_id: str = None
     ) -> List[Dict[str, Any]]:
         """
         Perform Semantic Search using Vector Similarity
@@ -46,6 +47,7 @@ class SemanticSearchMixin:
             query: Search query text
             k: Number of results to return
             threshold: Minimum similarity threshold (0.0-1.0)
+            user_id: Filter results to this user (and 'default')
 
         Returns:
             List of dictionaries with memory data and similarity scores
@@ -62,11 +64,12 @@ class SemanticSearchMixin:
             # Dynamic threshold adjustment (avoid too strict)
             effective_threshold = max(0.25, min(threshold, 0.75))
 
-            # Search similar vectors
+            # Search similar vectors with user_id isolation
             similar_memories = self.vector_db.search(
                 query_embedding,
                 k,
-                effective_threshold
+                effective_threshold,
+                user_id=user_id
             )
 
             # Multi-tier fallback for low recall
@@ -74,7 +77,8 @@ class SemanticSearchMixin:
                 query_embedding,
                 similar_memories,
                 k,
-                effective_threshold
+                effective_threshold,
+                user_id=user_id
             )
 
         except Exception as e:
@@ -101,7 +105,8 @@ class SemanticSearchMixin:
         query_embedding: np.ndarray,
         similar_memories: List[tuple],
         k: int,
-        effective_threshold: float
+        effective_threshold: float,
+        user_id: str = None
     ) -> List[tuple]:
         """
         Apply Multi-Tier Fallback for Low Recall
@@ -124,7 +129,8 @@ class SemanticSearchMixin:
         similar_memories = self.vector_db.search(
             query_embedding,
             k * 3,
-            threshold=0.15
+            threshold=0.15,
+            user_id=user_id
         )
 
         # Tier 3: Ultra-relaxed for edge cases
@@ -133,7 +139,8 @@ class SemanticSearchMixin:
             similar_memories = self.vector_db.search(
                 query_embedding,
                 k * 5,
-                threshold=0.05
+                threshold=0.05,
+                user_id=user_id
             )
 
         return similar_memories

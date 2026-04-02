@@ -102,12 +102,15 @@ class PrefrontalFeedbackSystem:
     )
 
     def __init__(self):
-        # 策略权重 (会根据反馈动态调整)
+        # 🔥 P2-2: 基于 benchmark 数据调优的策略权重
+        # 数据来源: ablation_1g_20260401 (single-hop=59.4%, multi-hop=62.2%,
+        #   temporal=92.3%, open-domain=74.3%, adversarial=91.5%)
+        # 分析: single-hop/multi-hop 最弱 → 需要更强的 BM25 + entity 权重
         default_weights = {
-            'bm25_weight': 0.35,      # BM25关键词权重
-            'vector_weight': 0.35,    # 向量检索权重
-            'entity_weight': 0.20,    # 实体检索权重
-            'temporal_weight': 0.10,  # 时间过滤权重
+            'bm25_weight': 0.40,      # ↑ 从 0.35 提升，改善事实检索
+            'vector_weight': 0.30,    # ↓ 从 0.35 降低，让出空间给 entity
+            'entity_weight': 0.15,    # ↓ 从 0.20 降低（默认值，per-query 会覆盖）
+            'temporal_weight': 0.15,  # ↑ 从 0.10 提升，时间查询更准确
         }
         self.strategy_weights = self._load_weights(default_weights)
 
@@ -118,12 +121,13 @@ class PrefrontalFeedbackSystem:
         self.feedback_history = []
         self.max_history = 100
 
-        # 查询类型→成功策略映射
+        # 🔥 P2-2: 基于 benchmark 类别数据调优的查询策略映射
         self.query_strategy_map = {
-            'temporal': {'bm25_weight': 0.4, 'temporal_weight': 0.3},
-            'entity': {'entity_weight': 0.4, 'vector_weight': 0.3},
-            'semantic': {'vector_weight': 0.5, 'bm25_weight': 0.25},
-            'factual': {'bm25_weight': 0.5, 'entity_weight': 0.3}
+            'temporal': {'bm25_weight': 0.30, 'temporal_weight': 0.35, 'vector_weight': 0.20, 'entity_weight': 0.15},
+            'entity': {'entity_weight': 0.35, 'bm25_weight': 0.30, 'vector_weight': 0.25, 'temporal_weight': 0.10},
+            'semantic': {'vector_weight': 0.45, 'bm25_weight': 0.30, 'entity_weight': 0.15, 'temporal_weight': 0.10},
+            'factual': {'bm25_weight': 0.45, 'entity_weight': 0.30, 'vector_weight': 0.15, 'temporal_weight': 0.10},
+            'multi_hop': {'entity_weight': 0.30, 'bm25_weight': 0.35, 'vector_weight': 0.20, 'temporal_weight': 0.15},
         }
 
     def _load_weights(self, defaults: dict) -> dict:

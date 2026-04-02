@@ -65,6 +65,11 @@ class DatabaseQueryMixin:
                     query = query.filter_by(
                         consolidation_level=filters['consolidation_level']
                     )
+                if 'user_id' in filters:
+                    uid = filters['user_id']
+                    query = query.filter(
+                        MemoryRecord.user_id.in_([uid, 'default'])
+                    )
 
                 records = query.limit(filters.get('limit', 100)).all()
 
@@ -138,6 +143,13 @@ class DatabaseQueryMixin:
                 if 'consolidation_level' in criteria:
                     query = query.filter_by(
                         consolidation_level=criteria['consolidation_level']
+                    )
+
+                # Filter by user_id (allow 'default' for backward compat)
+                if 'user_id' in criteria:
+                    uid = criteria['user_id']
+                    query = query.filter(
+                        MemoryRecord.user_id.in_([uid, 'default'])
                     )
 
                 # Order by timestamp (most recent first)

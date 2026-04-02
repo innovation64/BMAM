@@ -75,6 +75,9 @@ class MemoryRecord(Base):
     context_tags = Column(JSON)
     memory_metadata = Column(JSON)
 
+    # User isolation
+    user_id = Column(String, nullable=False, default='default', index=True)
+
     # Vector embedding reference
     embedding_id = Column(String)
 

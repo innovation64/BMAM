@@ -217,7 +217,8 @@ class PersonaMemoryAgent(BrainAgent):
                 query,
                 search_type='semantic',
                 k=k * 5,  # 🔥 增大候选池以便筛选
-                threshold=0.10  # 🔥 降低阈值以捕获更多相关记忆
+                threshold=0.10,  # 🔥 降低阈值以捕获更多相关记忆
+                user_id=user_id  # 🔥 P0: 传递 user_id 到底层做隔离过滤
             )
         except Exception as exc:
             logger.warning(f"Persona memory retrieval failed: {exc}")
@@ -372,12 +373,11 @@ class PersonaMemoryAgent(BrainAgent):
         if not self.db_manager:
             return {'memories': [], 'error': 'db_manager not available'}
 
-        # 获取更多记忆以便过滤
-        fetch_limit = limit * 3 if user_id else limit
-
+        # 🔥 P0: 传递 user_id 到 DB 层做隔离过滤，不再依赖 post-filtering
         memories = self.db_manager.load_memories_by_criteria(
             memory_type='persona',
-            limit=fetch_limit
+            limit=limit,
+            user_id=user_id  # DB-level filtering
         )
 
         # 🔥 2025-12-24: user_id 过滤 - 允许 'default' 用户的记忆 (恢复自52%)

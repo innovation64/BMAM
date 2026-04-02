@@ -185,12 +185,17 @@ class TemporalCandidateRetriever:
                         elif isinstance(event_time_str, datetime):
                             mem_date = event_time_str
 
-                # 如果没有 event_time，回退到 timestamp
+                # 如果没有 event_time，回退到 timestamp（可能是存储时间）
+                # 🔥 P0-2: 记录 fallback 以便排查时间错误
                 if mem_date is None and hasattr(mem, 'timestamp') and mem.timestamp:
                     mem_date = mem.timestamp
                     if isinstance(mem_date, str):
                         mem_date = datetime.fromisoformat(mem_date.replace('Z', '+00:00'))
                         mem_date = mem_date.replace(tzinfo=None)
+                    logger.debug(
+                        f"⚠️ No event_time in metadata for mem {getattr(mem, 'id', '?')}, "
+                        f"falling back to timestamp={mem_date}"
+                    )
 
                 if mem_date:
                     start, end = date_range

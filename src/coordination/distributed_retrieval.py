@@ -131,6 +131,7 @@ class HippocampusRetriever(BrainRegionRetriever):
 
         try:
             memories = []
+            user_id = (context or {}).get('user_id')
 
             # 方法1: 使用 memory_store.search_memories (KeyValueMemoryStore)
             if hasattr(self.hippocampus, 'memory_store') and self.hippocampus.memory_store:
@@ -155,6 +156,12 @@ class HippocampusRetriever(BrainRegionRetriever):
             results = []
             for mem in memories[:k]:
                 if isinstance(mem, dict):
+                    # 🔥 P0: user_id 隔离过滤
+                    if user_id:
+                        mem_meta = mem.get('metadata', {}) or {}
+                        mem_uid = mem_meta.get('user_id', 'default')
+                        if mem_uid != user_id and mem_uid != 'default':
+                            continue
                     results.append(DistributedMemory(
                         id=mem.get('id', ''),
                         content=mem.get('content', ''),

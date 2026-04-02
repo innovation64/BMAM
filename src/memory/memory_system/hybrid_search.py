@@ -64,10 +64,13 @@ class HybridSearchMixin:
             ... )
         """
         # Start with semantic search (request more for filtering)
+        # Pass user_id down to semantic/FAISS layer for isolation
+        user_id = filters.pop('user_id', None)
         semantic_results = await self.semantic_search(
             query,
             k * 2,
-            threshold
+            threshold,
+            user_id=user_id
         )
 
         # Apply metadata filters

@@ -395,6 +395,27 @@ class MemoryReasoningChain:
             logger.warning(f"Failed to retrieve from KG: {e}")
             return []
 
+    def _extract_event_time(self, metadata: dict, fallback_timestamp: Any) -> Any:
+        """
+        从 metadata 提取 event_time，优先于 storage timestamp。
+
+        存储路径会写入 metadata['event_time']（ISO 格式字符串），
+        这是从对话内容中提取的真实事件时间。fallback_timestamp 通常是
+        存储时间，只在 event_time 不存在时使用。
+        """
+        if not metadata:
+            return fallback_timestamp
+        event_time = metadata.get('event_time')
+        if event_time:
+            if isinstance(event_time, datetime):
+                return event_time
+            if isinstance(event_time, str):
+                try:
+                    return datetime.fromisoformat(event_time.replace('Z', '+00:00'))
+                except (ValueError, TypeError):
+                    pass
+        return fallback_timestamp
+
     def _normalize_timestamp(self, timestamp: Any) -> datetime:
         """
         规范化时间戳为 datetime 对象
@@ -433,7 +454,11 @@ class MemoryReasoningChain:
         # Handle different memory formats
         if hasattr(memory, 'id'):
             # EpisodicMemory or similar
-            raw_timestamp = memory.timestamp if hasattr(memory, 'timestamp') else None
+            # 🔥 P0-2: 优先使用 metadata['event_time'] 而非 storage timestamp
+            meta = memory.metadata if hasattr(memory, 'metadata') else {}
+            raw_timestamp = self._extract_event_time(
+                meta, memory.timestamp if hasattr(memory, 'timestamp') else None
+            )
             return MemoryFragment(
                 id=memory.id,
                 content=memory.content if hasattr(memory, 'content') else str(memory),
@@ -442,19 +467,24 @@ class MemoryReasoningChain:
                 entities=memory.entities if hasattr(memory, 'entities') else [],
                 importance=memory.importance if hasattr(memory, 'importance') else 0.5,
                 embedding=memory.embedding if hasattr(memory, 'embedding') else None,
-                metadata=memory.metadata if hasattr(memory, 'metadata') else {}
+                metadata=meta
             )
         elif isinstance(memory, dict):
             # Dict format
+            # 🔥 P0-2: 优先使用 metadata['event_time'] 而非 storage timestamp
+            meta = memory.get('metadata', {}) or {}
+            raw_timestamp = self._extract_event_time(
+                meta, memory.get('timestamp')
+            )
             return MemoryFragment(
                 id=memory.get('id', memory.get('memory_id', str(hash(str(memory))))),
                 content=memory.get('content', memory.get('text', str(memory))),
-                timestamp=self._normalize_timestamp(memory.get('timestamp')),
+                timestamp=self._normalize_timestamp(raw_timestamp),
                 source=source,
                 entities=memory.get('entities', []),
                 importance=memory.get('importance', 0.5),
                 embedding=memory.get('embedding'),
-                metadata=memory.get('metadata', {})
+                metadata=meta
             )
         else:
             # Fallback

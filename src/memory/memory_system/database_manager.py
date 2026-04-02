@@ -64,10 +64,35 @@ class DatabaseManager(DatabaseQueryMixin):
 
         self.engine = create_engine(self.db_url, echo=False)
         Base.metadata.create_all(self.engine)
+        self._migrate_add_user_id_column()
         self.SessionLocal = sessionmaker(bind=self.engine)
         self.lock = threading.Lock()
 
         logger.debug(f"Database initialized: {self.db_url}")
+
+    def _migrate_add_user_id_column(self) -> None:
+        """Add user_id column if missing (backward-compatible migration)."""
+        from sqlalchemy import inspect, text
+        inspector = inspect(self.engine)
+        columns = [c['name'] for c in inspector.get_columns('memories')]
+        if 'user_id' not in columns:
+            with self.engine.connect() as conn:
+                conn.execute(text(
+                    "ALTER TABLE memories ADD COLUMN user_id VARCHAR "
+                    "NOT NULL DEFAULT 'default'"
+                ))
+                conn.execute(text(
+                    "CREATE INDEX IF NOT EXISTS ix_memories_user_id "
+                    "ON memories(user_id)"
+                ))
+                # Backfill from memory_metadata JSON where possible
+                conn.execute(text(
+                    "UPDATE memories SET user_id = "
+                    "json_extract(memory_metadata, '$.user_id') "
+                    "WHERE json_extract(memory_metadata, '$.user_id') IS NOT NULL"
+                ))
+                conn.commit()
+            logger.info("Migration: added user_id column to memories table")
 
     def get_session(self) -> Session:
         """
@@ -94,6 +119,10 @@ class DatabaseManager(DatabaseQueryMixin):
             with self.lock:
                 session = self.get_session()
                 try:
+                    # Extract user_id from metadata for first-class column
+                    meta = memory.metadata or {}
+                    user_id = meta.get('user_id', 'default')
+
                     record = MemoryRecord(
                         id=memory.id,
                         content=memory.content,
@@ -113,7 +142,8 @@ class DatabaseManager(DatabaseQueryMixin):
                         source_reliability=memory.source_reliability,
                         context_tags=memory.context_tags,
                         memory_metadata=memory.metadata,
-                        embedding_id=memory.embedding_id
+                        embedding_id=memory.embedding_id,
+                        user_id=user_id
                     )
                     session.merge(record)
                     session.commit()

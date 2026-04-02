@@ -167,6 +167,13 @@ class FlexibleDateParser:
         weekdays = locale_config.get("weekdays", {})
         months_map = locale_config.get("months", {})
 
+        # 🔥 P1-1: 先尝试泛化的 "N units before/after [date]" 模式
+        compound_result = self._parse_compound_relative_pattern(
+            text, months_map, reference_date
+        )
+        if compound_result:
+            return compound_result
+
         # 🔥 先尝试 "the week before [date]" 模式
         week_before_result = self._parse_week_before_pattern(text, months_map, reference_date)
         if week_before_result:
@@ -219,6 +226,113 @@ class FlexibleDateParser:
 
         except (ValueError, Exception) as e:
             logger.warning(f"Failed to parse complex relative date: {e}")
+            return None
+
+    def _parse_compound_relative_pattern(
+        self,
+        text: str,
+        months_map: Dict[str, int],
+        reference_date: datetime
+    ) -> Optional[datetime]:
+        """
+        🔥 P1-1: 解析泛化的复合相对时间表达
+
+        支持模式:
+        - "2 weeks before 9 June 2023"
+        - "3 days after May 25"
+        - "a month before June 2023"
+        - "one week after 15 March"
+        - "half a year before 2024"
+        """
+        # 数量词映射
+        number_words = {
+            'a': 1, 'an': 1, 'one': 1, 'two': 2, 'three': 3,
+            'four': 4, 'five': 5, 'six': 6, 'seven': 7, 'eight': 8,
+            'nine': 9, 'ten': 10, 'half a': 0.5,
+        }
+
+        # 时间单位映射 (转换为天数)
+        unit_to_days = {
+            'day': 1, 'days': 1,
+            'week': 7, 'weeks': 7,
+            'month': 30, 'months': 30,
+            'year': 365, 'years': 365,
+        }
+
+        # 月份名正则
+        month_names = '|'.join(months_map.keys())
+        number_pattern = r'(\d+|' + '|'.join(
+            re.escape(w) for w in sorted(number_words.keys(), key=len, reverse=True)
+        ) + r')'
+        unit_pattern = r'(days?|weeks?|months?|years?)'
+
+        # 模式: "[number] [unit] before/after [day?] [month] [year?]"
+        pattern = (
+            number_pattern + r'\s+' + unit_pattern +
+            r'\s+(before|after)\s+'
+            r'(?:(\d{1,2})\s+)?(' + month_names + r')(?:\s+(\d{4}))?'
+        )
+
+        # 先尝试更具体的 "N unit before/after [month] [day]" 格式（避免可选day误匹配）
+        # \b 防止 day 从年份中截取（如 "June 2023" 中 "20" 被误匹配为日）
+        pattern2 = (
+            number_pattern + r'\s+' + unit_pattern +
+            r'\s+(before|after)\s+'
+            r'(' + month_names + r')\s+(\d{1,2})(?:st|nd|rd|th)?\b'
+            r'(?:\s*,?\s*(\d{4}))?'
+        )
+        match = re.search(pattern2, text, re.IGNORECASE)
+        if match:
+            num_str = match.group(1).lower()
+            unit_str = match.group(2).lower()
+            direction = match.group(3).lower()
+            month_str = match.group(4).lower()
+            day = int(match.group(5))
+            year = int(match.group(6)) if match.group(6) else reference_date.year
+        else:
+            # 回退到 "N unit before/after [day] [month] [year]" 格式
+            match = re.search(pattern, text, re.IGNORECASE)
+            if not match:
+                return None
+            num_str = match.group(1).lower()
+            unit_str = match.group(2).lower()
+            direction = match.group(3).lower()
+            day = int(match.group(4)) if match.group(4) else 1
+            month_str = match.group(5).lower()
+            year = int(match.group(6)) if match.group(6) else reference_date.year
+
+        # 解析数量
+        if num_str.isdigit():
+            count = int(num_str)
+        else:
+            count = number_words.get(num_str)
+            if count is None:
+                return None
+
+        # 解析单位
+        days_per_unit = unit_to_days.get(unit_str)
+        if days_per_unit is None:
+            return None
+
+        # 解析月份
+        month = months_map.get(month_str)
+        if month is None:
+            return None
+
+        try:
+            anchor_date = datetime(year, month, day)
+            offset = timedelta(days=int(count * days_per_unit))
+            if direction == 'before':
+                result = anchor_date - offset
+            else:
+                result = anchor_date + offset
+            logger.debug(
+                f"Compound relative: '{count} {unit_str} {direction} "
+                f"{day} {month_str} {year}' → {result.date()}"
+            )
+            return result.replace(hour=0, minute=0, second=0, microsecond=0)
+        except (ValueError, Exception) as e:
+            logger.warning(f"Failed to parse compound relative date: {e}")
             return None
 
     def _parse_week_before_pattern(

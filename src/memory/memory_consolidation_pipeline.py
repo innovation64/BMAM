@@ -198,6 +198,35 @@ class MemoryConsolidationPipeline:
                         f"importance={semantic_memory.importance:.2f}, "
                         f"metadata={semantic_memory.metadata}")
 
+            # 🔥 P1-2: 整合前语义去重 — 检查是否已存在高度相似的语义记忆
+            if self.memory_system and hasattr(self.memory_system, 'search_memories'):
+                try:
+                    existing = await self.memory_system.search_memories(
+                        semantic_content['content'],
+                        search_type='semantic',
+                        k=3,
+                        threshold=0.1,
+                        memory_type='semantic'
+                    )
+                    for ex in existing:
+                        sim = ex.get('similarity_score', 0)
+                        if sim >= 0.9:
+                            logger.info(
+                                f"⏭️ Skipping consolidation of {episodic_memory_id[:16]}: "
+                                f"duplicate found (sim={sim:.3f}, "
+                                f"id={ex.get('id', '?')[:16]})"
+                            )
+                            return ConsolidationResult(
+                                success=True,
+                                source_memory_id=episodic_memory_id,
+                                target_memory_id=ex.get('id'),
+                                consolidation_type='episodic_to_semantic',
+                                timestamp=datetime.now(),
+                                metadata={'skipped': 'duplicate', 'similarity': sim}
+                            )
+                except Exception as dedup_err:
+                    logger.debug(f"Dedup check failed (non-fatal): {dedup_err}")
+
             # Step 4: Store semantic memory
             logger.info(f"🔄 Calling temporal_lobe_storage.region_store for memory {episodic_memory_id[:8]}...")
             try:
@@ -420,33 +449,49 @@ class MemoryConsolidationPipeline:
             f"({consolidation_type})"
         )
 
+        # 🔥 P2-1: 并行处理，使用 semaphore 控制并发度
+        import asyncio
+        semaphore = asyncio.Semaphore(5)  # 最多 5 个并行
+
+        async def _consolidate_one(memory_id: str) -> ConsolidationResult:
+            async with semaphore:
+                if consolidation_type == 'episodic_to_semantic':
+                    return await self.consolidate_episodic_to_semantic(
+                        episodic_memory_id=memory_id,
+                        hippocampus_storage=source_storage,
+                        temporal_lobe_storage=target_storage,
+                        priority=kwargs.get('priority', 0.7)
+                    )
+                elif consolidation_type == 'emotional_enhancement':
+                    return await self.enhance_with_emotion(
+                        memory_id=memory_id,
+                        amygdala_storage=kwargs.get('amygdala_storage'),
+                        target_storage=target_storage,
+                        emotion_tags=kwargs.get('emotion_tags', []),
+                        emotion_intensity=kwargs.get('emotion_intensity', 0.5)
+                    )
+                else:
+                    logger.warning(f"Unknown consolidation type: {consolidation_type}")
+                    return self._create_failure_result(
+                        memory_id,
+                        consolidation_type,
+                        'Unknown consolidation type'
+                    )
+
+        raw_results = await asyncio.gather(
+            *[_consolidate_one(mid) for mid in memory_ids],
+            return_exceptions=True
+        )
+
         results = []
-
-        for memory_id in memory_ids:
-            if consolidation_type == 'episodic_to_semantic':
-                result = await self.consolidate_episodic_to_semantic(
-                    episodic_memory_id=memory_id,
-                    hippocampus_storage=source_storage,
-                    temporal_lobe_storage=target_storage,
-                    priority=kwargs.get('priority', 0.7)
-                )
-            elif consolidation_type == 'emotional_enhancement':
-                result = await self.enhance_with_emotion(
-                    memory_id=memory_id,
-                    amygdala_storage=kwargs.get('amygdala_storage'),
-                    target_storage=target_storage,
-                    emotion_tags=kwargs.get('emotion_tags', []),
-                    emotion_intensity=kwargs.get('emotion_intensity', 0.5)
-                )
+        for mid, r in zip(memory_ids, raw_results):
+            if isinstance(r, Exception):
+                logger.error(f"Consolidation failed for {mid}: {r}")
+                results.append(self._create_failure_result(
+                    mid, consolidation_type, str(r)
+                ))
             else:
-                logger.warning(f"Unknown consolidation type: {consolidation_type}")
-                result = self._create_failure_result(
-                    memory_id,
-                    consolidation_type,
-                    'Unknown consolidation type'
-                )
-
-            results.append(result)
+                results.append(r)
 
         successful = sum(1 for r in results if r.success)
         logger.info(
