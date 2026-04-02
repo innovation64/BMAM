@@ -154,20 +154,8 @@ class TemporalReasoningMixin:
         if not candidates:
             return None
 
-        # 🔥 2026-04-02: 尊重上游检索排序 + 提取置信度 + 内容匹配
-        # 上游脑区协作循环已经用 BM25+向量+实体+KG 四路融合排好了序，
-        # 不应该用简单关键词重排覆盖。保留原始顺序作为主信号。
-        # 排序：(提取置信度, 原始顺序权重 + 内容相关性)
-        for idx, c in enumerate(candidates):
-            # 原始顺序权重：越靠前越高（上游排序的结果）
-            c['_upstream_rank_score'] = max(0, 10 - idx * 0.5)
-        candidates.sort(
-            key=lambda x: (
-                x['extraction_confidence'],
-                x['_upstream_rank_score'] + x['relevance_score']
-            ),
-            reverse=True
-        )
+        # 🔥 2025-12-16: 排序优先级: extraction_confidence > relevance_score
+        candidates.sort(key=lambda x: (x['extraction_confidence'], x['relevance_score']), reverse=True)
         best = candidates[0]
 
         logger.debug(f"📅 Best candidate: method={best['extraction_method']}, "
