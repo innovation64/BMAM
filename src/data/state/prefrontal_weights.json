@@ -1,6 +1,6 @@
 {
-  "bm25_weight": 0.25057263514242056,
-  "vector_weight": 0.24974245617822932,
-  "entity_weight": 0.24994245253852748,
-  "temporal_weight": 0.2497424561408226
+  "bm25_weight": 0.2863821969095017,
+  "vector_weight": 0.2293239320755359,
+  "entity_weight": 0.23782617626353844,
+  "temporal_weight": 0.24646769475142408
 }

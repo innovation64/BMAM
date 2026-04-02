@@ -706,31 +706,10 @@ class RetrievalMixin:
         # 限制返回数量
         results = results[:k]
 
-        # 🔥 2026-04-02: 动态上下文展开 — 高相关性 clue 才展开
-        # 不是每次都展开：只有 top-3 且 relevance 高的记忆才激活完整上下文
-        # 这模拟了注意力聚焦：只有被"注意到"的记忆才触发情景回放
-        expanded_results = []
-        seen_ids = {r['memory'].id for r in results}
-        for idx, r in enumerate(results):
-            expanded_results.append(r)
-            mem = r['memory']
-            # 只展开 top-3 高相关性记忆的上下文
-            should_expand = idx < 3 and r.get('relevance', 0) > 0.5
-            if should_expand and mem.event_id and mem.event_id in self.event_index:
-                sibling_ids = self.event_index[mem.event_id]
-                for sid in sibling_ids:
-                    if sid not in seen_ids and sid in self.memory_dict:
-                        sibling = self.memory_dict[sid]
-                        expanded_results.append({
-                            'memory': sibling,
-                            'relevance': r['relevance'] * 0.6,
-                            'keyword_score': 0,
-                            'semantic_score': 0,
-                            '_context_of': mem.id,
-                        })
-                        seen_ids.add(sid)
-        expanded_results.sort(key=lambda x: (-x['relevance'], x['memory'].timestamp))
-        results = expanded_results[:k * 2]
+        # 上下文展开在检索层引入噪声（adversarial -25%）。
+        # 正确的做法：在答案生成时按需展开，不在检索层混入。
+        # TODO: 在 CapabilityOrchestrator 的 prompt 构建时，对 top-1 clue
+        # 按 event_id 拉取完整对话片段作为 focused context。
 
         search_time = (datetime.now() - start_time).total_seconds() * 1000
 
