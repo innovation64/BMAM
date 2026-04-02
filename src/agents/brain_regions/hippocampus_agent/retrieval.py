@@ -703,8 +703,38 @@ class RetrievalMixin:
             results = [{'memory': mem, 'relevance': 0.5} for mem in self.memories]
             results.sort(key=lambda x: x['memory'].timestamp, reverse=True)
 
-        # 限制返回数量（但至少返回所有存储的记忆如果总数<k）
+        # 限制返回数量
         results = results[:k]
+
+        # 🔥 2026-04-02: 上下文展开 — 检索到 clue 后展开同一事件的完整上下文
+        # 人脑检索不是回忆孤立的一句话，而是激活整个情景片段
+        expanded_results = []
+        seen_ids = {r['memory'].id for r in results}
+        for r in results:
+            expanded_results.append(r)
+            mem = r['memory']
+            if mem.event_id and mem.event_id in self.event_index:
+                # 拉出同一事件的相邻记忆作为上下文
+                sibling_ids = self.event_index[mem.event_id]
+                for sid in sibling_ids:
+                    if sid not in seen_ids and sid in self.memory_dict:
+                        sibling = self.memory_dict[sid]
+                        expanded_results.append({
+                            'memory': sibling,
+                            'relevance': r['relevance'] * 0.7,  # 上下文记忆降权但保留
+                            'keyword_score': 0,
+                            'semantic_score': 0,
+                            'entity_score': 0,
+                            'kg_boost': 0,
+                            '_context_of': mem.id,
+                        })
+                        seen_ids.add(sid)
+        # 按时间排序上下文（同一事件内保持对话顺序）
+        expanded_results.sort(key=lambda x: (
+            -x['relevance'],
+            x['memory'].timestamp
+        ))
+        results = expanded_results[:k * 2]  # 允许上下文扩展到 2 倍
 
         search_time = (datetime.now() - start_time).total_seconds() * 1000
 
