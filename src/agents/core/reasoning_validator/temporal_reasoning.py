@@ -108,6 +108,20 @@ class TemporalReasoningMixin:
 
                 relevance_score = keyword_matches + phrase_bonus
 
+                # 🔥 2026-04-02: 核心事件短语匹配 — 大幅提权
+                # "When did Caroline go to the LGBTQ support group?"
+                # → 核心短语: "lgbtq support group"
+                # 如果记忆内容包含这个短语，大幅加分，避免选到不相关的 Caroline 记忆
+                core_phrase_parts = [w for w in query_tokens if len(w) > 3]
+                if len(core_phrase_parts) >= 2:
+                    # 尝试最长短语匹配
+                    for plen in range(len(core_phrase_parts), 1, -1):
+                        for start in range(len(core_phrase_parts) - plen + 1):
+                            cp = ' '.join(core_phrase_parts[start:start+plen])
+                            if cp in content_lower:
+                                relevance_score += plen * 3.0  # 每匹配一个核心词 +3
+                                break
+
                 # 🔥 2025-12-27 FIX: 细粒度置信度映射（替代二元判断）
                 # 问题：之前是1.0或0.0的二元判断，无法区分不同提取方法的可靠性
                 # 修复：根据提取方法给予不同的置信度权重
