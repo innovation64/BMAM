@@ -706,35 +706,31 @@ class RetrievalMixin:
         # 限制返回数量
         results = results[:k]
 
-        # 🔥 2026-04-02: 上下文展开 — 检索到 clue 后展开同一事件的完整上下文
-        # 人脑检索不是回忆孤立的一句话，而是激活整个情景片段
+        # 🔥 2026-04-02: 动态上下文展开 — 高相关性 clue 才展开
+        # 不是每次都展开：只有 top-3 且 relevance 高的记忆才激活完整上下文
+        # 这模拟了注意力聚焦：只有被"注意到"的记忆才触发情景回放
         expanded_results = []
         seen_ids = {r['memory'].id for r in results}
-        for r in results:
+        for idx, r in enumerate(results):
             expanded_results.append(r)
             mem = r['memory']
-            if mem.event_id and mem.event_id in self.event_index:
-                # 拉出同一事件的相邻记忆作为上下文
+            # 只展开 top-3 高相关性记忆的上下文
+            should_expand = idx < 3 and r.get('relevance', 0) > 0.5
+            if should_expand and mem.event_id and mem.event_id in self.event_index:
                 sibling_ids = self.event_index[mem.event_id]
                 for sid in sibling_ids:
                     if sid not in seen_ids and sid in self.memory_dict:
                         sibling = self.memory_dict[sid]
                         expanded_results.append({
                             'memory': sibling,
-                            'relevance': r['relevance'] * 0.7,  # 上下文记忆降权但保留
+                            'relevance': r['relevance'] * 0.6,
                             'keyword_score': 0,
                             'semantic_score': 0,
-                            'entity_score': 0,
-                            'kg_boost': 0,
                             '_context_of': mem.id,
                         })
                         seen_ids.add(sid)
-        # 按时间排序上下文（同一事件内保持对话顺序）
-        expanded_results.sort(key=lambda x: (
-            -x['relevance'],
-            x['memory'].timestamp
-        ))
-        results = expanded_results[:k * 2]  # 允许上下文扩展到 2 倍
+        expanded_results.sort(key=lambda x: (-x['relevance'], x['memory'].timestamp))
+        results = expanded_results[:k * 2]
 
         search_time = (datetime.now() - start_time).total_seconds() * 1000
 
