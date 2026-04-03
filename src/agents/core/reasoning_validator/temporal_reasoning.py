@@ -92,35 +92,43 @@ class TemporalReasoningMixin:
                 else:
                     continue
 
-                # 🔥 2025-12-12: 计算内容与查询的相关性分数
+                # 🔥 2026-04-03: 用 embedding 相似度替代关键词匹配
+                # 关键词匹配无法区分 "Caroline went to LGBTQ group" vs
+                # "Caroline gave a speech" — 都包含 "Caroline" 但是不同事件。
+                # embedding 能捕捉语义区别。
                 content_lower = content.lower()
-                # 关键词匹配得分
-                keyword_matches = sum(1 for w in query_words_set if w in content_lower)
-                # 🔥 修正: 真正的相邻短语匹配（保留原始顺序）
-                phrase_bonus = 0
-                for phrase_len in [4, 3, 2]:
-                    if len(query_tokens) >= phrase_len:
-                        for i in range(len(query_tokens) - phrase_len + 1):
-                            # 构建相邻短语
-                            phrase = ' '.join(query_tokens[i:i+phrase_len])
-                            if phrase in content_lower:
-                                phrase_bonus += phrase_len * 0.5
+                relevance_score = 0.0
 
-                relevance_score = keyword_matches + phrase_bonus
+                # 首先尝试 embedding 相似度（最准确）
+                mem_embedding = None
+                if isinstance(mem, dict):
+                    mem_embedding = mem.get('embedding')
+                    if not mem_embedding:
+                        mem_embedding = (mem.get('metadata') or {}).get('embedding')
+                else:
+                    mem_embedding = getattr(mem, 'embedding', None)
 
-                # 🔥 2026-04-02: 核心事件短语匹配 — 大幅提权
-                # "When did Caroline go to the LGBTQ support group?"
-                # → 核心短语: "lgbtq support group"
-                # 如果记忆内容包含这个短语，大幅加分，避免选到不相关的 Caroline 记忆
-                core_phrase_parts = [w for w in query_tokens if len(w) > 3]
-                if len(core_phrase_parts) >= 2:
-                    # 尝试最长短语匹配
-                    for plen in range(len(core_phrase_parts), 1, -1):
-                        for start in range(len(core_phrase_parts) - plen + 1):
-                            cp = ' '.join(core_phrase_parts[start:start+plen])
-                            if cp in content_lower:
-                                relevance_score += plen * 3.0  # 每匹配一个核心词 +3
-                                break
+                if mem_embedding and hasattr(self, '_query_embedding_cache'):
+                    try:
+                        import numpy as np
+                        q_vec = np.array(self._query_embedding_cache)
+                        m_vec = np.array(mem_embedding)
+                        cos_sim = float(np.dot(q_vec, m_vec) / (np.linalg.norm(q_vec) * np.linalg.norm(m_vec) + 1e-8))
+                        relevance_score = cos_sim * 10.0  # 归一化到和关键词分类似的尺度
+                    except Exception:
+                        pass
+
+                # embedding 不可用时回退到关键词匹配
+                if relevance_score == 0.0:
+                    keyword_matches = sum(1 for w in query_words_set if w in content_lower)
+                    phrase_bonus = 0
+                    for phrase_len in [4, 3, 2]:
+                        if len(query_tokens) >= phrase_len:
+                            for i in range(len(query_tokens) - phrase_len + 1):
+                                phrase = ' '.join(query_tokens[i:i+phrase_len])
+                                if phrase in content_lower:
+                                    phrase_bonus += phrase_len * 0.5
+                    relevance_score = keyword_matches + phrase_bonus
 
                 # 🔥 2025-12-27 FIX: 细粒度置信度映射（替代二元判断）
                 # 问题：之前是1.0或0.0的二元判断，无法区分不同提取方法的可靠性
@@ -383,6 +391,15 @@ class TemporalReasoningMixin:
             'how long'
         ])
         expects_time = 'what time' in query_lower
+
+        # 🔥 2026-04-03: 缓存查询 embedding 供 metadata reasoning 使用
+        self._query_embedding_cache = None
+        if hippocampus and hasattr(hippocampus, 'embedding_service') and hippocampus.embedding_service:
+            try:
+                qe = await hippocampus.embedding_service.encode_text(query)
+                self._query_embedding_cache = qe.tolist() if hasattr(qe, 'tolist') else qe
+            except Exception:
+                pass
 
         # 🔥 2025-12-11 重构: 优先使用 metadata.event_time（存储时已计算好）
         # 但对于 duration 问题，跳过直接的 metadata 日期返回
