@@ -2799,12 +2799,15 @@ Output ONLY the extracted answer:"""
             # 🔥 2025-12-20 FIX: 答案精炼（仅对特定问题类型，避免破坏multi_hop）
             # 只对temporal/status/identity问题精炼，multi_hop需要完整推理
             query_lower = user_input.lower()
-            # 精炼所有事实类和时间类问题的回答，确保简洁精确
+            # 精炼事实类问题，排除反事实推断（"would X..."）
             factual_starters = ['what', 'who', 'where', 'when', 'which', 'how many', 'how long']
+            is_counterfactual = query_lower.startswith('would') or 'would have' in query_lower
             should_refine = (
-                any(query_lower.startswith(s) for s in factual_starters) or
-                'status' in query_lower or
-                'identity' in query_lower
+                not is_counterfactual and (
+                    any(query_lower.startswith(s) for s in factual_starters) or
+                    'status' in query_lower or
+                    'identity' in query_lower
+                )
             )
             if should_refine:
                 response = await self._refine_answer_for_qa(user_input, response)
