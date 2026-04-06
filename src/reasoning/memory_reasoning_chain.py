@@ -132,7 +132,8 @@ class MemoryReasoningChain:
         self,
         query: str,
         max_memories: int = 20,
-        include_kg: bool = True
+        include_kg: bool = True,
+        pre_retrieved_memories: list = None
     ) -> ReasoningChain:
         """
         跨所有存储位置检索并构建推理链
@@ -147,6 +148,7 @@ class MemoryReasoningChain:
             query: 查询字符串
             max_memories: 最大记忆数量
             include_kg: 是否包含KG信息
+            pre_retrieved_memories: 预检索的记忆列表（跳过重复检索）
 
         Returns:
             ReasoningChain: 完整推理链
@@ -155,29 +157,32 @@ class MemoryReasoningChain:
 
         logger.info(f"Building reasoning chain for query: '{query[:50]}...'")
 
-        # Step 1: Use coordinator's unified retrieval (避免重复实现检索)
+        # Step 1: Use pre-retrieved memories or coordinator's unified retrieval
         raw_memories = []
         all_memories = []
 
-        if self.memory_coordinator:
+        # 🔥 2026-04-04: 优先使用预检索的记忆，避免与 BrainInspiredRetrieval 重复
+        if pre_retrieved_memories:
+            raw_memories = pre_retrieved_memories
+            all_memories = [
+                self._convert_to_fragment(m, source=m.get('source', 'pre_retrieved'))
+                for m in raw_memories
+            ]
+            logger.info(f"🧠 Using {len(all_memories)} pre-retrieved memories for reasoning chain")
+
+        elif self.memory_coordinator:
             # 🔥 Phase 3 Integration: Use cross_region_retrieval for parallel + resonance
             try:
                 logger.info(f"🧠 Using MemoryCoordinator.cross_region_retrieval() for parallel multi-region retrieval")
 
-                # cross_region_retrieval() provides:
-                # - Parallel retrieval from 5 brain regions (asyncio.gather)
-                # - Resonance scoring (cross-region memories ranked higher)
-                # - Thalamus dynamic gating integration (selective activation)
-                # - Emotional boost (Amygdala memories weighted)
                 raw_memories = await self.memory_coordinator.cross_region_retrieval(
                     query=query,
-                    top_k=max_memories * 2,  # Retrieve more for reasoning chain construction
-                    activation_plan=None  # Use default: activate all regions
+                    top_k=max_memories * 2,
+                    activation_plan=None
                 )
 
                 logger.info(f"🧠 Retrieved {len(raw_memories)} memories with resonance scoring")
 
-                # Convert to MemoryFragment format
                 all_memories = [
                     self._convert_to_fragment(m, source=m.get('_meta', {}).get('regions', ['coordinator'])[0] if '_meta' in m else 'coordinator')
                     for m in raw_memories
@@ -188,7 +193,6 @@ class MemoryReasoningChain:
                 import traceback
                 logger.warning(f"Traceback: {traceback.format_exc()}")
 
-                # Fallback to smart_retrieve if cross_region_retrieval fails
                 try:
                     raw_memories = await self.memory_coordinator.smart_retrieve(
                         query=query,
@@ -666,19 +670,22 @@ class MemoryReasoningChain:
     async def answer_with_reasoning_chain(
         self,
         question: str,
-        max_memories: int = 20
+        max_memories: int = 20,
+        pre_retrieved_memories: list = None
     ) -> Dict[str, Any]:
         """
         使用推理链回答问题
 
         完整的类脑推理流程：
-        1. 跨区域检索记忆
+        1. 跨区域检索记忆（或使用预检索结果）
         2. 构建推理链
         3. LLM综合推理生成答案
 
         Args:
             question: 问题
             max_memories: 最大记忆数量
+            pre_retrieved_memories: 🔥 2026-04-04: 预检索的记忆列表，
+                避免与 BrainInspiredRetrieval 重复检索
 
         Returns:
             Dict包含answer, reasoning_chain, confidence等
@@ -687,7 +694,8 @@ class MemoryReasoningChain:
         chain = await self.retrieve_with_reasoning_chain(
             query=question,
             max_memories=max_memories,
-            include_kg=True
+            include_kg=True,
+            pre_retrieved_memories=pre_retrieved_memories
         )
 
         # Step 2: Synthesize answer using LLM

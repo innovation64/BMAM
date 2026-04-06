@@ -270,11 +270,12 @@ class KGMergeHandler:
                     all_triples.append(triple)
                     existing_keys.add(key)
 
-        if not all_triples:
+        if not all_triples and not kg_facts:
             return []
 
         query_lower = query.lower()
-        kg_facts = []
+        # 🔥 2026-04-04: 不再重置 kg_facts — 保留上面多跳推理的结果
+        # 之前 kg_facts = [] 会丢弃 unified_kg multi_hop_query 找到的所有事实
 
         # Define predicate keywords for different query types
         location_predicates = ['lives_in', 'moved_from', 'visited', 'camped_at', 'location']

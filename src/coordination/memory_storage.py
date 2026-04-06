@@ -533,6 +533,40 @@ class MemoryStorageHandler:
             )
             result['chunks_created'] = 1
 
+            # 🔥 2026-04-06: LLM Memory Compression → 颞叶语义记忆 + 事实库
+            try:
+                from ..memory.memory_compressor import MemoryCompressor
+                if not hasattr(self, '_compressor'):
+                    self._compressor = MemoryCompressor(use_llm=True)
+                atomic_facts = await self._compressor.compress_with_llm(
+                    content, speaker=speaker, context_date=date_str
+                )
+                if atomic_facts and hasattr(coord, 'temporal_lobe') and coord.temporal_lobe:
+                    for fact in atomic_facts[:3]:
+                        try:
+                            await coord.temporal_lobe.store_memory(
+                                content=fact['fact'],
+                                memory_subtype='semantic',
+                                entities=[fact.get('entity', '')],
+                                relations=[],
+                                importance=0.7,
+                                metadata={
+                                    'source': 'llm_compressor',
+                                    'category': fact.get('category', 'general'),
+                                    'context_date': date_str,
+                                }
+                            )
+                        except Exception:
+                            pass
+                if atomic_facts and hasattr(coord, 'fact_store') and coord.fact_store:
+                    for fact in atomic_facts:
+                        coord.fact_store.extract_and_accumulate(
+                            fact['fact'],
+                            entities=[fact.get('entity', '')] if fact.get('entity') else None
+                        )
+            except Exception as e:
+                _logger.debug(f"LLM compression skipped: {e}")
+
             # Preference extraction for PersonaMemory
             if (speaker == 'user'
                     and hasattr(coord, 'persona_memory')

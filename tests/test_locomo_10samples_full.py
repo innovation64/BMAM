@@ -561,7 +561,13 @@ async def test_single_sample(sample_idx: int, sample: dict, llm_client, timestam
         # 等待巩固
         print("  [巩固] 等待3s...", end='', flush=True)
         await asyncio.sleep(3)
-        print(" done")
+        # 🔥 2026-04-06: 持久化隐性知识（巩固事实层）
+        if hasattr(coordinator_ingest, 'fact_store') and coordinator_ingest.fact_store:
+            coordinator_ingest.fact_store.save()
+            stats = coordinator_ingest.fact_store.get_stats()
+            print(f" done (facts: {stats['total_facts']} for {stats['total_entities']} entities)")
+        else:
+            print(" done")
 
         # 备份记忆文件
         backup_path = backup_memory_files(sample_id, timestamp)

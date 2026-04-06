@@ -380,6 +380,7 @@ class MemoryRetrievalHandler:
                         if len(w) > 1 and w[0].isupper()
                     ]
 
+                    query_lower = query.lower()
                     for entity in query_entities[:3]:
                         entity_context = coord.story_arc.get_entity_context(
                             entity, limit=5
@@ -391,12 +392,19 @@ class MemoryRetrievalHandler:
                                     event_content in m.get('content', '')
                                     for m in memories
                                 ):
+                                    # 🔥 2026-04-04: 基于查询词重叠计算相关度
+                                    # 替代固定 0.75，避免无关事件排名过高
+                                    event_lower = event_content.lower()
+                                    query_words = set(query_lower.split())
+                                    event_words = set(event_lower.split())
+                                    overlap = len(query_words & event_words)
+                                    sa_relevance = min(0.4 + overlap * 0.08, 0.85)
                                     memories.append({
                                         'content': event_content,
                                         'source': 'story_arc',
                                         'event_type': event.get('event_type'),
                                         'event_date': event.get('event_date'),
-                                        'relevance': 0.75,
+                                        'relevance': sa_relevance,
                                         'memory_id': event.get('memory_id')
                                     })
                                     augmented = True
@@ -451,15 +459,12 @@ class MemoryRetrievalHandler:
                 except Exception as e:
                     logger.debug(f"ToM augmentation skipped: {e}")
 
-                # Re-sort if augmented
+                # Re-sort if augmented — by relevance only, no hard priority
+                # 🔥 2026-04-04: 移除 story_arc/tom 的硬优先级排序
+                # 之前 story_arc 总是排在前面，即使相关度低于 hippocampus 结果
                 if augmented:
                     memories.sort(
-                        key=lambda x: (
-                            0 if x.get('source') not in (
-                                'story_arc', 'theory_of_mind'
-                            ) else 1,
-                            -x.get('relevance', x.get('score', 0))
-                        )
+                        key=lambda x: -x.get('relevance', x.get('score', 0))
                     )
                     memories = memories[:k * 2]
 

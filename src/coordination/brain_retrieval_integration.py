@@ -249,6 +249,12 @@ class PrefrontalFeedbackSystem:
             query_type: 查询类型
             reward_signal: 奖励信号 (-1 to 1)
         """
+        # 🔥 2026-04-04: 添加死区 — 不确定的反馈信号不更新权重
+        # 之前即使 quality_score ≈ 0.5 也会微调权重，导致随机漂移
+        if abs(reward_signal) < 0.3:
+            logger.debug(f"🧠 Prefrontal feedback skipped (dead zone): reward={reward_signal:.2f}")
+            return
+
         # 记录反馈历史
         self.feedback_history.append({
             'query_type': query_type,
@@ -260,6 +266,9 @@ class PrefrontalFeedbackSystem:
         if len(self.feedback_history) > self.max_history:
             self.feedback_history = self.feedback_history[-self.max_history:]
 
+        # 🔥 2026-04-04: 降低学习率，减少单次反馈的权重偏移
+        effective_lr = self.learning_rate * 0.5
+
         # 根据奖励信号调整策略
         if query_type in self.query_strategy_map:
             target_weights = self.query_strategy_map[query_type]
@@ -268,13 +277,13 @@ class PrefrontalFeedbackSystem:
                 # 正反馈: 朝目标策略方向调整
                 for key, target in target_weights.items():
                     current = self.strategy_weights.get(key, 0.25)
-                    self.strategy_weights[key] = current + self.learning_rate * reward_signal * (target - current)
+                    self.strategy_weights[key] = current + effective_lr * reward_signal * (target - current)
             else:
                 # 负反馈: 远离当前策略
                 for key in self.strategy_weights:
                     current = self.strategy_weights.get(key, 0.25)
                     # 均匀化权重
-                    self.strategy_weights[key] = current + self.learning_rate * abs(reward_signal) * (0.25 - current)
+                    self.strategy_weights[key] = current + effective_lr * abs(reward_signal) * (0.25 - current)
 
         # 归一化权重
         total = sum(self.strategy_weights.values())
@@ -493,14 +502,18 @@ class BrainRegionCollaboration:
             )
             loop_info['inferred_mood'] = current_mood
 
-            # ===== Step 3: 颞叶语义补充（查询类型门控） =====
-            # 只对事实/身份/活动类查询补充语义记忆，避免 adversarial 被噪声干扰
+            # ===== Step 3: 颞叶语义补充（门控：仅当 episodic 结果不足时） =====
+            # 🔥 2026-04-04: 只在 hippocampus 结果稀少时补充语义记忆
+            # 之前只按关键词触发，导致好的 episodic 结果被通用语义稀释
             query_lower_for_gate = current_query.lower()
             needs_semantic = any(kw in query_lower_for_gate for kw in [
                 'what', 'who', 'identity', 'activity', 'hobby', 'like', 'prefer',
                 'book', 'read', 'research', 'career', 'job', 'field',
             ])
-            if needs_semantic:
+            episodic_sufficient = len(adjusted_memories) >= 3 and any(
+                m.get('relevance', m.get('score', 0)) >= 0.6 for m in adjusted_memories[:3]
+            )
+            if needs_semantic and not episodic_sufficient:
                 semantic_supplement = await self._temporal_lobe_supplement(current_query, adjusted_memories)
             else:
                 semantic_supplement = []
@@ -1420,9 +1433,7 @@ For "Who" questions, only memories with names should score 7+.
 Output: {{"scores": [s0, s1, ...]}}"""
 
         try:
-            from ..core.constants import DEFAULT_LLM_MODEL
-            response = await self.llm_client.chat.completions.create(
-                model=DEFAULT_LLM_MODEL,  # 使用配置的模型
+            response = await self.llm_client.chat_completion(
                 messages=[
                     {"role": "system", "content": "You are a relevance scoring expert. Output valid JSON only."},
                     {"role": "user", "content": prompt}

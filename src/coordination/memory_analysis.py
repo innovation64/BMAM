@@ -485,7 +485,10 @@ class MemoryAnalysisHandler:
 
         for mem_id, data in memory_resonance.items():
             region_count = len(data['regions'])
-            resonance_bonus = (region_count - 1) * 0.15
+            # 🔥 2026-04-04: 降低跨脑区共振奖励 0.15→0.05，使用对数衰减
+            # 之前线性+0.15导致多脑区找到的噪声记忆排名过高
+            import math
+            resonance_bonus = math.log1p(region_count - 1) * 0.05
             data['resonance_score'] = (
                 data['base_score']
                 + resonance_bonus
