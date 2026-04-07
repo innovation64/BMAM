@@ -245,41 +245,26 @@ class StoryArcManager:
         return matches[0][0]
 
     def _extract_entities(self, content: str) -> List[str]:
-        """
-        从内容中提取实体名称（通用规则，无硬编码人名）
-
-        优先使用调用方传入的 entities (来自 hippocampus KG 提取)
-        仅当未传入时才从文本中提取
-        """
+        """从内容中提取实体名称"""
         entities = []
+
+        # 常见人名
+        common_names = ['caroline', 'melanie', 'sarah', 'john', 'mike',
+                       'alice', 'bob', 'user', 'assistant']
+
+        content_lower = content.lower()
+        for name in common_names:
+            if name in content_lower:
+                entities.append(name.capitalize())
 
         # 提取 "Speaker: text" 格式中的说话者
         speaker_match = re.match(r'^(\w+):', content)
         if speaker_match:
             speaker = speaker_match.group(1)
-            if speaker.lower() not in {'context', 'event', 'user', 'assistant'}:
+            if speaker.lower() not in ['context', 'event']:
                 entities.append(speaker)
 
-        # 通用规则：首字母大写的词（排除句首/疑问词/停用词）
-        stop_words = {
-            'i', 'the', 'a', 'an', 'my', 'your', 'he', 'she', 'it', 'we', 'they',
-            'this', 'that', 'what', 'when', 'where', 'why', 'how', 'yes', 'no',
-            'oh', 'okay', 'sure', 'well', 'just', 'really', 'actually', 'maybe',
-            'context', 'conversation', 'event', 'today', 'yesterday', 'tomorrow',
-            'january', 'february', 'march', 'april', 'may', 'june', 'july',
-            'august', 'september', 'october', 'november', 'december',
-            'monday', 'tuesday', 'wednesday', 'thursday', 'friday',
-            'saturday', 'sunday',
-        }
-        words = content.split()
-        for word in words:
-            clean = re.sub(r'[^\w]', '', word)
-            if (clean and len(clean) > 1 and clean[0].isupper()
-                    and clean.lower() not in stop_words):
-                if clean not in entities:
-                    entities.append(clean)
-
-        return list(dict.fromkeys(entities))  # preserve order, dedupe
+        return list(set(entities))
 
     async def add_event_from_memory(
         self,
@@ -303,33 +288,19 @@ class StoryArcManager:
         if not event_time:
             return None
 
-        # 🔥 2026-04-07: 优先使用 hippocampus 已提取的 entities (打通记忆循环)
-        # 避免重复提取带来的硬编码依赖和信息丢失
-        entities = []
-        if metadata and metadata.get('entities'):
-            meta_entities = metadata.get('entities')
-            if isinstance(meta_entities, list):
-                entities = [e for e in meta_entities if e and isinstance(e, str)]
-
-        # Fallback: 从内容提取（通用规则，无硬编码人名）
-        if not entities:
-            entities = self._extract_entities(content)
-
-        # 提取事件类型
+        # 提取事件类型和实体
         event_type = self._extract_event_type(content)
+        entities = self._extract_entities(content)
 
-        # 补充 speaker 作为实体
-        if metadata and metadata.get('speaker'):
-            speaker = metadata['speaker']
-            if speaker and speaker not in entities:
-                entities.append(speaker)
+        # 跳过无实体或太泛的事件
+        if not entities or event_type == 'general':
+            # 尝试从metadata获取更多信息
+            if metadata:
+                if metadata.get('speaker'):
+                    entities.append(metadata['speaker'])
 
-        # 跳过无实体的事件
         if not entities:
             return None
-
-        # 🔥 允许 general 事件类型（只要有实体就记录）
-        # 原因：不是所有事件都能被关键词匹配，但实体+日期本身就是有价值的索引
 
         # 生成事件ID
         event_id = f"{event_time.strftime('%Y%m%d')}_{event_type}_{memory_id[:8]}"

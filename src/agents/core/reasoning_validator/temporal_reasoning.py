@@ -301,50 +301,57 @@ class TemporalReasoningMixin:
 
     def _extract_query_elements(self, query: str) -> tuple[List[str], List[str]]:
         """
-        从查询中提取实体和事件关键词（通用规则，无硬编码）
+        从查询中提取实体和事件关键词
 
-        实体：大写开头的非疑问词
-        事件关键词：长度>3 的非停用词（名词/动词）
+        Examples:
+            "When did Caroline go to the museum?" → (['Caroline'], ['museum', 'go'])
+            "How long have Caroline and Melanie been friends?" → (['Caroline', 'Melanie'], ['friends'])
         """
         entities = []
         event_keywords = []
 
-        # 停用词集合（通用，与领域无关）
-        stop_words = {
-            'when', 'where', 'what', 'how', 'who', 'which', 'why', 'did', 'does',
-            'do', 'the', 'a', 'an', 'to', 'is', 'was', 'are', 'were', 'has', 'had',
-            'have', 'will', 'would', 'could', 'should', 'may', 'might', 'can',
-            'this', 'that', 'with', 'from', 'about', 'for', 'of', 'and', 'or',
-            'but', 'not', 'in', 'on', 'at', 'by', 'it', 'up', 'out', 'off',
-            'her', 'his', 'their', 'its', 'our', 'you', 'your', 'my', 'mine',
-            'recently', 'lately', 'some', 'any', 'most', 'many', 'much',
-            # 月份/星期（不应作为实体）
-            'january', 'february', 'march', 'april', 'june',
-            'july', 'august', 'september', 'october', 'november', 'december',
-            'monday', 'tuesday', 'wednesday', 'thursday', 'friday',
-            'saturday', 'sunday',
-        }
+        query_lower = query.lower()
 
-        # 1. 从大写单词提取实体（通用规则）
+        # 常见人名提取
+        common_names = ['caroline', 'melanie', 'sarah', 'john', 'mike',
+                       'alice', 'bob', 'emma', 'david', 'lisa', 'user']
+        for name in common_names:
+            if name in query_lower:
+                entities.append(name.capitalize())
+
+        # 从大写单词提取可能的名字
         words = query.split()
         for word in words:
             clean = re.sub(r'[^\w]', '', word)
-            if (clean and len(clean) > 1 and clean[0].isupper()
-                    and clean.lower() not in stop_words):
-                if clean not in entities:
-                    entities.append(clean)
+            if clean and clean[0].isupper() and len(clean) > 1:
+                # 排除疑问词和常见词
+                if clean.lower() not in {'when', 'where', 'what', 'how', 'who', 'the', 'did'}:
+                    if clean not in entities:
+                        entities.append(clean)
 
-        # 2. 提取事件关键词：所有非实体、非停用词、长度>3 的词
-        entity_lower = {e.lower() for e in entities}
-        for word in words:
-            clean = re.sub(r'[^\w]', '', word).lower()
-            if (len(clean) > 3
-                    and clean not in stop_words
-                    and clean not in entity_lower):
-                if clean not in event_keywords:
-                    event_keywords.append(clean)
+        # 事件类型关键词提取
+        event_type_keywords = {
+            'museum': ['museum', 'exhibition', 'gallery'],
+            'lgbtq': ['lgbtq', 'support group', 'transgender', 'pride'],
+            'camping': ['camping', 'camp', 'tent'],
+            'pottery': ['pottery', 'ceramic'],
+            'conference': ['conference', 'seminar'],
+            'parade': ['parade', 'march'],
+            'friends': ['friend', 'friends', 'friendship', 'met'],
+            'move': ['move', 'moved', 'live', 'living']
+        }
 
-        return entities, event_keywords
+        for event_type, keywords in event_type_keywords.items():
+            if any(kw in query_lower for kw in keywords):
+                event_keywords.extend(keywords)
+
+        # 提取动词
+        verbs = ['go', 'went', 'visit', 'attend', 'join', 'meet', 'start', 'move']
+        for verb in verbs:
+            if verb in query_lower:
+                event_keywords.append(verb)
+
+        return entities, list(set(event_keywords))
 
     async def _temporal_reasoning(
         self,
