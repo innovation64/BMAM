@@ -324,12 +324,11 @@ class StoryArcManager:
             if speaker and speaker not in entities:
                 entities.append(speaker)
 
-        # 跳过无实体的事件
-        if not entities:
+        # 跳过无实体或太泛的事件
+        # 只有语义明确的事件进入 StoryArc，避免 entity_events 索引污染
+        # 'general' 事件 = 没有具体事件语义的记录，不应索引
+        if not entities or event_type == 'general':
             return None
-
-        # 🔥 允许 general 事件类型（只要有实体就记录）
-        # 原因：不是所有事件都能被关键词匹配，但实体+日期本身就是有价值的索引
 
         # 生成事件ID
         event_id = f"{event_time.strftime('%Y%m%d')}_{event_type}_{memory_id[:8]}"
