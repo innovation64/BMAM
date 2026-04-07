@@ -2625,8 +2625,6 @@ Output ONLY the extracted answer:"""
                         sorted_memories = sorted(memories, key=relevance_score, reverse=True)
 
                         # 格式化记忆供temporal推理使用
-                        # 🔥 2026-04-07: 保留 embedding 字段，让 temporal_reasoning
-                        # 能用 embedding 相似度区分同实体不同事件的session
                         memory_dicts = []
                         for mem in sorted_memories[:20]:
                             if hasattr(mem, 'content'):
@@ -2637,13 +2635,9 @@ Output ONLY the extracted answer:"""
                                     mem_dict['metadata'] = mem.metadata
                                     if 'event_time' in mem.metadata:
                                         mem_dict['event_time'] = mem.metadata['event_time']
-                                # 传递 embedding (如有)
-                                emb = getattr(mem, 'embedding', None)
-                                if emb is not None:
-                                    mem_dict['embedding'] = emb
                                 memory_dicts.append(mem_dict)
                             elif isinstance(mem, dict):
-                                mem_dict = mem.copy()  # copy 已包含 embedding
+                                mem_dict = mem.copy()
                                 metadata = mem.get('metadata', {})
                                 if metadata and 'event_time' in metadata:
                                     mem_dict['event_time'] = metadata['event_time']
