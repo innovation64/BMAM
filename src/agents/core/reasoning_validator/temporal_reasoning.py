@@ -394,17 +394,8 @@ class TemporalReasoningMixin:
             except Exception:
                 pass
 
-        # 🔥 2026-04-07: StoryArc 优先 (事件级索引比扁平列表更可靠)
-        # 原因: metadata_based 在 top-20 预过滤的 memories 上工作，可能丢失正确答案
-        # StoryArc 维护完整事件索引，按 entity+keywords 直查，不受预过滤影响
-        if not (expects_count or expects_duration or expects_time):
-            story_arc_result = await self._try_story_arc_reasoning(query)
-            if story_arc_result and story_arc_result.get('answer'):
-                logger.info(f"📅 Using StoryArc: {story_arc_result.get('answer')} "
-                           f"(source={story_arc_result.get('source')})")
-                return story_arc_result
-
-        # Fallback: metadata.event_time 扁平检索（当 StoryArc 无索引时）
+        # 🔥 2025-12-11 重构: 优先使用 metadata.event_time（存储时已计算好）
+        # 但对于 duration 问题，跳过直接的 metadata 日期返回
         if not (expects_count or expects_duration or expects_time):
             metadata_result = await self._try_metadata_based_reasoning(
                 query=query,
@@ -415,7 +406,7 @@ class TemporalReasoningMixin:
                 logger.info(f"📅 Using metadata.event_time: {metadata_result.get('answer')}")
                 return metadata_result
 
-        # Duration 查询仍需 StoryArc
+        # 🔥 V2.0: StoryArc 时间线直接查询 (比 LLM 更可靠)
         story_arc_result = await self._try_story_arc_reasoning(query)
         if story_arc_result and story_arc_result.get('answer'):
             logger.info(f"📅 Using StoryArc: {story_arc_result.get('answer')} "
