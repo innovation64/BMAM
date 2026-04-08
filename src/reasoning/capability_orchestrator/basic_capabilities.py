@@ -53,14 +53,10 @@ class BasicCapabilitiesMixin:
 **Available Memories**:
 {memories_text}
 
-**Task** (follow in order):
-1. **Decompose the question** into its constraints:
-   - SUBJECT: who/what is the question about? (e.g., "Caroline", "Melanie")
-   - PREDICATE: what action/state is being asked about? (e.g., "signed up for pottery", "excited about adoption")
-   - TARGET: what specific information is requested? (e.g., date, location, reason)
-2. **Verify in memories**: find memories where the SAME SUBJECT performs the SAME PREDICATE
-3. **Extract the TARGET** only from memories that satisfy BOTH subject and predicate
-4. If no memory satisfies both → "No information available"
+**Task**:
+1. Identify what type of information the question is asking for
+2. Search memories for that type of information
+3. Extract the answer at the appropriate abstraction level
 
 **Critical Rules**:
 - If asking "Which country" → answer must be COUNTRY NAME
@@ -77,18 +73,6 @@ class BasicCapabilitiesMixin:
 3. NEVER fill in gaps with common knowledge - only use information from provided memories
 4. If uncertain → set confidence < 0.5 and prefix answer with "Uncertain: "
 5. Match answer TYPE to question TYPE: where→location, when→date, what→thing
-
-**🛑 Constraint Satisfaction Rules (MOST IMPORTANT - prevents false attribution)**:
-- The SUBJECT in your answer MUST be the SAME PERSON as in the question.
-  Wrong: Q="What does Caroline say running is great for?" → A="Melanie's mental health"
-  Right: A="No information available" (Caroline doesn't say anything about running in memories)
-- The PREDICATE in your answer MUST match the question's predicate, not a similar one.
-  Wrong: Q="What counseling workshop did Melanie attend?" → A="pottery class"
-  Right: A="No information available" (pottery is not counseling)
-- If the question's SUBJECT or PREDICATE is unsupported in memories, do NOT substitute a related fact.
-  Wrong: Q="What is Melanie excited about in her adoption process?" → A="Melanie excited about her kids" (drops "adoption process")
-  Right: A="No information available" (Melanie has no adoption process in memories)
-- Drop a constraint = wrong answer. Either ALL constraints are satisfied or you say "No information available".
 
 **🌐 Language Rule (CRITICAL)**:
 - Answer MUST be in {answer_language} to match the question language
