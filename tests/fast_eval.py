@@ -78,12 +78,10 @@ async def run_fast_eval(label: str = None):
     def find_valid_backup():
         backups = sorted(archives.glob('conv-26_*'))
         for b in reversed(backups):
-            # Valid backup must have hippocampus state
-            if (b / 'state' / 'hippocampus_state.json').exists() or \
-               (b / 'hippocampus_state.json').exists():
-                return b
-            # Also accept if it has any json state files
-            if list(b.rglob('*.json')):
+            # Valid backup must have core memory files
+            has_memory_db = (b / 'memory' / 'brain_memory.db').exists()
+            has_state = (b / 'state' / 'hippocampus_state.json').exists()
+            if has_memory_db and has_state:
                 return b
         return None
 
@@ -93,23 +91,37 @@ async def run_fast_eval(label: str = None):
         await shape_conv26_if_needed()
         backup = find_valid_backup()
         if not backup:
-            print("ERROR: Shaping completed but no backup created.")
+            print("ERROR: Shaping completed but no valid backup created.")
             return
 
     print(f"Using memory backup: {backup.name}")
 
-    # Restore memory from backup
+    # Restore memory from backup (state/ → data/state/, memory/ → data/memory/)
     BMAMPaths.clean_all_runtime_data()
-    import shutil
+    import shutil, stat
+    data_dir = BMAMPaths.DATA_DIR
+    (data_dir / 'state').mkdir(parents=True, exist_ok=True)
+    (data_dir / 'memory').mkdir(parents=True, exist_ok=True)
+
     for item in backup.iterdir():
-        target = BMAMPaths.DATA_DIR / item.name
-        if item.is_dir():
+        if item.is_dir() and item.name in ('state', 'memory'):
+            target = data_dir / item.name
             if target.exists():
                 shutil.rmtree(target)
             shutil.copytree(item, target)
-        else:
-            shutil.copy2(item, target)
-    print(f"Memory restored")
+        elif item.is_dir() and item.name == 'embedding_cache':
+            target = data_dir / 'cache' / 'embedding'
+            target.parent.mkdir(parents=True, exist_ok=True)
+            if target.exists():
+                shutil.rmtree(target)
+            shutil.copytree(item, target)
+
+    # Ensure restored files are writable (sqlite needs write access for journal)
+    for p in data_dir.rglob('*'):
+        if p.is_file():
+            p.chmod(p.stat().st_mode | stat.S_IWUSR | stat.S_IWGRP)
+
+    print(f"Memory restored from {backup.name}")
 
     # Init coordinator
     coordinator = BrainInspiredCoordinator()

@@ -74,40 +74,67 @@ def clear_all_memory_files():
 
 
 def backup_memory_files(sample_id: str, timestamp: str):
-    """备份当前记忆文件 - 🔥 从 MEMORY_DIR 备份"""
+    """备份当前记忆文件
+
+    🔥 2026-04-08 FIX: 原实现错把 data/ 当作平坦目录，
+    但实际 state 文件在 data/state/，db/vector 在 data/memory/。
+    现在用两个正确的子目录。
+    """
     backup_path = BACKUP_DIR / f"{sample_id}_{timestamp}"
     backup_path.mkdir(parents=True, exist_ok=True)
 
-    files_to_backup = [
-        'brain_memory.db',
+    # State files (JSON) are under data/state/
+    state_dir = DATA_DIR / 'state'
+    # DB/vector files are under data/memory/
+    memory_dir = DATA_DIR / 'memory'
+
+    state_files = [
         'hippocampus_state.json',
-        'temporal_lobe.db',
         'amygdala_state.json',
         'prefrontal_state.json',
         'basal_ganglia_state.json',
+        'story_arc_state.json',
+        'temporal_lobe_state.json',
+        'routing_weights.json',
+        'calibration_state.json',
+    ]
+    memory_files = [
+        'brain_memory.db',
+        'temporal_lobe.db',
         'working_memory.db',
-        # 🔥 添加关键文件
         'kv_value_store.db',
         'memory_vectors.index',
         'memory_vectors_mappings.json',
-        'story_arc_state.json',
+        'sync_ledger.json',
     ]
 
     backed_up = 0
-    for f in files_to_backup:
-        src = MEMORY_DIR / f
+    # Backup state files into backup_path/state/
+    state_backup = backup_path / 'state'
+    state_backup.mkdir(exist_ok=True)
+    for f in state_files:
+        src = state_dir / f
         if src.exists():
-            shutil.copy2(src, backup_path / f)
+            shutil.copy2(src, state_backup / f)
             backed_up += 1
 
-    # 备份faiss_index目录
-    faiss_src = MEMORY_DIR / 'faiss_index'
+    # Backup memory files into backup_path/memory/
+    memory_backup = backup_path / 'memory'
+    memory_backup.mkdir(exist_ok=True)
+    for f in memory_files:
+        src = memory_dir / f
+        if src.exists():
+            shutil.copy2(src, memory_backup / f)
+            backed_up += 1
+
+    # Backup faiss_index directory if it exists under memory
+    faiss_src = memory_dir / 'faiss_index'
     if faiss_src.exists():
-        shutil.copytree(faiss_src, backup_path / 'faiss_index')
+        shutil.copytree(faiss_src, memory_backup / 'faiss_index')
         backed_up += 1
 
-    # 备份 embedding_cache 目录
-    embedding_cache_src = MEMORY_DIR / 'embedding_cache'
+    # Backup embedding_cache directory (if present under cache)
+    embedding_cache_src = DATA_DIR / 'cache' / 'embedding'
     if embedding_cache_src.exists():
         shutil.copytree(embedding_cache_src, backup_path / 'embedding_cache')
         backed_up += 1
