@@ -507,8 +507,17 @@ async def test_qa(coordinator, qa_pairs, llm_client, sample_idx: int = 0, sample
 
     for i, qa in enumerate(qa_pairs, 1):
         question = qa['question']
-        gold = qa.get('answer', qa.get('expected_answer', ''))
         category = qa.get('category', 0)
+
+        # 🔥 2026-04-08 FIX: Category 5 (adversarial) uses 'adversarial_answer'
+        # field, NOT 'answer'. The intended evaluation is "system should NOT
+        # return this trap answer" — so we judge inverted: correct = generated
+        # does NOT semantically match the adversarial_answer.
+        is_adversarial = (category == 5)
+        if is_adversarial:
+            gold = qa.get('adversarial_answer', '')
+        else:
+            gold = qa.get('answer', qa.get('expected_answer', ''))
 
         result = await coordinator.process_user_input(
             question,
@@ -517,9 +526,12 @@ async def test_qa(coordinator, qa_pairs, llm_client, sample_idx: int = 0, sample
         generated = result.response if hasattr(result, 'response') else str(result)
 
         if LLM_JUDGE_AVAILABLE and llm_client:
-            is_correct = await llm_judge_grader(llm_client, question, gold, generated)
+            matches = await llm_judge_grader(llm_client, question, gold, generated)
+            # For adversarial, "matches the trap" = wrong; otherwise normal
+            is_correct = (not matches) if is_adversarial else matches
         else:
-            is_correct = str(gold).lower() in str(generated).lower()
+            substring_match = str(gold).lower() in str(generated).lower() if gold else False
+            is_correct = (not substring_match) if is_adversarial else substring_match
 
         if is_correct:
             correct += 1
