@@ -178,86 +178,24 @@ class TemporalReasoningMixin:
             return None
 
         # 🔥 额外检查：确保内容中包含查询的核心动词/动作
-        # 例如 "When did X go to Y" 需要内容包含 "go/went/going"
-        # 🔥 2026-04-08 FIX: action match is HARD requirement when query has
-        # explicit action verb. Multiple memories may match topic but only one
-        # has the correct action — that's exactly the "wrong session" failure.
-        # Use verb groups (lemma + inflections) so 'go' in query matches
-        # 'went' in content.
-        action_groups = [
-            {'go', 'went', 'going', 'gone', 'goes'},
-            {'attend', 'attended', 'attending', 'attends'},
-            {'visit', 'visited', 'visiting', 'visits'},
-            {'meet', 'met', 'meeting', 'meets'},
-            {'start', 'started', 'starting', 'starts', 'began', 'begin'},
-            {'join', 'joined', 'joining', 'joins'},
-            {'sign', 'signed', 'signing', 'signs'},
-            {'apply', 'applied', 'applying', 'applies'},
-            {'paint', 'painted', 'painting', 'paints'},
-            {'make', 'made', 'making', 'makes'},
-            {'create', 'created', 'creating', 'creates'},
-            {'enroll', 'enrolled', 'enrolling', 'enrolls'},
-            {'register', 'registered', 'registering', 'registers'},
-            {'travel', 'traveled', 'traveling', 'travels'},
-            {'move', 'moved', 'moving', 'moves'},
-            {'finish', 'finished', 'finishing', 'finishes'},
-            {'complete', 'completed', 'completing', 'completes'},
-            {'receive', 'received', 'receiving', 'receives'},
-            {'win', 'won', 'winning', 'wins'},
-            {'lose', 'lost', 'losing', 'loses'},
-        ]
+        # 例如 "When did X go to Y" 需要内容包含 "go" 或 "went" 相关词
+        action_words = ['go', 'went', 'attend', 'attended', 'visit', 'visited',
+                        'join', 'joined', 'meet', 'met', 'start', 'started',
+                        'participate', 'participated', 'sign', 'signed', 'apply', 'applied']
+        query_lower = query.lower()
+        content_lower = best['content'].lower()
 
-        # Tokenize query for word-boundary verb match (avoid substring noise)
-        import re as _re
-        query_tokens = set(_re.findall(r"\b[a-z]+\b", query.lower()))
+        has_matching_action = False
+        for action in action_words:
+            if action in query_lower and action in content_lower:
+                has_matching_action = True
+                break
 
-        # Find which action groups the query references
-        query_action_groups = [
-            grp for grp in action_groups
-            if grp & query_tokens
-        ]
-
-        if query_action_groups:
-            def action_match_count(c):
-                content_tokens = set(_re.findall(r"\b[a-z]+\b", c['content'].lower()))
-                return sum(1 for grp in query_action_groups if grp & content_tokens)
-            # Build a label list for logging
-            query_actions = sorted({w for grp in query_action_groups for w in grp & query_tokens})
-
-            # Only intervene if the current winner LACKS the action verb.
-            # If best already matches the verb, don't disturb the original
-            # confidence+relevance ordering — that's the correct memory.
-            if action_match_count(best) == 0:
-                with_action = [c for c in candidates if action_match_count(c) > 0]
-                if with_action:
-                    # Among action-matching candidates: action match,
-                    # then extraction_confidence (raw 'relative' beats
-                    # synthesized 'metadata'), then relevance.
-                    # Raw memories with 'yesterday' computation (0.95) are
-                    # more accurate than [Event] summaries (0.80) which use
-                    # the conversation date directly.
-                    with_action.sort(
-                        key=lambda x: (
-                            action_match_count(x),
-                            x['extraction_confidence'],
-                            x['relevance_score'],
-                        ),
-                        reverse=True,
-                    )
-                    new_best = with_action[0]
-                    logger.info(
-                        f"📅 Re-ranked by action verb: '{best['content'][:50]}' "
-                        f"→ '{new_best['content'][:50]}' "
-                        f"(query actions: {query_actions})"
-                    )
-                    best = new_best
-                else:
-                    # No candidate has the action verb — fall back to LLM
-                    logger.info(
-                        f"📅 No candidate has query action {query_actions}, "
-                        f"fallback to LLM"
-                    )
-                    return None
+        # 如果查询包含动作词但内容不匹配，降低信心
+        query_has_action = any(a in query_lower for a in action_words)
+        if query_has_action and not has_matching_action and best['relevance_score'] < 5.0:
+            logger.info(f"📅 Metadata reasoning: action word mismatch, fallback to LLM")
+            return None
 
         formatted_date = best['event_time'].strftime('%d %B %Y')
 
