@@ -233,9 +233,8 @@ Guidelines for capability selection:
 - 🔥 Questions asking for NEW ideas/suggestions/activities/ways the user HASN'T tried yet → **ideation_generation** (needs activity_tracking first!)
 - Questions like "How can I find new ways to..." or "suggest new ideas" or "What NEW should I try" → **ideation_generation**
 - Questions asking "What else could I do" or "unexplored options" → **ideation_generation**
-- 🔥 Questions starting with "I recently..." or "I attended..." or containing "my" → use **fact_recall** (user is recalling their OWN experience)
-- 🔥 fact_recall is ONLY for first-person questions ("I/me/my/we/our"). Questions about THIRD PARTIES (named people like "Caroline", "Melanie", "John") → use fact_extraction or multi_hop_inference, NEVER fact_recall.
-- 🔥 If question asks about a NAMED PERSON's actions/state (e.g. "What did Caroline paint?", "What does Melanie think?") → use **fact_extraction** for simple lookups, **multi_hop_inference** for synthesis across memories.
+- 🔥 Questions starting with "I recently..." or "I attended..." → use **fact_recall** (user is recalling their OWN experience)
+- 🔥 Questions asking about what the USER personally did/experienced → use **fact_recall** (NOT fact_extraction)
 
 Focus on WHAT the question asks for, not what you might infer:
 - "What community" asks for a simple fact (the community name) → fact_extraction
