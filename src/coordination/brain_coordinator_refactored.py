@@ -2081,6 +2081,82 @@ Output ONLY the extracted answer:"""
             logger.warning(f"⚠️ Answer refinement failed: {e}")
             return answer
 
+    def _reflect_entity_ownership(
+        self,
+        query: str,
+        response: str,
+        memories: list
+    ) -> str:
+        """
+        Post-generation entity reflection (CORAL-inspired).
+
+        Checks: does the queried entity actually own the queried action
+        in the retrieved memories? If not, the premise may be false.
+
+        Design principles:
+        - No LLM call (fast, deterministic)
+        - No retrieval change (zero coupling)
+        - Only activates when clear entity mismatch detected
+        """
+        import re
+
+        query_lower = query.lower()
+
+        # Extract the subject entity from the query
+        stop = {
+            'when', 'what', 'how', 'where', 'who', 'which', 'why', 'did',
+            'does', 'the', 'is', 'was', 'has', 'had', 'would', 'could',
+        }
+        query_entity = None
+        for word in query.split():
+            clean = re.sub(r'[^\w]', '', word)
+            if clean and len(clean) > 1 and clean[0].isupper() and clean.lower() not in stop:
+                query_entity = clean.lower()
+                break
+
+        if not query_entity:
+            return response
+
+        # Extract content keywords from query (nouns ≥4 chars)
+        content_words = {
+            w.lower() for w in re.findall(r'\b[a-z]{4,}\b', query_lower)
+        } - stop - {query_entity}
+
+        if len(content_words) < 2:
+            return response
+
+        # Check: do top memories contain BOTH query entity AND content keywords?
+        entity_with_content = 0
+        other_entity_with_content = 0
+
+        for mem in memories[:10]:
+            content = (mem.get('content', '') if isinstance(mem, dict)
+                       else getattr(mem, 'content', str(mem))).lower()
+
+            kw_hits = sum(1 for w in content_words if w in content)
+            if kw_hits < 2:
+                continue
+
+            if query_entity in content:
+                entity_with_content += 1
+            else:
+                other_entity_with_content += 1
+
+        # Topic-relevant memories exist but NONE mention query entity
+        # while others do → likely false attribution
+        if other_entity_with_content >= 2 and entity_with_content == 0:
+            logger.info(
+                f"🔍 Entity reflection: '{query_entity}' not found in "
+                f"{other_entity_with_content} topic-relevant memories. "
+                f"Possible false premise."
+            )
+            return (
+                f"Based on the available information, I don't have specific "
+                f"details about {query_entity.capitalize()} in this context."
+            )
+
+        return response
+
     # ============================================================================
     # 🔥 2025-12-20 FIX: LearnableRouter 动态回答路径选择
     # ============================================================================
@@ -2872,6 +2948,18 @@ Output ONLY the extracted answer:"""
             )
             if should_refine:
                 response = await self._refine_answer_for_qa(user_input, response)
+
+            # 🔥 2026-04-09: Post-generation entity reflection (CORAL-inspired)
+            # After answer is generated, verify: does the queried entity
+            # actually appear in the retrieved memories performing the queried action?
+            # If not, the question may have a false premise (adversarial).
+            # This is a POST-processing check — zero coupling with retrieval.
+            if memories and response and not is_counterfactual:
+                response = self._reflect_entity_ownership(
+                    query=user_input,
+                    response=response,
+                    memories=memories
+                )
 
             # 🔥 2026-01-26 FIX-012: Record retrieval outcome for FeedbackLoop (环境Agent基础)
             if hasattr(self, 'feedback_loop') and self.feedback_loop and memories:
