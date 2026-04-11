@@ -502,21 +502,8 @@ class BrainRegionCollaboration:
             )
             loop_info['inferred_mood'] = current_mood
 
-            # ===== Step 3: 颞叶语义补充（门控：仅当 episodic 结果不足时） =====
-            # 🔥 2026-04-04: 只在 hippocampus 结果稀少时补充语义记忆
-            # 之前只按关键词触发，导致好的 episodic 结果被通用语义稀释
-            query_lower_for_gate = current_query.lower()
-            needs_semantic = any(kw in query_lower_for_gate for kw in [
-                'what', 'who', 'identity', 'activity', 'hobby', 'like', 'prefer',
-                'book', 'read', 'research', 'career', 'job', 'field',
-            ])
-            episodic_sufficient = len(adjusted_memories) >= 3 and any(
-                m.get('relevance', m.get('score', 0)) >= 0.6 for m in adjusted_memories[:3]
-            )
-            if needs_semantic and not episodic_sufficient:
-                semantic_supplement = await self._temporal_lobe_supplement(current_query, adjusted_memories)
-            else:
-                semantic_supplement = []
+            # ===== Step 3: 颞叶语义补充（恢复原版：无条件参与） =====
+            semantic_supplement = await self._temporal_lobe_supplement(current_query, adjusted_memories)
             loop_info['temporal_supplement'] = len(semantic_supplement)
 
             # 合并结果（去重）
