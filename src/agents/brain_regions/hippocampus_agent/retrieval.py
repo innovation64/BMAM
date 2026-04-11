@@ -318,7 +318,8 @@ class RetrievalMixin:
         query: str = None,
         entities: List[str] = None,
         time_range: Dict[str, str] = None,
-        k: int = 10
+        k: int = 10,
+        signal_weights: Dict[str, float] = None
     ) -> Dict[str, Any]:
         """
         搜索情节记忆 - 优化版
@@ -592,10 +593,26 @@ class RetrievalMixin:
                 #
                 # 公式: base_score = max(signals) + collaborative_boost
 
+                # 🔥 2026-04-11: 前额叶学习的权重真正影响评分
+                # 默认 1.0 (无影响)，当 prefrontal 提供 weights 时生效
+                w_entity = (signal_weights or {}).get('entity_weight', 1.0)
+                w_bm25 = (signal_weights or {}).get('bm25_weight', 1.0)
+                w_semantic = (signal_weights or {}).get('vector_weight', 1.0)
+
+                # 归一化：让默认 1.0 表示"不偏置"
+                if signal_weights and abs(sum([w_entity, w_bm25, w_semantic]) - 1.0) < 0.1:
+                    w_entity = w_entity * 3.0
+                    w_bm25 = w_bm25 * 3.0
+                    w_semantic = w_semantic * 3.0
+
+                # 🔥 实体权重下限保护：防止前额叶学习压低 entity 导致 adversarial
+                # 实体匹配是防止 false attribution 的关键信号
+                w_entity = max(w_entity, 0.8)
+
                 signals = [
-                    ('entity', entity_score),
-                    ('keyword', keyword_score),
-                    ('semantic', semantic_score if query_embedding and mem.embedding else 0.0)
+                    ('entity', entity_score * w_entity),
+                    ('keyword', keyword_score * w_bm25),
+                    ('semantic', (semantic_score if query_embedding and mem.embedding else 0.0) * w_semantic)
                 ]
 
                 # 找最强信号

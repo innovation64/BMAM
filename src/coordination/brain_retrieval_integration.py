@@ -462,8 +462,12 @@ class BrainRegionCollaboration:
             loop_count += 1
             loop_info = {'loop': loop_count, 'query': current_query}
 
-            # ===== Step 1: 海马体情节记忆检索 =====
-            hippocampus_memories = await self._hippocampus_retrieve(current_query, k * 2)
+            # ===== Step 1: 海马体情节记忆检索（带前额叶权重）=====
+            # 前额叶学到的 strategy_weights 现在真正影响海马体信号权重
+            hippocampus_memories = await self._hippocampus_retrieve(
+                current_query, k * 2,
+                signal_weights=strategy.get('weights')
+            )
             loop_info['hippocampus_count'] = len(hippocampus_memories)
 
             # ===== Step 2: 杏仁核情绪注意力调节 =====
@@ -576,13 +580,23 @@ class BrainRegionCollaboration:
             'strategy_used': strategy
         }
 
-    async def _hippocampus_retrieve(self, query: str, k: int) -> List[Dict]:
-        """海马体情节记忆检索"""
+    async def _hippocampus_retrieve(
+        self,
+        query: str,
+        k: int,
+        signal_weights: Optional[Dict[str, float]] = None
+    ) -> List[Dict]:
+        """海马体情节记忆检索
+
+        signal_weights: 前额叶学到的信号权重，影响 entity/keyword/semantic 的评分占比
+        """
         if not self.memory_coordinator or not hasattr(self.memory_coordinator, 'hippocampus'):
             return []
 
         try:
-            result = await self.memory_coordinator.hippocampus.search_memories(query, k=k)
+            result = await self.memory_coordinator.hippocampus.search_memories(
+                query, k=k, signal_weights=signal_weights
+            )
             return result.get('memories', [])
         except Exception as e:
             logger.warning(f"Hippocampus retrieval failed: {e}")
