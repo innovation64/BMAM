@@ -147,8 +147,6 @@ async def run_fast_eval(label: str = None):
         gold = q['gold']
         category = q['category']
         baseline = q['baseline_correct']
-        # Cat 5 = adversarial: gold is the TRAP answer system should avoid
-        is_adversarial = (category == 5)
 
         try:
             result = await coordinator.process_user_input(
@@ -157,9 +155,7 @@ async def run_fast_eval(label: str = None):
             )
             generated = result.response if hasattr(result, 'response') else str(result)
 
-            matches = await llm_judge_grader(llm_client, question, gold, generated)
-            # For adversarial: correct = system did NOT fall into the trap
-            is_correct = (not matches) if is_adversarial else matches
+            is_correct = await llm_judge_grader(llm_client, question, gold, generated)
         except Exception as e:
             print(f"  ERROR on Q{i}: {e}")
             generated = f'ERROR: {e}'
