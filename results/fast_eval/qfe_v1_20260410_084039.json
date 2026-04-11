@@ -1,0 +1,241 @@
+{
+  "label": "qfe_v1",
+  "timestamp": "20260410_084039",
+  "accuracy": 0.6333333333333333,
+  "correct": 19,
+  "total": 30,
+  "cat_stats": {
+    "1": {
+      "c": 6,
+      "t": 6
+    },
+    "2": {
+      "c": 3,
+      "t": 6
+    },
+    "3": {
+      "c": 5,
+      "t": 6
+    },
+    "4": {
+      "c": 4,
+      "t": 6
+    },
+    "5": {
+      "c": 1,
+      "t": 6
+    }
+  },
+  "results": [
+    {
+      "question": "What do Melanie's kids like?",
+      "gold": "dinosaurs, nature",
+      "generated": "Melanie's kids love nature.",
+      "correct": true,
+      "category": 1
+    },
+    {
+      "question": "What did Caroline research?",
+      "gold": "Adoption agencies",
+      "generated": "Caroline is researching adoption agencies.",
+      "correct": true,
+      "category": 1
+    },
+    {
+      "question": "What instruments does Melanie play?",
+      "gold": "clarinet and violin",
+      "generated": "clarinet",
+      "correct": true,
+      "category": 1
+    },
+    {
+      "question": "What books has Melanie read?",
+      "gold": "\"Nothing is Impossible\", \"Charlotte's Web\"",
+      "generated": "'Charlotte's Web'",
+      "correct": true,
+      "category": 1
+    },
+    {
+      "question": "What items has Melanie bought?",
+      "gold": "Figurines, shoes",
+      "generated": "figurines that remind her of family love",
+      "correct": true,
+      "category": 1
+    },
+    {
+      "question": "What transgender-specific events has Caroline attended?",
+      "gold": "Poetry reading, conference",
+      "generated": "Caroline is going to a transgender conference this month.",
+      "correct": true,
+      "category": 1
+    },
+    {
+      "question": "When did Melanie sign up for a pottery class?",
+      "gold": "2 July 2023",
+      "generated": "24 August 2023",
+      "correct": false,
+      "category": 2
+    },
+    {
+      "question": "How long has Caroline had her current group of friends for?",
+      "gold": "4 years",
+      "generated": "2 years and 10 months",
+      "correct": true,
+      "category": 2
+    },
+    {
+      "question": "When did Melanie's family go on a roadtrip?",
+      "gold": "The weekend before 20 October 2023",
+      "generated": "17 July 2023",
+      "correct": false,
+      "category": 2
+    },
+    {
+      "question": "When did Caroline meet up with her friends, family, and mentors?",
+      "gold": "The week before 9 June 2023",
+      "generated": "29 June 2023",
+      "correct": false,
+      "category": 2
+    },
+    {
+      "question": "When did Melanie make a plate in pottery class?",
+      "gold": "24 August 2023",
+      "generated": "24 August 2023",
+      "correct": true,
+      "category": 2
+    },
+    {
+      "question": "When did Melanie run a charity race?",
+      "gold": "The sunday before 25 May 2023",
+      "generated": "18 May 2023",
+      "correct": true,
+      "category": 2
+    },
+    {
+      "question": "What fields would Caroline be likely to pursue in her educaton?",
+      "gold": "Psychology, counseling certification",
+      "generated": "counseling, mental health",
+      "correct": true,
+      "category": 3
+    },
+    {
+      "question": "Would Caroline still want to pursue counseling as a career if she hadn't received support growing up?",
+      "gold": "Likely no",
+      "generated": "Psychology, Social Work",
+      "correct": false,
+      "category": 3
+    },
+    {
+      "question": "Would Caroline pursue writing as a career option?",
+      "gold": "LIkely no; though she likes reading, she wants to be a counselor",
+      "generated": "No, Caroline is not pursuing writing as a career option.",
+      "correct": true,
+      "category": 3
+    },
+    {
+      "question": "What personality traits might Melanie say Caroline has?",
+      "gold": "Thoughtful, authentic, driven",
+      "generated": "caring, self-accepting, supportive, open to growth",
+      "correct": true,
+      "category": 3
+    },
+    {
+      "question": "Would Caroline be considered religious?",
+      "gold": "Somewhat, but not extremely religious",
+      "generated": "It is unclear if Caroline would be considered religious based on her experiences.",
+      "correct": true,
+      "category": 3
+    },
+    {
+      "question": "Would Caroline want to move back to her home country soon?",
+      "gold": "No; she's in the process of adopting children.",
+      "generated": "It seems unlikely that Caroline would want to move back to her home country soon, as she has built a strong support system with her friends and is focused on creating a family through adoption in her current location.",
+      "correct": true,
+      "category": 3
+    },
+    {
+      "question": "What is Melanie's reason for getting into running?",
+      "gold": "To de-stress and clear her mind",
+      "generated": "Melanie gets into running to de-stress and improve her mental health.",
+      "correct": true,
+      "category": 4
+    },
+    {
+      "question": "What setback did Melanie face in October 2023?",
+      "gold": "She got hurt and had to take a break from pottery.",
+      "generated": "setback due to an injury",
+      "correct": true,
+      "category": 4
+    },
+    {
+      "question": "What kind of pot did Mel and her kids make with clay?",
+      "gold": "a cup with a dog face on it",
+      "generated": "Mel and her kids made their own pots at the pottery workshop.",
+      "correct": false,
+      "category": 4
+    },
+    {
+      "question": "What was the poetry reading that Caroline attended about?",
+      "gold": "It was a transgender poetry reading where transgender people shared their stories.",
+      "generated": "The poetry reading that Caroline attended was about empowerment and self-expression.",
+      "correct": false,
+      "category": 4
+    },
+    {
+      "question": "How often does Melanie go to the beach with her kids?",
+      "gold": "once or twice a year",
+      "generated": "once or twice a year",
+      "correct": true,
+      "category": 4
+    },
+    {
+      "question": "What did the charity race raise awareness for?",
+      "gold": "mental health",
+      "generated": "mental health",
+      "correct": true,
+      "category": 4
+    },
+    {
+      "question": "What did Caroline and her family do while camping?",
+      "gold": "explored nature, roasted marshmallows, and went on a hike",
+      "generated": "They explored nature.",
+      "correct": false,
+      "category": 5
+    },
+    {
+      "question": "What was Caroline's reaction to her children enjoying the Grand Canyon?",
+      "gold": "She was happy and thankful",
+      "generated": "Caroline was glad Melanie's family had a great time at the Grand Canyon.",
+      "correct": false,
+      "category": 5
+    },
+    {
+      "question": "Where did Oscar hide his bone once?",
+      "gold": "In Melanie's slipper",
+      "generated": "N/A",
+      "correct": true,
+      "category": 5
+    },
+    {
+      "question": "What inspired Caroline's sculpture for the art show?",
+      "gold": "visiting an LGBTQ center and wanting to capture unity and strength",
+      "generated": "Visit to an LGBTQ center",
+      "correct": false,
+      "category": 5
+    },
+    {
+      "question": "What is Caroline's reason for getting into running?",
+      "gold": "To de-stress and clear her mind",
+      "generated": "Melanie's reason for getting into running is for mental health and mood improvement.",
+      "correct": false,
+      "category": 5
+    },
+    {
+      "question": "What is Caroline's hand-painted bowl a reminder of?",
+      "gold": "art and self-expression",
+      "generated": "The bowl symbolizes Caroline's appreciation for creativity.",
+      "correct": false,
+      "category": 5
+    }
+  ]
+}
