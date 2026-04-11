@@ -146,6 +146,7 @@ async def run_fast_eval(label: str = None):
         question = q['question']
         gold = q['gold']
         category = q['category']
+        baseline = q['baseline_correct']
         # Cat 5 = adversarial: gold is the TRAP answer system should avoid
         is_adversarial = (category == 5)
 
@@ -170,13 +171,20 @@ async def run_fast_eval(label: str = None):
             'generated': generated,
             'correct': is_correct,
             'category': category,
+            'baseline_correct': baseline,
         })
 
         if is_correct:
             correct += 1
 
+        flip = ''
+        if is_correct and not baseline:
+            flip = ' [+IMPROVED]'
+        elif not is_correct and baseline:
+            flip = ' [-REGRESSED]'
+
         status = '✓' if is_correct else '✗'
-        print(f"  [{i:2d}/{len(questions)}] {status} cat={category} {question[:60]}")
+        print(f"  [{i:2d}/{len(questions)}] {status} cat={category} {question[:60]}{flip}")
 
     # Stats
     acc = correct / len(questions) * 100
@@ -184,18 +192,24 @@ async def run_fast_eval(label: str = None):
     for r in results:
         cat = r['category']
         if cat not in cat_stats:
-            cat_stats[cat] = {'c': 0, 't': 0}
+            cat_stats[cat] = {'c': 0, 't': 0, 'baseline_c': 0}
         cat_stats[cat]['t'] += 1
         if r['correct']:
             cat_stats[cat]['c'] += 1
+        if r['baseline_correct']:
+            cat_stats[cat]['baseline_c'] += 1
 
     print(f"\n{'='*60}")
     print(f"FAST EVAL RESULT: {acc:.1f}% ({correct}/{len(questions)})")
     print(f"\nCategory:")
+    baseline_total = sum(s['baseline_c'] for s in cat_stats.values())
+    print(f"  baseline total: {baseline_total}/{len(questions)}")
     for cat in sorted(cat_stats.keys()):
         s = cat_stats[cat]
+        delta = s['c'] - s['baseline_c']
+        delta_str = f"({delta:+d})" if delta else ""
         name = CATEGORY_NAMES.get(cat, f'cat_{cat}')
-        print(f"  {name}: {s['c']}/{s['t']}")
+        print(f"  {name}: {s['c']}/{s['t']} {delta_str}")
 
     # Save
     out_dir = BMAM_ROOT / 'results' / 'fast_eval'
