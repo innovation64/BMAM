@@ -56,11 +56,10 @@ def get_emotion_keywords() -> Dict[str, List[str]]:
 
 def detect_emotions(text: str) -> Tuple[List[str], float]:
     """
-    Detect emotions in text using shared keyword dictionary.
+    Detect emotions in text using keyword dictionary (sync, fast).
 
     Returns:
         (detected_emotions, intensity)
-        intensity: 0.0-1.0 based on keyword match count
     """
     keywords = get_emotion_keywords()
     text_lower = text.lower()
@@ -71,6 +70,45 @@ def detect_emotions(text: str) -> Tuple[List[str], float]:
         matches = [kw for kw in kws if kw in text_lower]
         if matches:
             detected.append(emotion)
-            max_intensity = max(max_intensity, 0.3 + 0.05 * len(matches))
+            max_intensity = max(max_intensity, 0.5 + 0.1 * (len(matches) - 1))
 
     return detected, min(max_intensity, 1.0)
+
+
+async def detect_emotions_llm(text: str) -> Tuple[List[str], float]:
+    """
+    LLM-powered emotion detection — catches nuanced emotions
+    that keyword matching misses (powerful, moving, therapy, proud, etc.).
+
+    Falls back to keyword matching if LLM unavailable.
+    """
+    # First try keywords (fast)
+    detected, intensity = detect_emotions(text)
+    if detected:
+        return detected, intensity
+
+    # LLM tier — catches nuanced emotions
+    try:
+        from ..services.shared_openai_client import shared_client_manager
+        response = await shared_client_manager.chat_completion(
+            messages=[
+                {"role": "system",
+                 "content": "Detect the primary emotion in this text. Reply: EMOTION INTENSITY\nEMOTION = one of: joy, sadness, anger, fear, surprise, love, pride, gratitude, anxiety, neutral\nINTENSITY = 0.0 to 1.0\nExample: joy 0.7"},
+                {"role": "user", "content": text[:200]}
+            ],
+            temperature=0,
+            max_tokens=10
+        )
+        content = response.choices[0].message.content.strip().lower()
+        parts = content.split()
+        if len(parts) >= 2 and parts[0] != 'neutral':
+            emotion = parts[0]
+            try:
+                emo_intensity = float(parts[1])
+            except ValueError:
+                emo_intensity = 0.6
+            return [emotion], min(emo_intensity, 1.0)
+    except Exception:
+        pass
+
+    return [], 0.0

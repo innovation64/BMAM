@@ -688,9 +688,9 @@ class MemoryStorageHandler:
             'basal_ganglia': []
         }
 
-        # 1. Amygdala: Tag emotional content
-        from ..utils.emotion_utils import detect_emotions
-        _detected, _intensity = detect_emotions(content)
+        # 1. Amygdala: Tag emotional content (LLM-powered emotion detection)
+        from ..utils.emotion_utils import detect_emotions_llm
+        _detected, _intensity = await detect_emotions_llm(content)
         has_emotion = len(_detected) > 0
         if has_emotion and _intensity >= 0.5 and importance >= 0.6:
             try:
