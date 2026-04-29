@@ -44,6 +44,7 @@ for _name in ['src', 'openai', 'httpx', 'httpcore', 'urllib3', 'faiss',
 os.environ.setdefault('TOKENIZERS_PARALLELISM', 'false')
 
 from src.coordination.brain_coordinator_refactored import BrainInspiredCoordinator
+from src.coordination import audit_log as _audit
 from src.utils.paths import BMAMPaths
 
 # Reuse the runner's restore + judge helpers verbatim so this stays
@@ -88,7 +89,22 @@ async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--tag', type=str, default='', help='suffix for result filename')
     parser.add_argument('--limit', type=int, default=0, help='cap to first N questions (debug)')
+    parser.add_argument(
+        '--audit', action='store_true',
+        help='enable structured telemetry to metrics/audit/audit_<ts>_<tag>.jsonl',
+    )
     args = parser.parse_args()
+
+    # If --audit given, enable the JSONL sink BEFORE the coordinator builds —
+    # probe imports trigger lazily so order doesn't strictly matter, but doing
+    # it here gets the session_start record at the top of the file.
+    if args.audit:
+        ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+        suffix = f'_{args.tag}' if args.tag else ''
+        audit_dir = Path(__file__).parent.parent / 'metrics' / 'audit'
+        audit_path = audit_dir / f'audit_{ts}{suffix}.jsonl'
+        _audit.enable(audit_path)
+        print(f'  [audit] enabled → {audit_path}')
 
     if not FIXTURE_PATH.exists():
         print(f'fixture missing: {FIXTURE_PATH}')
@@ -137,11 +153,22 @@ async def main():
     for i, q in enumerate(questions, 1):
         question = q['question']
         gold = q['gold']
+        # Bind probe context for the duration of this question so every audit
+        # event auto-tags with the question id and category. No-op when
+        # --audit was not given.
+        _audit.set_question(
+            qid=f'unstable_33_{i:02d}',
+            question=question,
+            category=q.get('category_name'),
+            gold=gold,
+            churn_direction=q.get('churn_direction'),
+        )
         out = await coordinator.process_user_input(
             question,
             context={'skip_memory_store': True}
         )
         generated = out.response if hasattr(out, 'response') else str(out)
+        _audit.clear_question()
 
         if llm_client:
             is_correct = await llm_judge_grader(llm_client, question, gold, generated)

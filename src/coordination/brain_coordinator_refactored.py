@@ -2857,6 +2857,22 @@ Output ONLY the extracted answer:"""
                 _temporal_threshold = 0.50 if query_lower.startswith('when ') or 'how long' in query_lower else 0.70
                 has_temporal = bool(temporal_reasoning_result and temporal_reasoning_result.get('answer') and
                                    _temporal_conf >= _temporal_threshold)
+                # audit telemetry — passive
+                try:
+                    from . import audit_log as _audit
+                    _audit.event(
+                        'temporal_decision',
+                        query_class=('when_or_how_long'
+                                     if (query_lower.startswith('when ') or 'how long' in query_lower)
+                                     else 'other'),
+                        threshold=_temporal_threshold,
+                        confidence=round(float(_temporal_conf), 4),
+                        had_answer=bool(temporal_reasoning_result and temporal_reasoning_result.get('answer')),
+                        passed_threshold=bool(_temporal_conf >= _temporal_threshold),
+                        selected=has_temporal,
+                    )
+                except Exception:  # noqa: BLE001 - probe must never break the request
+                    pass
                 has_reasoning = bool(use_reasoning_chain and reasoning_chain_result)
 
                 answer_path = self._determine_answer_path(

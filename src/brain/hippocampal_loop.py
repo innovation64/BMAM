@@ -410,6 +410,9 @@ Output JSON:
         logger.info(f"🔍 QueryExpander iteration {current_iteration + 1}: '{expanded_query[:60]}...'")
 
         # 执行扩展查询检索
+        _ret_count = 0
+        _new_count = 0
+        _err = None
         try:
             memories = await self.memory_system.search_memories(
                 query=expanded_query,
@@ -417,14 +420,34 @@ Output JSON:
                 k=retrieval_config.get('k', 25),
                 threshold=retrieval_config.get('threshold', 0.25)
             )
+            _ret_count = len(memories) if memories else 0
 
             for mem in memories:
                 mem_id = mem.get('id') if isinstance(mem, dict) else None
                 if mem_id and mem_id not in exclude_ids:
                     all_additional.append(mem)
+                    _new_count += 1
 
         except Exception as e:
+            _err = str(e)
             logger.error(f"QueryExpander retrieval failed: {e}")
+
+        # audit: per-round expansion telemetry
+        try:
+            from src.coordination import audit_log as _audit
+            _audit.event(
+                'expansion_round',
+                iteration=current_iteration + 1,
+                strategy=retrieval_config.get('strategy'),
+                k=retrieval_config.get('k'),
+                threshold=retrieval_config.get('threshold'),
+                expanded_query_hash=_audit.memory_id({'content': expanded_query}),
+                returned_count=_ret_count,
+                new_unique_count=_new_count,
+                error=_err,
+            )
+        except Exception:  # noqa: BLE001
+            pass
 
         # 🔥 补充：基于 missing_aspects 的检索（保留原有逻辑作为备份）
         if len(all_additional) < 3:

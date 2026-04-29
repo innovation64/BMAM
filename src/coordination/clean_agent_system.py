@@ -536,16 +536,58 @@ Return only 4 numbers separated by commas, e.g.: 10,3,2,4"""
                 'memory': mem,
                 'score': score,
                 'similarity': similarity,
+                'keyword_matches': keyword_matches,
                 'content': content
             })
 
         if not scored_memories:
+            # audit: empty input
+            try:
+                from . import audit_log as _audit
+                _audit.event(
+                    'conv_filter_empty',
+                    input_count=len(memories),
+                    query_intent=query_intent,
+                )
+            except Exception:  # noqa: BLE001
+                pass
             return []
 
         # === 动态阈值过滤 ===
         # 计算相对阈值（基于最高分）
         max_score = max(item['score'] for item in scored_memories)
         dynamic_threshold = max(max_score * RELATIVE_THRESHOLD, ABSOLUTE_THRESHOLD)
+
+        # audit: aggregate input snapshot
+        try:
+            from . import audit_log as _audit
+            _audit.event(
+                'conv_filter_input',
+                input_count=len(memories),
+                scored_count=len(scored_memories),
+                query_intent=query_intent,
+                weights=dict(WEIGHTS),
+                relative_threshold_ratio=RELATIVE_THRESHOLD,
+                absolute_threshold=ABSOLUTE_THRESHOLD,
+                dynamic_threshold=round(float(dynamic_threshold), 4),
+                max_score=round(float(max_score), 4),
+                max_similarity=round(float(max_similarity), 4),
+            )
+            # per-item passive trace — score breakdown + kept/dropped
+            for item in scored_memories:
+                _audit.event(
+                    'conv_filter_item',
+                    mem=_audit.memory_id(item['memory']),
+                    score=round(float(item['score']), 4),
+                    similarity=round(float(item['similarity']), 4),
+                    keyword_matches=int(item['keyword_matches']),
+                    kept=bool(item['score'] >= dynamic_threshold),
+                    reason=('above_threshold'
+                            if item['score'] >= dynamic_threshold
+                            else 'below_threshold'),
+                )
+        except Exception:  # noqa: BLE001
+            pass
 
         # 过滤低分记忆
         relevant = [item for item in scored_memories if item['score'] >= dynamic_threshold]
@@ -589,6 +631,40 @@ Return only 4 numbers separated by commas, e.g.: 10,3,2,4"""
 
         # 返回记忆对象和调试信息
         filtered_memories = [item['memory'] for item in relevant[:5]]
+
+        # audit: final top5 + dropped-but-high-relevance signal
+        try:
+            from . import audit_log as _audit
+            top5 = [
+                {
+                    'mem': _audit.memory_id(it['memory']),
+                    'score': round(float(it['score']), 4),
+                    'similarity': round(float(it['similarity']), 4),
+                }
+                for it in relevant[:5]
+            ]
+            # candidates that passed threshold but didn't make top-5 — sometimes
+            # the gold evidence is here, especially when top-5 collapses.
+            dropped_after_top5 = [
+                {
+                    'mem': _audit.memory_id(it['memory']),
+                    'score': round(float(it['score']), 4),
+                    'similarity': round(float(it['similarity']), 4),
+                }
+                for it in relevant[5:15]  # cap to keep file small
+            ]
+            _audit.event(
+                'conv_filter_output',
+                input_count=len(memories),
+                scored_count=len(scored_memories),
+                relevant_count=len(relevant),
+                returned_count=len(filtered_memories),
+                top5=top5,
+                dropped_after_top5_count=max(0, len(relevant) - 5),
+                dropped_after_top5=dropped_after_top5,
+            )
+        except Exception:  # noqa: BLE001
+            pass
 
         # 记录过滤统计（用于调试）
         if filtered_memories:
