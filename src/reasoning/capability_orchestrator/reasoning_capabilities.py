@@ -772,6 +772,10 @@ Output JSON:
         )
 
         # 🔥 关键: 过滤只保留用户消息 (speaker='User')
+        speaker_counts = {'user': 0, 'assistant': 0, 'unknown': 0}
+        kept_by_explicit_user = 0
+        kept_by_content_marker = 0
+        kept_by_default = 0
         user_memories = []
         for m in memories:
             # 检查 metadata 中的 speaker 字段
@@ -781,23 +785,60 @@ Output JSON:
             # 也检查 content 中是否明确标记
             content = m.get('content', str(m))
 
+            # tally speaker classes for the audit
             if speaker == 'User':
-                user_memories.append(m)
+                speaker_counts['user'] += 1
+            elif speaker == 'Assistant':
+                speaker_counts['assistant'] += 1
+            else:
+                speaker_counts['unknown'] += 1
+
+            if speaker == 'User':
+                user_memories.append(m); kept_by_explicit_user += 1
             elif 'User:' in content:
-                user_memories.append(m)
+                user_memories.append(m); kept_by_content_marker += 1
             # 排除明确的 Assistant 消息
             elif speaker != 'Assistant' and 'Assistant:' not in content:
                 # 可能是用户消息，保留
-                user_memories.append(m)
+                user_memories.append(m); kept_by_default += 1
 
         # 如果过滤后用户记忆很少，警告并使用全部但添加指示
         filter_note = ""
+        bypassed_filter = False
         if len(user_memories) < 3:
             logger.warning(f"⚠️ fact_recall: Only {len(user_memories)} user memories found, using all with filter note")
             user_memories = memories[:15]
             filter_note = "\n\n⚠️ IMPORTANT: Focus ONLY on statements that the USER made (starting with 'User:'), NOT what the Assistant said."
+            bypassed_filter = True
 
         logger.info(f"📝 fact_recall: Filtered {len(user_memories)} user memories from {len(memories)} total")
+
+        # audit: speaker filter behaviour + window snapshot
+        try:
+            from src.coordination import audit_log as _audit
+            if _audit.is_enabled():
+                window = user_memories[:15]
+                _audit.event(
+                    'fact_recall_input',
+                    query=query,
+                    capability='fact_recall',
+                    input_memories_count=len(memories) if memories else 0,
+                    speaker_counts=speaker_counts,
+                    kept_by_explicit_user=kept_by_explicit_user,
+                    kept_by_content_marker=kept_by_content_marker,
+                    kept_by_default=kept_by_default,
+                    user_memories_count=len(user_memories),
+                    bypassed_filter=bypassed_filter,
+                    prompt_window_size=len(window),
+                    prompt_memories=[_audit.memory_meta(m) for m in window],
+                    fringe_memories=[
+                        _audit.memory_meta(m)
+                        for m in (user_memories[15:20] if len(user_memories) > 15 else [])
+                    ],
+                    truncated_after_filter=bool(len(user_memories) > 15),
+                )
+        except Exception:  # noqa: BLE001
+            pass
 
         # 准备用户记忆文本
         memories_text = '\n'.join([
@@ -841,6 +882,31 @@ Output JSON:
             answer = result.get('answer', result.get('user_stated_fact'))
             logger.info(f"🔍 fact_recall: Found user fact = {result.get('user_stated_fact', 'N/A')[:50]}...")
 
+            # audit: output classification
+            try:
+                from src.coordination import audit_log as _audit
+                if _audit.is_enabled():
+                    from .answer_synthesis import classify_candidate_type
+                    ev_list = result.get('evidence') or []
+                    ans_str = str(answer or '')
+                    _audit.event(
+                        'fact_recall_output',
+                        query=query,
+                        capability='fact_recall',
+                        answer_hash=_audit.memory_id({'content': ans_str}),
+                        answer_type=classify_candidate_type(ans_str),
+                        word_count=len(ans_str.split()),
+                        confidence=result.get('confidence'),
+                        user_stated_fact_present=bool(result.get('user_stated_fact')),
+                        evidence_list_size=len(ev_list) if isinstance(ev_list, list) else 0,
+                        **(
+                            {'preview': ans_str[:80]}
+                            if _audit._content_preview_enabled() else {}
+                        ),
+                    )
+            except Exception:  # noqa: BLE001
+                pass
+
             return {
                 'summary': f"Recalled user fact: {result.get('user_stated_fact', 'N/A')[:50]}",
                 'answer': answer,
@@ -853,6 +919,19 @@ Output JSON:
             logger.error(f"❌ fact_recall failed: {e}")
             import traceback
             logger.error(traceback.format_exc())
+
+            # audit: failure path
+            try:
+                from src.coordination import audit_log as _audit
+                if _audit.is_enabled():
+                    _audit.event(
+                        'fact_recall_output',
+                        query=query,
+                        capability='fact_recall',
+                        error=str(e)[:200],
+                    )
+            except Exception:  # noqa: BLE001
+                pass
 
             return {
                 'answer': None,
