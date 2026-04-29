@@ -2087,23 +2087,26 @@ class BrainInspiredCoordinator:
 
             refiner = TempRefiner('answer_refiner', 'prefrontal', 'Answer Refiner')
 
-            # Determine answer type based on question
+            # Determine answer type by question morphology, NOT by listing
+            # benchmark-specific example strings. Format hints describe shape
+            # (date format, single-word, noun phrase, comma list, ...) so this
+            # rule does not bias the system toward any particular eval set.
             if question_lower.startswith('when') or 'what date' in question_lower or 'what time' in question_lower:
-                answer_type = "date/time (e.g., '7 May 2023', 'June 2023', '2022')"
+                answer_type = "a date or time, formatted as 'D Month YYYY', 'Month YYYY', or 'YYYY'"
             elif question_lower.startswith('who') or 'identity' in question_lower:
-                answer_type = "person/identity (e.g., 'Transgender woman', 'a teacher')"
+                answer_type = "a noun phrase naming a person, role, or identity"
             elif question_lower.startswith('where') or 'location' in question_lower:
-                answer_type = "location (e.g., 'New York', 'the park')"
+                answer_type = "a place name or location phrase"
             elif 'how long' in question_lower or 'how many' in question_lower:
-                answer_type = "a number or duration (e.g., '4 years', '3', '10 years ago')"
+                answer_type = "a number or a duration phrase"
             elif 'field' in question_lower or 'pursue' in question_lower or 'education' in question_lower:
-                answer_type = "academic field(s) (e.g., 'Psychology, counseling')"
+                answer_type = "one or more academic field names, comma-separated"
             elif 'status' in question_lower:
-                answer_type = "status word (e.g., 'Single', 'Married', 'Employed')"
+                answer_type = "a single status word"
             elif question_lower.startswith('what') and any(w in question_lower for w in ['like', 'enjoy', 'hobby', 'interest', 'favorite']):
-                answer_type = "a short list of items (e.g., 'dinosaurs, nature')"
+                answer_type = "a short comma-separated list of items"
             elif question_lower.startswith('what') and any(w in question_lower for w in ['did', 'does', 'has', 'have', 'research', 'read', 'buy', 'bought']):
-                answer_type = "specific item(s) or action(s) (e.g., 'Adoption agencies', 'pottery class')"
+                answer_type = "a specific noun phrase or action phrase (not a single bare topic word)"
             else:
                 answer_type = "the direct, concise answer (max 10 words, no explanation)"
 
