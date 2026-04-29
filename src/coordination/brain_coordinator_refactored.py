@@ -2957,6 +2957,41 @@ Output ONLY the extracted answer:"""
                     except Exception:  # noqa: BLE001
                         pass
 
+                # B-full: deterministic route policy override. Off by
+                # default; opt-in via BMAM_ROUTE_POLICY_V2=1. Strict
+                # priority — temporal explicit / adversarial / reasoning
+                # shape / fallback. Only re-points answer_path; does not
+                # touch retrieval, prompts, or C1.
+                _policy_override_path = None
+                _policy_reason = None
+                _policy_flags = None
+                try:
+                    from . import route_policy as _route_policy
+                    if _route_policy.enabled():
+                        # Reach intermediate results if they exist (orchestrator
+                        # path computes them; for non-orchestrator paths the
+                        # capability_analyzer signal isn't available, only the
+                        # shape patterns matter).
+                        _intermediate = locals().get('intermediate_results') or {}
+                        new_path, _policy_reason, _policy_flags = (
+                            _route_policy.classify_route_v2(
+                                query=user_input,
+                                has_temporal_result=bool(has_temporal),
+                                has_reasoning_chain=bool(has_reasoning),
+                                intermediate_results=_intermediate,
+                            )
+                        )
+                        _old_path = answer_path
+                        if new_path != _old_path:
+                            _policy_override_path = new_path
+                            answer_path = new_path
+                            logger.info(
+                                f"🛣️  route_policy_v2 override: {_old_path} → {new_path} "
+                                f"(reason={_policy_reason})"
+                            )
+                except Exception as e:  # noqa: BLE001
+                    logger.debug(f"route_policy_v2 skipped: {e}")
+
                 # audit: which path the request will take, with the inputs
                 # the router used. Lets us see the path distribution for the
                 # 21/33 questions that don't reach the orchestrator.
@@ -2977,6 +3012,9 @@ Output ONLY the extracted answer:"""
                             memory_count=len(memories) if memories else 0,
                             route_cache_hit=_route_cache_hit,
                             cached_path=_cached_path,
+                            policy_override_path=_policy_override_path,
+                            policy_reason=_policy_reason,
+                            policy_flags=_policy_flags,
                         )
                 except Exception:  # noqa: BLE001
                     pass
