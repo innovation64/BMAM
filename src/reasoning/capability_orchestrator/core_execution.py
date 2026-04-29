@@ -48,6 +48,25 @@ class CoreExecutionMixin:
         """
         logger.info(f"🎯 Orchestrating capabilities: {[c['name'] for c in capabilities]}")
 
+        # audit: orchestrator entry — raw memory pool BEFORE any iterative
+        # retrieval enhancement. Tells us whether the pool already contains
+        # gold-relevant evidence.
+        try:
+            from src.coordination import audit_log as _audit
+            if _audit.is_enabled():
+                _audit.event(
+                    'orchestrator_input',
+                    query=query,
+                    capabilities=[c.get('name') for c in (capabilities or [])],
+                    memories_in_count=len(memories) if memories else 0,
+                    memories_in_top=[
+                        _audit.memory_meta(m) for m in (memories[:10] if memories else [])
+                    ],
+                    user_id=user_id,
+                )
+        except Exception:  # noqa: BLE001 — probe must never break the request
+            pass
+
         # 🔥 STEP 1: 迭代检索增强记忆 (解决Q2/Q4 Psychology缺失)
         initial_memory_count = len(memories)
         if self.hippocampal_loop and len(memories) > 0:

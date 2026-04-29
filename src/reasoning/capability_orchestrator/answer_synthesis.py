@@ -158,6 +158,46 @@ def _query_is_adversarial_or_counterfactual(
     return bool(_ADVERSARIAL_RE.search(query))
 
 
+# Date / month tokens used by the audit candidate-type classifier. Light-weight
+# detection — only used to label candidate answers in JSONL events, never to
+# gate logic.
+_TEMPORAL_ANSWER_RE = re.compile(
+    r'\b(\d{4}|\d{1,2}\s+(?:january|february|march|april|may|june|july|august|'
+    r'september|october|november|december)|january|february|march|april|may|'
+    r'june|july|august|september|october|november|december)\b',
+    re.IGNORECASE,
+)
+
+
+def classify_candidate_type(answer: str) -> str:
+    """Audit-only label for an intermediate candidate answer. Returns one of:
+        'unknown'  — matches a no-info pattern (e.g. 'not mentioned')
+        'temporal' — answer carries a date / month / year token
+        'list'     — short comma-separated category list
+        'concrete' — passes `_is_concrete_answer` (specific phrase / sentence)
+        'abstract' — fallback (single bare noun, lowercase X-and-Y, etc.)
+    The classifier is descriptive only; nothing in the runtime depends on it.
+    """
+    if not answer:
+        return 'unknown'
+    a = str(answer).strip()
+    if not a:
+        return 'unknown'
+    if _looks_unknown(a):
+        return 'unknown'
+    # Temporal-shaped answers (year, "DD Month", "Month YYYY", etc.)
+    if _TEMPORAL_ANSWER_RE.search(a):
+        return 'temporal'
+    # Short comma list with ≤6 words → category enumeration.
+    words = a.split()
+    if ',' in a and len(words) <= 6:
+        return 'list'
+    # Local import to avoid circular reference at module load.
+    if AnswerSynthesisMixin._is_concrete_answer(a):
+        return 'concrete'
+    return 'abstract'
+
+
 class AnswerSynthesisMixin:
     """Answer synthesis mixin for CapabilityOrchestrator"""
 
@@ -225,6 +265,34 @@ class AnswerSynthesisMixin:
         memories = context.get('memories') or []
         intermediate = context.get('intermediate_results') or {}
         mem_blob = _memory_pool_text(memories)
+
+        # audit: synthesizer entry — what answer-shapes did each capability
+        # produce, and what memory pool is the selector operating on?
+        try:
+            from src.coordination import audit_log as _audit
+            if _audit.is_enabled():
+                cand_summary = []
+                for n, r in cap_results:
+                    ans = str(r.get('answer', ''))
+                    cand_summary.append({
+                        'cap': n,
+                        'type': classify_candidate_type(ans),
+                        'answer_hash': _audit.memory_id({'content': ans}),
+                        'word_count': len(ans.split()),
+                        'confidence': r.get('confidence'),
+                        **({'preview': ans[:80]} if _audit._content_preview_enabled() else {}),
+                    })
+                _audit.event(
+                    'synthesize_input',
+                    query=query,
+                    candidates_count=len(cap_results),
+                    candidates=cand_summary,
+                    memories_count=len(memories),
+                    memories_top=[_audit.memory_meta(m) for m in memories[:10]],
+                    intermediate_capabilities=list(intermediate.keys()),
+                )
+        except Exception:  # noqa: BLE001
+            pass
 
         concrete = [(n, r) for n, r in cap_results if not _looks_unknown(r.get('answer', ''))]
         unknown = [(n, r) for n, r in cap_results if _looks_unknown(r.get('answer', ''))]
@@ -347,6 +415,36 @@ Selection rules:
 Output JSON ONLY, in this exact shape:
 {{"selected": <int 1..N>, "reason": "<one sentence>", "evidence_quote": "<short quote from memories, or empty>"}}
 """
+
+        # audit: what does the selector actually see, in the order it sees it?
+        try:
+            from src.coordination import audit_log as _audit
+            if _audit.is_enabled():
+                ordered = []
+                for n, r in cap_results:
+                    ans = str(r.get('answer', ''))
+                    ordered.append({
+                        'cap': n,
+                        'type': classify_candidate_type(ans),
+                        'answer_hash': _audit.memory_id({'content': ans}),
+                        'word_count': len(ans.split()),
+                        'confidence': r.get('confidence'),
+                        **({'preview': ans[:80]} if _audit._content_preview_enabled() else {}),
+                    })
+                _audit.event(
+                    'selector_input',
+                    query=query,
+                    candidates_in_order=ordered,
+                    memory_pool_size=len(memories) if memories else 0,
+                    memory_pool_top=[
+                        _audit.memory_meta(m) for m in (memories[:10] if memories else [])
+                    ],
+                    adversarial_skip=_query_is_adversarial_or_counterfactual(
+                        query, intermediate_results
+                    ),
+                )
+        except Exception:  # noqa: BLE001
+            pass
 
         response = await selector.call_llm(
             prompt=prompt,

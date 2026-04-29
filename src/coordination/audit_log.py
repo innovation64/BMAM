@@ -171,6 +171,70 @@ def memory_id(memory: Any) -> str:
     return hashlib.sha256(s).hexdigest()[:12]
 
 
+def _content_preview_enabled() -> bool:
+    """Content preview is opt-in (AUDIT_VERBOSE=1). Default off so audit
+    files never carry memory bodies into review.
+    """
+    try:
+        return bool(int(os.getenv('AUDIT_VERBOSE', '0')))
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def memory_meta(memory: Any, with_preview: Optional[bool] = None) -> dict:
+    """Compact metadata view of a memory: id, source, retrieval strategy /
+    region, score fields. NEVER raises. Content body is omitted unless
+    `with_preview=True` (or AUDIT_VERBOSE=1) — and even then capped to
+    80 chars.
+    """
+    if memory is None:
+        return {}
+    if isinstance(memory, dict):
+        get = memory.get
+    else:
+        get = lambda k, default=None: getattr(memory, k, default)  # noqa: E731
+
+    body = get('content') or get('text') or get('memory') or ''
+    out: dict = {'mem': memory_id(memory)}
+
+    for k in ('source', 'memory_source'):
+        v = get(k)
+        if v is not None:
+            out['source'] = str(v)
+            break
+
+    # Retrieval strategy may live under different names depending on origin.
+    for k in ('retrieval_strategy', 'strategy', 'search_type', 'path_type'):
+        v = get(k)
+        if v is not None:
+            out['strategy'] = str(v)
+            break
+
+    for k in ('region', 'brain_region'):
+        v = get(k)
+        if v is not None:
+            out['region'] = str(v)
+            break
+
+    # Score-like fields — keep all that are present so we can compare.
+    for k in ('relevance', 'score', 'semantic_score',
+              'similarity_score', 'similarity', 'retrieval_confidence'):
+        v = get(k)
+        if v is None:
+            continue
+        try:
+            out[k] = round(float(v), 4)
+        except Exception:  # noqa: BLE001
+            pass
+
+    # Optional preview, gated by env.
+    show_preview = _content_preview_enabled() if with_preview is None else with_preview
+    if show_preview and isinstance(body, str) and body:
+        out['preview'] = body.strip().replace('\n', ' ')[:80]
+
+    return out
+
+
 # ----- env auto-enable -----------------------------------------------------
 
 _path_from_env = os.getenv('BMAM_AUDIT_LOG_PATH')
