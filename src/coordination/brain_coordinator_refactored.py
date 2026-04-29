@@ -2483,6 +2483,26 @@ Output ONLY the extracted answer:"""
             # 1. Query analysis via RoutingManager
             query_features = await self._analyze_query_features(user_input, context)
 
+            # 1b. Route decision (P1 close-loop). Without this call, the
+            # learning record below always reads recommended_strategy='hybrid'
+            # because nothing else populates that field. Decision here doesn't
+            # change which retriever runs (brain_inspired_retrieval still
+            # owns its own internal strategy), but it gives the feedback loop
+            # a real label to attribute reward/penalty to.
+            try:
+                route_decision = await self.routing_manager.decide_retrieval_route(
+                    query_features, context
+                )
+                query_features['recommended_strategy'] = route_decision.get('recommended_strategy')
+                query_features['route_confidence'] = route_decision.get('confidence')
+                query_features['route_alpha'] = route_decision.get('alpha')
+                logger.debug(
+                    f"🎯 Route: {query_features['recommended_strategy']} "
+                    f"(conf={query_features['route_confidence']:.2f})"
+                )
+            except Exception as e:
+                logger.debug(f"Route decision skipped: {e}")
+
             # 🔥 2025-12-15: Learnable Router - 可学习的脑区路由
             learnable_routing_result = None
             if self.learnable_router:
