@@ -117,10 +117,40 @@ def _contains_cjk(text: str) -> bool:
 
 
 def _looks_like_language_drift(question: str, response: str) -> bool:
-    """Heuristic: response drifted to CJK while question was English."""
+    """Heuristic: response drifted to CJK while question was English.
+    """
     if not response or not _contains_cjk(response):
         return False
     return not _contains_cjk(question or '')
+
+
+# Per-request agent involvement tracking. ContextVar is async-safe so concurrent
+# coordinator requests don't bleed into each other. Set at the top of
+# _process_user_input_impl, appended by _activate_agent and dispatch branches,
+# read into ProcessingResult.agents_involved on return.
+from contextvars import ContextVar as _ContextVar
+_request_agent_trace: _ContextVar = _ContextVar('_request_agent_trace', default=None)
+
+
+def _trace_agent(agent_id: str) -> None:
+    """Append agent_id to the current request's involvement list, if active."""
+    if not agent_id:
+        return
+    trace = _request_agent_trace.get()
+    if trace is not None:
+        trace.append(agent_id)
+
+
+def _collect_agents_involved() -> List[str]:
+    """Return the current request's unique agents-involved list, in first-seen order."""
+    trace = _request_agent_trace.get()
+    if not trace:
+        return []
+    seen: Dict[str, None] = {}
+    for name in trace:
+        if name and name not in seen:
+            seen[name] = None
+    return list(seen.keys())
 
 
 class ComponentCriticality(Enum):
@@ -273,9 +303,13 @@ class BrainInspiredCoordinator:
 
         # Initialize KG merge handler
         logger.info("🔧 [4/10] Initializing KGMergeHandler...")
+        # unified_kg is created inside _initialize_agents() above; bind it now so
+        # KG writes (via TemporalLobe / KnowledgeGraphBuilder) and KG queries (via
+        # KGMergeHandler.query_kg_for_facts) hit the same in-memory instance.
         self.kg_handler = KGMergeHandler(
             kg_patterns_fn=self._get_kg_patterns,
-            phrases_checker_fn=self._phrases_in_text
+            phrases_checker_fn=self._phrases_in_text,
+            unified_kg=self.unified_kg
         )
         logger.info("✅ [4/10] KGMergeHandler initialized")
 
@@ -897,13 +931,12 @@ class BrainInspiredCoordinator:
             logger.debug("🔬 ABLATION: All components enabled (full system)")
 
         # 🔥 FIX: 创建统一的知识图谱实例，供所有脑区共享
+        # NOTE: kg_handler binding moved to __init__ (after KGMergeHandler is
+        # constructed). The previous hasattr(self, 'kg_handler') check here
+        # was always False because _initialize_agents() runs before kg_handler
+        # is created, so unified_kg silently never reached the merge handler.
         from ..memory.knowledge_graph import LightweightKnowledgeGraph
         self.unified_kg = LightweightKnowledgeGraph()
-
-        # 🔥 2025-12-20 FIX: 将 unified_kg 传递给 KGMergeHandler（解决 KG 写入/读取不同步问题）
-        if hasattr(self, 'kg_handler') and self.kg_handler is not None:
-            self.kg_handler.unified_kg = self.unified_kg
-            logger.info("🔥 KGMergeHandler 已连接到 unified_kg（内存KG查询已启用）")
 
         # 🔥 FIX: 将统一KG实例传给KnowledgeGraphBuilder
         self.knowledge_graph_builder = KnowledgeGraphBuilder(
@@ -1153,7 +1186,8 @@ class BrainInspiredCoordinator:
     # ============================================================================
 
     async def _activate_agent(self, agent_id: str, message: AgentMessage) -> Dict[str, Any]:
-        """Delegate to AgentLifecycleManager"""
+        """Delegate to AgentLifecycleManager and record agent involvement."""
+        _trace_agent(agent_id)
         return await self.agent_lifecycle_manager.activate_agent(agent_id, message)
 
     def _map_agent_name(self, agent_name: str) -> Optional[str]:
@@ -2416,6 +2450,11 @@ Output ONLY the extracted answer:"""
         """
         start_time = datetime.now()
 
+        # Reset per-request agent involvement trace. ContextVar isolates this
+        # per asyncio task; calling set() with a fresh list at the top of every
+        # request prevents stale traces from leaking between sequential calls.
+        _request_agent_trace.set([])
+
         if context is None:
             context = {}
 
@@ -2477,6 +2516,7 @@ Output ONLY the extracted answer:"""
             # brain_retrieve 和 persona 检索互不依赖，可以同时运行
             async def _do_brain_retrieve():
                 if self.brain_inspired_retrieval:
+                    _trace_agent('brain_inspired_retrieval')
                     try:
                         result = await self.brain_retrieve(
                             query=user_input,
@@ -2557,6 +2597,7 @@ Output ONLY the extracted answer:"""
             reasoning_chain_result = None
 
             if self.memory_reasoning_chain and self._should_use_reasoning_chain(user_input, query_features):
+                _trace_agent('memory_reasoning_chain')
                 try:
                     logger.info(f"🧠 Using Memory Reasoning Chain for: '{user_input[:50]}...'")
                     # 🔥 2026-04-04: 传入预检索记忆，避免重复检索
@@ -2586,6 +2627,7 @@ Output ONLY the extracted answer:"""
             # 🔥 FIX: 消融检查 - 禁用 kg 时跳过知识图谱增强
             kg_enabled = self._ablation_state.get('kg', True) if hasattr(self, '_ablation_state') else True
             if kg_enabled and self.kg_handler.should_trigger_kg_search(user_input, memories):
+                _trace_agent('kg_handler')
                 kg_facts = await self.kg_handler.query_kg_for_facts(
                     user_input,
                     entities=query_features.get('entities', [])
@@ -2803,6 +2845,7 @@ Output ONLY the extracted answer:"""
 
                 # 根据动态路由结果选择路径
                 if answer_path == 'temporal' and has_temporal:
+                    _trace_agent('temporal_reasoning')
                     response = temporal_reasoning_result['answer']
                     logger.info(f"⏰ Dynamic route → Temporal Reasoning answer")
 
@@ -2814,6 +2857,7 @@ Output ONLY the extracted answer:"""
                 # 当选择reasoning_chain但没有结果时，应该用orchestrator，而非conversation
                 elif (answer_path == 'reasoning_chain' and not has_reasoning and
                       self.capability_orchestrator and self.capability_analyzer):
+                    _trace_agent('capability_orchestrator')
                     logger.info(f"🔄 Dynamic route → reasoning_chain unavailable, using CapabilityOrchestrator")
                     try:
                         cap_analysis = await self.capability_analyzer.analyze(user_input, context)
@@ -2854,6 +2898,7 @@ Output ONLY the extracted answer:"""
 
                 elif answer_path == 'orchestrator' and self.capability_orchestrator and self.capability_analyzer:
                     # 🔥 Dynamic route → CapabilityOrchestrator 动态脑区协作
+                    _trace_agent('capability_orchestrator')
                     logger.info(f"🧠 Dynamic route → CapabilityOrchestrator")
                     try:
                         # Step 1: 分析所需能力
@@ -3579,10 +3624,11 @@ Output ONLY: "The answer is (X)" where X is a, b, c, or d."""
                     except Exception as e:
                         logger.warning(f"MCQ conversion failed: {e}")
 
+            agents_involved = _collect_agents_involved() or ['conversation']
             return ProcessingResult(
                 response=response,
                 routing_decision=query_features,
-                agents_involved=['conversation'],
+                agents_involved=agents_involved,
                 memories_retrieved=memories,
                 memory_stored=memory_stored,
                 processing_time=processing_time,
@@ -3599,7 +3645,7 @@ Output ONLY: "The answer is (X)" where X is a, b, c, or d."""
             return ProcessingResult(
                 response=f"Error: {str(e)}",
                 routing_decision={},
-                agents_involved=[],
+                agents_involved=_collect_agents_involved(),
                 memories_retrieved=[],
                 memory_stored=False,
                 processing_time=processing_time,

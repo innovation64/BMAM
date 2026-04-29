@@ -52,6 +52,10 @@ class RoutingManager:
             for strategy in self.strategy_weights.keys()
         }
 
+        # Query-type weights (orthogonal to strategy weights). Updated by
+        # apply_feedback() — one slot per query_type, default 1.0.
+        self.type_weights: Dict[str, float] = {}
+
         # 🔥 NEW: Learning rate for weight updates
         self.learning_rate = 0.1
 
@@ -73,6 +77,8 @@ class RoutingManager:
                     saved = json.load(f)
                 self.strategy_weights.update(saved.get('weights', {}))
                 self.strategy_performance.update(saved.get('performance', {}))
+                if hasattr(self, 'type_weights'):
+                    self.type_weights.update(saved.get('type_weights', {}))
                 logger.debug(f"Loaded routing weights from {self._weights_path}")
             except Exception as e:
                 logger.debug(f"Could not load routing weights: {e}")
@@ -88,6 +94,7 @@ class RoutingManager:
                 json.dump({
                     'weights': self.strategy_weights,
                     'performance': self.strategy_performance,
+                    'type_weights': getattr(self, 'type_weights', {}),
                 }, f, indent=2)
         except Exception as e:
             logger.debug(f"Could not save routing weights: {e}")
@@ -108,6 +115,34 @@ class RoutingManager:
             self.strategy_weights[strategy] = new_weight
             self._save_persisted_weights()
             logger.info(f"📊 Strategy weight updated: {strategy} {old_weight:.3f} → {new_weight:.3f}")
+
+    def update_type_weight(self, query_type: str, delta: float) -> None:
+        """
+        Update a query-type weight based on user/environment feedback.
+
+        Query types ('temporal', 'preference', 'factual', 'identity', ...) are
+        orthogonal to retrieval strategies — a 'preference' query may use the
+        'semantic' strategy. We track them in a separate dict so feedback for
+        non-strategy types isn't silently dropped.
+
+        Args:
+            query_type: Query type label
+            delta: Weight change (+/-) before learning_rate scaling
+        """
+        if not query_type:
+            return
+        old_weight = self.type_weights.get(query_type, 1.0)
+        new_weight = max(0.5, min(2.0, old_weight + delta * self.learning_rate))
+        self.type_weights[query_type] = new_weight
+        # If the type name happens to be a known strategy (e.g. 'temporal'),
+        # mirror the update so legacy callers that conflated the two still see
+        # an effect. This is intentional — strategy 'temporal' is what gets
+        # used when query_type is 'temporal'.
+        if query_type in self.strategy_weights:
+            self.update_strategy_weight(query_type, delta)
+        else:
+            self._save_persisted_weights()
+        logger.info(f"📊 Type weight updated: {query_type} {old_weight:.3f} → {new_weight:.3f}")
 
     def record_strategy_outcome(
         self,

@@ -146,9 +146,11 @@ class CoordinatorBuilder:
             if self._container.is_registered(IMessageBus):
                 message_bus = self._container.resolve(IMessageBus)
             else:
-                # Create default message bus
-                from src.coordination.agent_message_bus import AgentMessageBus
-                message_bus = AgentMessageBus()
+                # Default to MessageBusManager. Note this class does not yet
+                # implement IMessageBus (see message_bus.py:51 TODO); callers
+                # that require the interface should register a real impl.
+                from src.coordination.message_bus import MessageBusManager
+                message_bus = MessageBusManager()
 
         self._components['message_bus'] = message_bus
         logger.debug("Message bus configured")

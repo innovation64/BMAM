@@ -157,15 +157,35 @@ class BrainInspiredCoordinatorV2:
             logger.error(f"Failed to initialize KG integration: {e}")
 
     async def _initialize_routing(self) -> None:
-        """Initialize intelligent routing (if enabled)"""
+        """Initialize intelligent routing (if enabled).
+
+        RoutingManager's real signature requires memory_signal_config plus four
+        callbacks owned by the V1 coordinator (_get_query_patterns,
+        _phrases_in_text, _get_task_type_keywords, _get_kg_patterns). V2 has
+        not yet ported those, so we accept them via the components dict if
+        present and otherwise install no-op defaults.
+        """
         logger.debug("Initializing routing manager...")
         try:
             from src.coordination.routing_manager import RoutingManager
+
+            comp = self._components or {}
+            mem_signal_cfg = comp.get('memory_signal_config', {}) or {}
+
+            def _empty_list(*_args, **_kwargs):
+                return []
+
+            def _phrases_in_text(_phrases, _text):
+                return False
+
             self._routing_manager = RoutingManager(
-                agents=self.agents,
-                config=self._config.coordinator
+                memory_signal_config=mem_signal_cfg,
+                pattern_getter_fn=comp.get('pattern_getter_fn', _empty_list),
+                phrases_checker_fn=comp.get('phrases_checker_fn', _phrases_in_text),
+                task_type_keywords_fn=comp.get('task_type_keywords_fn', _empty_list),
+                kg_patterns_fn=comp.get('kg_patterns_fn', _empty_list),
             )
-            logger.info("Routing manager initialized")
+            logger.info("Routing manager initialized (V2 fallback callbacks)")
         except Exception as e:
             logger.error(f"Failed to initialize routing manager: {e}")
 
