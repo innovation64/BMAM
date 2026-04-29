@@ -421,7 +421,7 @@
 | `src/core/constants.py` | 111 | `"gpt-4o-mini"` | 默认LLM模型 |
 | `src/core/constants.py` | 112 | `"text-embedding-3-small"` | 默认嵌入模型 |
 | `src/core/constants.py` | 115 | `"gpt-4"` | 默认分词器模型 |
-| `src/core/constants.py` | 118 | `"qwen3.5-35b"` | 默认本地LLM模型 |
+| `src/core/constants.py` | 118 | `"qwen3.6-35b"` | 默认本地LLM模型 |
 | `src/core/constants.py` | 119 | `http://localhost:8000/v1` | 本地LLM基础URL |
 | `src/core/constants.py` | 123 | `"en_core_web_sm"` | SpaCy模型 |
 | `src/core/constants.py` | 144-145 | 8080, 8000 | 默认Web UI和API端口 |

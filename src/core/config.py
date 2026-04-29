@@ -69,7 +69,7 @@ class CoordinatorConfig:
     parallel_phase_timeout: float = 15.0
     buffer_exchange_timeout: float = 5.0
     memory_storage_timeout: float = 8.0
-    request_timeout: float = 60.0
+    request_timeout: float = 90.0
 
     max_concurrent_agents: int = 10
     enable_learning: bool = True
@@ -222,6 +222,7 @@ class BMAMConfig:
             parallel_phase_timeout=float(os.getenv("PARALLEL_PHASE_TIMEOUT", "15.0")),
             buffer_exchange_timeout=float(os.getenv("BUFFER_EXCHANGE_TIMEOUT", "5.0")),
             memory_storage_timeout=float(os.getenv("MEMORY_STORAGE_TIMEOUT", "8.0")),
+            request_timeout=float(os.getenv("REQUEST_TIMEOUT", "90.0")),
             max_concurrent_agents=int(os.getenv("MAX_CONCURRENT_AGENTS", "10")),
             enable_learning=os.getenv("ENABLE_LEARNING", "true").lower() == "true",
             enable_background_processes=os.getenv("ENABLE_BACKGROUND_PROCESSES", "true").lower() == "true",

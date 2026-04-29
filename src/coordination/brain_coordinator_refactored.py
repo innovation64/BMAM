@@ -104,6 +104,25 @@ from .adaptive_config import get_adaptive_config_manager
 logger = get_logger(__name__)
 
 
+_CJK_RANGE_RE = None
+
+
+def _contains_cjk(text: str) -> bool:
+    """Return True if text contains CJK (Chinese/Japanese/Korean) characters."""
+    global _CJK_RANGE_RE
+    if _CJK_RANGE_RE is None:
+        import re as _re
+        _CJK_RANGE_RE = _re.compile(r'[\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\u4e00-\u9fff\uac00-\ud7af\uff00-\uffef]')
+    return bool(text and _CJK_RANGE_RE.search(text))
+
+
+def _looks_like_language_drift(question: str, response: str) -> bool:
+    """Heuristic: response drifted to CJK while question was English."""
+    if not response or not _contains_cjk(response):
+        return False
+    return not _contains_cjk(question or '')
+
+
 class ComponentCriticality(Enum):
     """Component importance level for initialization failure handling."""
     CRITICAL = "critical"      # Failure -> raise (system cannot function)
@@ -2261,7 +2280,7 @@ Output ONLY the extracted answer:"""
         timeout = get_core_config().coordinator.request_timeout
 
         try:
-            return await asyncio.wait_for(
+            result = await asyncio.wait_for(
                 self._process_user_input_impl(user_input, context),
                 timeout=timeout
             )
@@ -2279,6 +2298,53 @@ Output ONLY the extracted answer:"""
                 success=False,
                 error=f"Request timeout after {timeout}s"
             )
+
+        # Post-generation robustness: if the response contains CJK characters
+        # but the input query is English, the LLM slipped into the wrong language.
+        # Re-prompt for an English answer. This is a safety net, not a brain-region
+        # change — it catches sporadic language-drift bugs without affecting retrieval.
+        try:
+            response = getattr(result, 'response', None)
+            if response and _looks_like_language_drift(user_input, response):
+                translated = await self._enforce_english_response(user_input, response)
+                if translated and not _contains_cjk(translated):
+                    result.response = translated
+                    logger.warning(
+                        f"Post-gen language drift fixed: {response[:40]!r} -> {translated[:40]!r}"
+                    )
+        except Exception as e:
+            logger.debug(f"English enforcement check skipped: {e}")
+
+        return result
+
+    async def _enforce_english_response(self, question: str, drifted_response: str) -> Optional[str]:
+        """Ask the LLM to restate the drifted response in concise English."""
+        try:
+            from ..agents.base import BrainAgent
+
+            class _TempTranslator(BrainAgent):
+                async def process_message(self, msg):
+                    return {}
+
+            translator = _TempTranslator(
+                agent_id='english_enforcer',
+                brain_region='prefrontal',
+                system_prompt='English Response Enforcer'
+            )
+            prompt = (
+                "Restate the following answer in concise English (10-15 words). "
+                "If the answer conveys 'no information found' or uncertainty, "
+                "output exactly: Information not available.\n\n"
+                f"Question: {question}\n"
+                f"Answer (may be in the wrong language): {drifted_response}\n\n"
+                "English answer:"
+            )
+            translated = await translator.call_llm(prompt=prompt, temperature=0.0, max_tokens=60)
+            if translated:
+                return translated.strip()
+        except Exception as e:
+            logger.debug(f"English enforcement LLM call failed: {e}")
+        return None
 
     async def _retrieve_persona_preferences(
         self, user_input: str, context: Dict[str, Any], adaptive_weights

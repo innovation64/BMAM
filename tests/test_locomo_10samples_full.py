@@ -162,56 +162,96 @@ def find_backup_for_sample(sample_id: str) -> Path:
 
 
 def restore_memory_from_backup(backup_path: Path) -> bool:
-    """从备份恢复记忆文件 - 🔥 恢复到 MEMORY_DIR"""
+    """从备份恢复记忆文件
+
+    🔥 2026-04-17 FIX: backup_memory_files 在 2026-04-08 (commit 895e5dc)
+    被改成写入 backup_path/state/ 和 backup_path/memory/ 子目录，但本函数没
+    同步更新，仍然从 backup root 读，导致所有 .db 和 state json 文件都
+    restore 失败 → 历次 benchmark 在空 memory 上跑出虚假数字。
+    """
     if not backup_path or not backup_path.exists():
         return False
 
     # 先清空
     clear_all_memory_files()
 
-    files_to_restore = [
-        'brain_memory.db',
+    state_dir = DATA_DIR / 'state'
+    memory_dir = DATA_DIR / 'memory'
+    state_dir.mkdir(parents=True, exist_ok=True)
+    memory_dir.mkdir(parents=True, exist_ok=True)
+
+    state_files = [
         'hippocampus_state.json',
-        'temporal_lobe.db',
         'amygdala_state.json',
         'prefrontal_state.json',
         'basal_ganglia_state.json',
+        'story_arc_state.json',
+        'temporal_lobe_state.json',
+        'routing_weights.json',
+        'calibration_state.json',
+    ]
+    memory_files = [
+        'brain_memory.db',
+        'temporal_lobe.db',
         'working_memory.db',
-        # 🔥 添加关键文件
         'kv_value_store.db',
         'memory_vectors.index',
         'memory_vectors_mappings.json',
-        'story_arc_state.json',
+        'sync_ledger.json',
     ]
 
     restored = 0
-    for f in files_to_restore:
-        src = backup_path / f
-        if src.exists():
-            shutil.copy2(src, MEMORY_DIR / f)
+
+    state_backup = backup_path / 'state'
+    if state_backup.exists():
+        for f in state_files:
+            src = state_backup / f
+            if src.exists():
+                shutil.copy2(src, state_dir / f)
+                restored += 1
+
+    memory_backup = backup_path / 'memory'
+    if memory_backup.exists():
+        for f in memory_files:
+            src = memory_backup / f
+            if src.exists():
+                shutil.copy2(src, memory_dir / f)
+                restored += 1
+        # ensure DBs are writable (sqlite needs to write journal files)
+        for f in memory_files:
+            dst = memory_dir / f
+            if dst.exists():
+                try:
+                    os.chmod(dst, 0o644)
+                except OSError:
+                    pass
+
+        # faiss_index inside memory backup
+        faiss_src = memory_backup / 'faiss_index'
+        if faiss_src.exists():
+            faiss_dst = memory_dir / 'faiss_index'
+            if faiss_dst.exists():
+                shutil.rmtree(faiss_dst)
+            shutil.copytree(faiss_src, faiss_dst)
             restored += 1
 
-    # 恢复faiss_index目录
-    faiss_src = backup_path / 'faiss_index'
-    if faiss_src.exists():
-        shutil.copytree(faiss_src, MEMORY_DIR / 'faiss_index')
-        restored += 1
-
-    # 恢复 embedding_cache 目录
+    # embedding_cache lives at backup root (per backup_memory_files)
     embedding_cache_src = backup_path / 'embedding_cache'
     if embedding_cache_src.exists():
-        dst = MEMORY_DIR / 'embedding_cache'
+        dst = DATA_DIR / 'cache' / 'embedding'
         if dst.exists():
             shutil.rmtree(dst)
+        dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copytree(embedding_cache_src, dst)
         restored += 1
 
-    # 恢复 checkpoints 目录
+    # checkpoints at backup root
     checkpoints_src = backup_path / 'checkpoints'
     if checkpoints_src.exists():
-        dst = MEMORY_DIR / 'checkpoints'
+        dst = MEMORY_DIR / 'memory' / 'checkpoints'
         if dst.exists():
             shutil.rmtree(dst)
+        dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copytree(checkpoints_src, dst)
         restored += 1
 
@@ -622,9 +662,11 @@ async def main():
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('--start-from', type=int, default=0, help='从第几个样本开始(0-9)')
+    parser.add_argument('--end-at', type=int, default=10, help='运行到第几个样本(exclusive, 1-10)')
     args = parser.parse_args()
 
     start_idx = args.start_from
+    end_idx = args.end_at
 
     print("="*60)
     print("LoCoMo 10 Samples Full Benchmark")
@@ -687,7 +729,7 @@ async def main():
     start_time = datetime.now()
     result_file = metrics_dir / f'results_10samples_all_{timestamp}.json'
 
-    for i in range(start_idx, 10):
+    for i in range(start_idx, min(end_idx, 10)):
         result = await test_single_sample(i, data[i], llm_client, timestamp)
         all_results.append(result)
         total_correct += result['qa']['correct']
