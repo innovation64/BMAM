@@ -2881,6 +2881,35 @@ Output ONLY the extracted answer:"""
                     has_temporal_result=has_temporal,
                     has_reasoning_chain=has_reasoning
                 )
+                # audit: which path the request will take, with the inputs
+                # the router used. Lets us see the path distribution for the
+                # 21/33 questions that don't reach the orchestrator.
+                try:
+                    from . import audit_log as _audit
+                    if _audit.is_enabled():
+                        learnable_top_agent = None
+                        learnable_top_score = None
+                        if learnable_routing_result:
+                            sel = learnable_routing_result.get('selected_agents') or []
+                            scores = learnable_routing_result.get('scores') or {}
+                            if sel:
+                                learnable_top_agent = sel[0]
+                                learnable_top_score = scores.get(sel[0])
+                        _audit.event(
+                            'answer_path_decision',
+                            answer_path=answer_path,
+                            had_temporal_result=bool(has_temporal),
+                            had_reasoning_chain=bool(has_reasoning),
+                            used_reasoning_chain=bool(use_reasoning_chain),
+                            learnable_top_agent=learnable_top_agent,
+                            learnable_top_score=(
+                                round(float(learnable_top_score), 4)
+                                if learnable_top_score is not None else None
+                            ),
+                            memory_count=len(memories) if memories else 0,
+                        )
+                except Exception:  # noqa: BLE001
+                    pass
 
                 # 根据动态路由结果选择路径
                 if answer_path == 'temporal' and has_temporal:

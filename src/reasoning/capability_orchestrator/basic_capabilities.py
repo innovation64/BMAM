@@ -36,10 +36,35 @@ class BasicCapabilitiesMixin:
         )
 
         # 准备记忆文本
+        prompt_window = memories[:10]
         memories_text = '\n'.join([
             f"Memory {i+1}: {m.get('content', str(m))}"
-            for i, m in enumerate(memories[:10])
+            for i, m in enumerate(prompt_window)
         ])
+
+        # audit: which memories did fact_extraction actually see vs. cut off?
+        # The [:10] window is the suspected hidden bottleneck — this captures
+        # both what made it into the prompt and the fringe (positions 11-15)
+        # so the analyser can tell whether evidence sat just outside the cut.
+        try:
+            from src.coordination import audit_log as _audit
+            if _audit.is_enabled():
+                _audit.event(
+                    'fact_recall_input',
+                    query=query,
+                    capability='fact_recall',
+                    input_memories_count=len(memories) if memories else 0,
+                    prompt_window_size=len(prompt_window),
+                    prompt_memories=[_audit.memory_meta(m) for m in prompt_window],
+                    fringe_memories=[
+                        _audit.memory_meta(m)
+                        for m in (memories[10:15] if memories and len(memories) > 10 else [])
+                    ],
+                    truncated=bool(memories and len(memories) > 10),
+                    cut_off_count=max(0, (len(memories) if memories else 0) - 10),
+                )
+        except Exception:  # noqa: BLE001 - probe must never break extraction
+            pass
 
         # 🔥 2025-12-14: 检测问题语言
         chinese_chars = sum(1 for c in query if '\u4e00' <= c <= '\u9fff')
@@ -102,6 +127,33 @@ Output only valid JSON, no explanation."""
 
             result = json.loads(content)
 
+            # audit: fact_recall LLM output — answer shape, evidence pointer,
+            # whether the LLM actually identified a memory or drifted.
+            try:
+                from src.coordination import audit_log as _audit
+                if _audit.is_enabled():
+                    from .answer_synthesis import classify_candidate_type
+                    ans = result.get('answer') or ''
+                    _audit.event(
+                        'fact_recall_output',
+                        query=query,
+                        capability='fact_recall',
+                        answer_hash=_audit.memory_id({'content': str(ans)}),
+                        answer_type=classify_candidate_type(str(ans)),
+                        word_count=len(str(ans).split()),
+                        confidence=result.get('confidence'),
+                        question_type=result.get('question_type'),
+                        evidence_text_present=bool(result.get('evidence')),
+                        evidence_word_count=len(str(result.get('evidence') or '').split()),
+                        **(
+                            {'preview': str(ans)[:80]}
+                            if _audit._content_preview_enabled()
+                            else {}
+                        ),
+                    )
+            except Exception:  # noqa: BLE001
+                pass
+
             return {
                 'summary': f"Extracted: {str(result.get('answer', ''))}",
                 'answer': result.get('answer'),
@@ -110,6 +162,19 @@ Output only valid JSON, no explanation."""
             }
         except (json.JSONDecodeError, Exception) as e:
             logger.error(f"Fact extraction failed: {e}")
+            # audit: failure path
+            try:
+                from src.coordination import audit_log as _audit
+                if _audit.is_enabled():
+                    _audit.event(
+                        'fact_recall_output',
+                        query=query,
+                        capability='fact_recall',
+                        error=str(e)[:200],
+                        fallback='reasoning_validator',
+                    )
+            except Exception:  # noqa: BLE001
+                pass
             # Fallback to original method
             reasoning_agent = self.agents.get('reasoning_validator')
             if reasoning_agent:
