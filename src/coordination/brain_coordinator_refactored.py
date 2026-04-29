@@ -2619,7 +2619,21 @@ Output ONLY the extracted answer:"""
             use_reasoning_chain = False
             reasoning_chain_result = None
 
-            if self.memory_reasoning_chain and self._should_use_reasoning_chain(user_input, query_features):
+            # B-lite route cache: if a cached RouteDecision says this query
+            # was previously routed to reasoning_chain, force the chain to
+            # run so the cached path is reachable on dispatch. Cache is
+            # off unless BMAM_ROUTE_CACHE=1.
+            from . import route_cache as _route_cache
+            _cached_route = _route_cache.lookup_route(user_input, context)
+            _force_reasoning = bool(
+                _cached_route
+                and _cached_route.get('use_reasoning_chain')
+            )
+
+            if self.memory_reasoning_chain and (
+                _force_reasoning
+                or self._should_use_reasoning_chain(user_input, query_features)
+            ):
                 _trace_agent('memory_reasoning_chain')
                 try:
                     logger.info(f"🧠 Using Memory Reasoning Chain for: '{user_input[:50]}...'")
@@ -2875,38 +2889,94 @@ Output ONLY the extracted answer:"""
                     pass
                 has_reasoning = bool(use_reasoning_chain and reasoning_chain_result)
 
-                answer_path = self._determine_answer_path(
-                    learnable_routing_result=learnable_routing_result,
-                    query_lower=query_lower,
-                    has_temporal_result=has_temporal,
-                    has_reasoning_chain=has_reasoning
-                )
+                # learnable router meta — extracted once for cache + audit
+                _learnable_top_agent = None
+                _learnable_top_score = None
+                _learnable_selected = None
+                if learnable_routing_result:
+                    _learnable_selected = learnable_routing_result.get('selected_agents') or []
+                    _learnable_scores = learnable_routing_result.get('scores') or {}
+                    if _learnable_selected:
+                        _learnable_top_agent = _learnable_selected[0]
+                        _learnable_top_score = _learnable_scores.get(_learnable_top_agent)
+
+                # B-lite route cache: hit → use cached answer_path (still
+                # requires the corresponding result object to exist in this
+                # run; if it doesn't, we fall through to natural dispatch
+                # rather than force a broken branch). Miss → compute as
+                # usual then persist.
+                _route_cache_hit = False
+                _cached_path = None
+                if _cached_route is not None:
+                    _cached_path = _cached_route.get('answer_path')
+                    if _cached_path:
+                        # Honour the cached path, but only if the dispatcher
+                        # can actually serve it this run.
+                        path_serviceable = (
+                            (_cached_path == 'temporal' and has_temporal) or
+                            (_cached_path == 'reasoning_chain' and has_reasoning) or
+                            (_cached_path in ('orchestrator', 'conversation'))
+                        )
+                        if path_serviceable:
+                            answer_path = _cached_path
+                            _route_cache_hit = True
+                            logger.info(
+                                f"🔁 route cache HIT → {answer_path} "
+                                f"(key match for {user_input[:50]!r})"
+                            )
+
+                if not _route_cache_hit:
+                    answer_path = self._determine_answer_path(
+                        learnable_routing_result=learnable_routing_result,
+                        query_lower=query_lower,
+                        has_temporal_result=has_temporal,
+                        has_reasoning_chain=has_reasoning
+                    )
+                    # Persist this miss so subsequent runs see the same path.
+                    try:
+                        _route_cache.save_route(
+                            user_input,
+                            {
+                                'answer_path': answer_path,
+                                'has_temporal_result': bool(has_temporal),
+                                'has_reasoning_chain': bool(has_reasoning),
+                                'use_reasoning_chain': bool(use_reasoning_chain),
+                                'learnable_selected_agents': _learnable_selected,
+                                'learnable_top_agent': _learnable_top_agent,
+                                'learnable_top_score': (
+                                    float(_learnable_top_score)
+                                    if _learnable_top_score is not None else None
+                                ),
+                                # capabilities filled by orchestrator path; left
+                                # empty here so the cache miss saves a base
+                                # decision and the orchestrator doesn't need
+                                # to know about the cache existence.
+                            },
+                            context,
+                        )
+                    except Exception:  # noqa: BLE001
+                        pass
+
                 # audit: which path the request will take, with the inputs
                 # the router used. Lets us see the path distribution for the
                 # 21/33 questions that don't reach the orchestrator.
                 try:
                     from . import audit_log as _audit
                     if _audit.is_enabled():
-                        learnable_top_agent = None
-                        learnable_top_score = None
-                        if learnable_routing_result:
-                            sel = learnable_routing_result.get('selected_agents') or []
-                            scores = learnable_routing_result.get('scores') or {}
-                            if sel:
-                                learnable_top_agent = sel[0]
-                                learnable_top_score = scores.get(sel[0])
                         _audit.event(
                             'answer_path_decision',
                             answer_path=answer_path,
                             had_temporal_result=bool(has_temporal),
                             had_reasoning_chain=bool(has_reasoning),
                             used_reasoning_chain=bool(use_reasoning_chain),
-                            learnable_top_agent=learnable_top_agent,
+                            learnable_top_agent=_learnable_top_agent,
                             learnable_top_score=(
-                                round(float(learnable_top_score), 4)
-                                if learnable_top_score is not None else None
+                                round(float(_learnable_top_score), 4)
+                                if _learnable_top_score is not None else None
                             ),
                             memory_count=len(memories) if memories else 0,
+                            route_cache_hit=_route_cache_hit,
+                            cached_path=_cached_path,
                         )
                 except Exception:  # noqa: BLE001
                     pass
