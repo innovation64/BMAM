@@ -108,26 +108,43 @@ def _looks_adversarial(
 
 # ----- patterns: fact-like reasoning shape -----
 
+# Tightened tier-3: only patterns that carry low false-premise risk.
+# The bare predicate shapes `what did/does/has X V` and `how did X V` are
+# DELIBERATELY ABSENT — they catch real factual questions but also
+# false-premise adversarial ones, and a query-only classifier cannot
+# distinguish the two. Those questions fall through to orchestrator
+# where C1's evidence-gated selector handles the unknown trade-off.
 _REASONING_PATTERNS = (
-    # what did/does/has <subject> <verb> ... — generic predicate shape
-    (re.compile(r'^\s*what\s+(?:did|does|has)\s+\S+\s+\S+', re.IGNORECASE),
-     'what_did_predicate'),
     # what motivated / caused / prompted / led / drove
+    # Narrow: causal/motivational questions are intrinsically reasoning,
+    # rarely false-premise as a syntactic class.
     (re.compile(r'^\s*what\s+(?:motivated|caused|prompted|led|drove|inspired)\b',
                 re.IGNORECASE), 'cause_motivation'),
     # why-causal questions
     (re.compile(r'^\s*why\s+\S', re.IGNORECASE), 'why_causal'),
-    # what does/did X think/feel/realize/believe/wonder/notice/learn
+    # what does/did X (mental-state verb)
+    # Attitude/belief questions ask about a subject's stance — even on
+    # false-premise topic the answer "she had no opinion / was unaware"
+    # is reasoning-shaped, not a hallucinated fact.
+    # Verbs are intentionally restricted to mental-state ones; physical
+    # observation verbs (see/notice/find/consider) are excluded because
+    # they let factual "what did X see at Y" questions leak into RC and
+    # become hallucinations on false-premise events.
     (re.compile(
         r'^\s*what\s+(?:does|did)\s+\S+\s+'
-        r'(?:think|feel|realize|believe|wonder|notice|learn|find|consider|view|see)\b',
+        r'(?:think|feel|realize|believe|wonder|learn|view|understand)\b',
         re.IGNORECASE), 'attitude_belief'),
     # what is/are the relationship between …
     (re.compile(r'^\s*what\s+(?:is|are)\s+the\s+relationship\b', re.IGNORECASE),
      'relationship'),
-    # how did/does X (causal-process)
-    (re.compile(r'^\s*how\s+(?:did|does|has)\s+\S+\s+\S+', re.IGNORECASE),
-     'how_process'),
+    # property/attribute questions: "what X (is|are) Y to Z" — generic
+    # shape for asking which items hold an attribute toward a subject
+    # (e.g. "what topics are interesting to her", "what symbols are
+    # important to him"). Multi-hop by nature; the "to/of/for" connector
+    # constrains it tightly enough to avoid factual false-premise leak.
+    (re.compile(
+        r'^\s*what\s+\S+\s+(?:are|is)\s+\S+\s+(?:to|of|for)\s+\S+',
+        re.IGNORECASE), 'property_attribute'),
 )
 
 
